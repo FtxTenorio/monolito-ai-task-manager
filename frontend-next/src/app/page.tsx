@@ -8,7 +8,8 @@ import {
   Paper, 
   Container,
   CircularProgress,
-  Fade
+  Fade,
+  TextField
 } from '@mui/material';
 import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
@@ -23,6 +24,7 @@ const ChatContainer = styled(Box)(({ theme }) => ({
   overflowY: 'auto',
   padding: theme.spacing(2),
   marginBottom: theme.spacing(2),
+  scrollBehavior: 'smooth',
 }));
 
 const MessageBubble = styled(Paper)<{ isUser: boolean }>(({ theme, isUser }) => ({
@@ -58,6 +60,16 @@ const MicButton = styled(IconButton)(({ theme }) => ({
   },
 }));
 
+const LiveTextContainer = styled(Paper)(({ theme }) => ({
+  padding: theme.spacing(2),
+  marginBottom: theme.spacing(2),
+  backgroundColor: theme.palette.background.paper,
+  border: `1px dashed ${theme.palette.primary.main}`,
+  minHeight: '60px',
+  display: 'flex',
+  alignItems: 'center',
+}));
+
 // Interface para mensagens
 interface Message {
   text: string;
@@ -70,12 +82,21 @@ export default function Home() {
   const [status, setStatus] = useState('Clique no microfone para começar');
   const [isConnected, setIsConnected] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [liveText, setLiveText] = useState('');
   
   const socketRef = useRef<WebSocket | null>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   
   const SILENCE_THRESHOLD = 1500; // 1.5 segundos de silêncio
+
+  // Efeito para rolar para baixo quando novas mensagens chegarem
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [messages]);
 
   // Inicializar WebSocket
   useEffect(() => {
@@ -138,6 +159,9 @@ export default function Home() {
             transcript += event.results[i][0].transcript;
           }
           
+          // Atualizar o texto em tempo real
+          setLiveText(transcript);
+          
           // Resetar o timer de silêncio
           if (silenceTimerRef.current) {
             clearTimeout(silenceTimerRef.current);
@@ -148,6 +172,9 @@ export default function Home() {
             if (transcript.trim()) {
               // Adicionar a mensagem do usuário ao chat
               setMessages(prev => [...prev, { text: transcript, isUser: true }]);
+              
+              // Limpar o texto em tempo real
+              setLiveText('');
               
               // Enviar o texto para o servidor
               if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
@@ -193,6 +220,9 @@ export default function Home() {
         clearTimeout(silenceTimerRef.current);
         silenceTimerRef.current = null;
       }
+      
+      // Limpar o texto em tempo real
+      setLiveText('');
     } else {
       // Iniciar o reconhecimento
       recognitionRef.current?.start();
@@ -207,13 +237,21 @@ export default function Home() {
         Assistente de Voz
       </Typography>
       
-      <ChatContainer>
+      <ChatContainer ref={chatContainerRef}>
         {messages.map((message, index) => (
           <MessageBubble key={index} isUser={message.isUser} elevation={1}>
             <Typography>{message.text}</Typography>
           </MessageBubble>
         ))}
       </ChatContainer>
+      
+      {isListening && (
+        <LiveTextContainer elevation={0}>
+          <Typography variant="body1" color="text.secondary">
+            {liveText || 'Falando...'}
+          </Typography>
+        </LiveTextContainer>
+      )}
       
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
         <Typography 
