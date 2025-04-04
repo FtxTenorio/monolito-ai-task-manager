@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Voice to Text</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      text-align: center;
+    }
+    h1 {
+      color: #333;
+    }
+    #text {
+      min-height: 100px;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      margin: 20px 0;
+      background-color: #f9f9f9;
+      text-align: left;
+    }
+    #response {
+      min-height: 100px;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      margin: 20px 0;
+      background-color: #e6f7ff;
+      text-align: left;
+    }
+    #status {
+      margin-top: 10px;
+      font-style: italic;
+      color: #666;
+    }
+    .recording {
+      color: red;
+      animation: blink 1s infinite;
+    }
+    @keyframes blink {
+      0% { opacity: 1; }
+      50% { opacity: 0.5; }
+      100% { opacity: 1; }
+    }
+    .mic-button {
+      background-color: #4CAF50;
+      border: none;
+      color: white;
+      padding: 15px 25px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 16px;
+      margin: 20px 10px;
+      cursor: pointer;
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      transition: all 0.3s;
+    }
+    .mic-button:hover {
+      background-color: #45a049;
+      transform: scale(1.05);
+    }
+    .mic-button.active {
+      background-color: #f44336;
+    }
+    .mic-button.active:hover {
+      background-color: #d32f2f;
+    }
+    .mic-icon {
+      font-size: 24px;
+    }
+    .chat-container {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .user-message, .agent-message {
+      padding: 10px 15px;
+      border-radius: 10px;
+      max-width: 80%;
+      text-align: left;
+    }
+    .user-message {
+      background-color: #e6f7ff;
+      align-self: flex-end;
+    }
+    .agent-message {
+      background-color: #f0f0f0;
+      align-self: flex-start;
+    }
+  </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+</head>
+<body>
+  <h1>Assistente de Voz</h1>
+  
+  <div class="chat-container" id="chatContainer">
+    <!-- As mensagens serão adicionadas aqui -->
+  </div>
+  
+  <div id="status">Aguardando conexão...</div>
+  
+  <button id="micButton" class="mic-button">
+    <i class="fas fa-microphone mic-icon"></i>
+  </button>
+
+  <script>
+    const chatContainer = document.getElementById('chatContainer');
+    const status = document.getElementById('status');
+    const micButton = document.getElementById('micButton');
+    const socket = new WebSocket('ws://localhost:8000/ws');
+    
+    let isListening = false;
+    let currentTranscript = '';
+    let silenceTimer = null;
+    const SILENCE_THRESHOLD = 1500; // 1.5 segundos de silêncio para considerar que parou de falar
+
+    // Função para adicionar uma mensagem ao chat
+    function addMessage(text, isUser) {
+      const messageDiv = document.createElement('div');
+      messageDiv.className = isUser ? 'user-message' : 'agent-message';
+      messageDiv.textContent = text;
+      chatContainer.appendChild(messageDiv);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    socket.onopen = () => {
+      status.textContent = 'Conectado ao servidor. Clique no microfone para começar.';
+    };
+
+    socket.onclose = () => {
+      status.textContent = 'Desconectado do servidor. Tentando reconectar...';
+      status.classList.remove('recording');
+      micButton.classList.remove('active');
+      isListening = false;
+    };
+
+    socket.onerror = (error) => {
+      status.textContent = 'Erro na conexão com o servidor.';
+      console.error('WebSocket error:', error);
+    };
+
+    socket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.response) {
+          addMessage(data.response, false);
+          status.textContent = 'Resposta recebida. Clique no microfone para falar novamente.';
+        } else if (data.error) {
+          status.textContent = `Erro: ${data.error}`;
+        }
+      } catch (e) {
+        console.error('Erro ao processar mensagem:', e);
+      }
+    };
+
+    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.lang = 'pt-BR';
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    recognition.onresult = (event) => {
+      let transcript = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      
+      // Atualizar o texto na tela
+      currentTranscript = transcript;
+
+      // Resetar o timer de silêncio
+      if (silenceTimer) {
+        clearTimeout(silenceTimer);
+      }
+
+      // Configurar um novo timer para detectar silêncio
+      silenceTimer = setTimeout(() => {
+        if (currentTranscript.trim()) {
+          // Adicionar a mensagem do usuário ao chat
+          addMessage(currentTranscript, true);
+          
+          // Enviar o texto apenas quando detectar silêncio
+          socket.send(JSON.stringify({ text: currentTranscript }));
+          status.textContent = 'Processando sua mensagem...';
+          status.classList.remove('recording');
+        }
+      }, SILENCE_THRESHOLD);
+    };
+
+    recognition.onerror = (event) => {
+      console.error('Erro no reconhecimento:', event.error);
+      status.textContent = 'Erro no reconhecimento de voz: ' + event.error;
+    };
+    
+    recognition.onend = () => {
+      if (isListening) {
+        status.textContent = 'Reiniciando reconhecimento...';
+        recognition.start(); // Recomeça automaticamente apenas se estiver ativo
+      }
+    };
+
+    micButton.addEventListener('click', () => {
+      if (isListening) {
+        // Parar o reconhecimento
+        recognition.stop();
+        isListening = false;
+        micButton.classList.remove('active');
+        status.textContent = 'Reconhecimento de voz parado. Clique no microfone para começar.';
+        
+        // Limpar o timer de silêncio
+        if (silenceTimer) {
+          clearTimeout(silenceTimer);
+          silenceTimer = null;
+        }
+      } else {
+        // Iniciar o reconhecimento
+        recognition.start();
+        isListening = true;
+        micButton.classList.add('active');
+        status.textContent = 'Falando...';
+        status.classList.add('recording');
+      }
+    });
+
+    window.onload = () => {
+      // Não iniciar automaticamente, aguardar o clique no botão
+      status.textContent = 'Clique no microfone para começar.';
+    };
+  </script>
+</body>
+</html>
