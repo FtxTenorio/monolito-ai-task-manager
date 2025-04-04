@@ -9,10 +9,13 @@ import {
   Container,
   CircularProgress,
   Fade,
-  TextField
+  TextField,
+  Tooltip
 } from '@mui/material';
 import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
+import WifiIcon from '@mui/icons-material/Wifi';
+import WifiOffIcon from '@mui/icons-material/WifiOff';
 import { styled } from '@mui/material/styles';
 
 // Componentes estilizados
@@ -70,6 +73,13 @@ const LiveTextContainer = styled(Paper)(({ theme }) => ({
   alignItems: 'center',
 }));
 
+const ConnectionIndicator = styled(Box)(({ theme }) => ({
+  position: 'fixed',
+  top: theme.spacing(2),
+  right: theme.spacing(2),
+  zIndex: 1000,
+}));
+
 // Interface para mensagens
 interface Message {
   text: string;
@@ -83,13 +93,18 @@ export default function Home() {
   const [isConnected, setIsConnected] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [liveText, setLiveText] = useState('');
+  const [reconnectAttempts, setReconnectAttempts] = useState(0);
+  const [isReconnecting, setIsReconnecting] = useState(false);
   
   const socketRef = useRef<WebSocket | null>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   const SILENCE_THRESHOLD = 1500; // 1.5 segundos de silêncio
+  const MAX_RECONNECT_ATTEMPTS = 3;
+  const RECONNECT_INTERVAL = 3000; // 3 segundos
 
   // Efeito para rolar para baixo quando novas mensagens chegarem
   useEffect(() => {
@@ -98,18 +113,31 @@ export default function Home() {
     }
   }, [messages]);
 
-  // Inicializar WebSocket
-  useEffect(() => {
+  const connectWebSocket = () => {
+    if (socketRef.current) {
+      socketRef.current.close();
+    }
+
     socketRef.current = new WebSocket('ws://localhost:8000/ws');
     
     socketRef.current.onopen = () => {
       setIsConnected(true);
       setStatus('Conectado ao servidor. Clique no microfone para começar.');
+      setReconnectAttempts(0);
+      setIsReconnecting(false);
     };
     
     socketRef.current.onclose = () => {
       setIsConnected(false);
-      setStatus('Desconectado do servidor. Tentando reconectar...');
+      if (!isReconnecting) {
+        setIsReconnecting(true);
+        setReconnectAttempts(1);
+        setStatus(`Desconectado do servidor. Tentativa de reconexão 1/${MAX_RECONNECT_ATTEMPTS}...`);
+        
+        reconnectTimerRef.current = setTimeout(() => {
+          attemptReconnect();
+        }, RECONNECT_INTERVAL);
+      }
     };
     
     socketRef.current.onerror = (error) => {
@@ -133,10 +161,43 @@ export default function Home() {
         setIsProcessing(false);
       }
     };
+  };
+
+  const attemptReconnect = () => {
+    const nextAttempt = reconnectAttempts + 1;
+    
+    if (nextAttempt <= MAX_RECONNECT_ATTEMPTS) {
+      setStatus(`Tentativa de reconexão ${nextAttempt}/${MAX_RECONNECT_ATTEMPTS}...`);
+      setReconnectAttempts(nextAttempt);
+      connectWebSocket();
+      
+      reconnectTimerRef.current = setTimeout(() => {
+        if (!isConnected) {
+          attemptReconnect();
+        }
+      }, RECONNECT_INTERVAL);
+    } else {
+      setIsReconnecting(false);
+      setStatus('Não foi possível conectar ao servidor. Clique em "Tentar Novamente" para reconectar.');
+    }
+  };
+
+  const handleRetryConnection = () => {
+    setReconnectAttempts(0);
+    setIsReconnecting(true);
+    connectWebSocket();
+  };
+
+  // Inicializar WebSocket
+  useEffect(() => {
+    connectWebSocket();
     
     return () => {
       if (socketRef.current) {
         socketRef.current.close();
+      }
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
       }
     };
   }, []);
@@ -210,8 +271,8 @@ export default function Home() {
   // Função para alternar o reconhecimento de voz
   const toggleListening = () => {
     if (isListening) {
-      // Parar o reconhecimento
       recognitionRef.current?.stop();
+      
       setIsListening(false);
       setStatus('Reconhecimento de voz parado. Clique no microfone para começar.');
       
@@ -224,7 +285,6 @@ export default function Home() {
       // Limpar o texto em tempo real
       setLiveText('');
     } else {
-      // Iniciar o reconhecimento
       recognitionRef.current?.start();
       setIsListening(true);
       setStatus('Falando...');
@@ -233,6 +293,29 @@ export default function Home() {
 
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
+      <ConnectionIndicator>
+        <Tooltip title={isConnected ? "Conectado ao servidor" : "Desconectado do servidor"}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <IconButton color={isConnected ? "success" : "error"}>
+              {isConnected ? <WifiIcon /> : <WifiOffIcon />}
+            </IconButton>
+            {!isConnected && !isReconnecting && (
+              <IconButton 
+                onClick={handleRetryConnection}
+                color="primary"
+                size="small"
+                sx={{ 
+                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                  '&:hover': { backgroundColor: 'rgba(255, 255, 255, 1)' }
+                }}
+              >
+                <Typography variant="caption">Tentar Novamente</Typography>
+              </IconButton>
+            )}
+          </Box>
+        </Tooltip>
+      </ConnectionIndicator>
+
       <Typography variant="h1" component="h1" align="center" gutterBottom>
         Assistente de Voz
       </Typography>
