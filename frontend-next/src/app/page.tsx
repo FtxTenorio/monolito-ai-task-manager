@@ -27,6 +27,8 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import TaskList from '@/components/TaskList';
+import Chat from '@/components/Chat';
 
 // Componentes estilizados
 const ChatContainer = styled(Box)(({ theme }) => ({
@@ -545,80 +547,25 @@ export default function Home() {
         Assistente de Voz
       </Typography>
       
-      <ChatContainer ref={chatContainerRef}>
-        {messages.map((message, index) => (
-          <MessageBubble key={index} isUser={message.isUser} elevation={1}>
-            {message.isUser ? (
-              <Typography>{message.text}</Typography>
-            ) : (
-              <MessageContent>
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    code({ className, children }) {
-                      const match = /language-(\w+)/.exec(className || '');
-                      const language = match ? match[1] : '';
-                      return match ? (
-                        <CodeBlock>
-                          <div className="language-label">{language}</div>
-                          <SyntaxHighlighter
-                            style={vscDarkPlus as any}
-                            language={language}
-                            PreTag="div"
-                          >
-                            {String(children).replace(/\n$/, '')}
-                          </SyntaxHighlighter>
-                        </CodeBlock>
-                      ) : (
-                        <code className={className}>
-                          {children}
-                        </code>
-                      );
-                    },
-                  }}
-                >
-                  {message.text}
-                </ReactMarkdown>
-              </MessageContent>
-            )}
-          </MessageBubble>
-        ))}
-        {isTyping && (
-          <MessageBubble isUser={false} elevation={1}>
-            <Typography>.{typingDots}</Typography>
-          </MessageBubble>
-        )}
-      </ChatContainer>
-      
-      {isListening && (
-        <LiveTextContainer elevation={0}>
-          <Typography variant="body1" color="text.secondary">
-            {liveText || 'Falando...'}
-          </Typography>
-        </LiveTextContainer>
-      )}
-      
-      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-        <Typography 
-          variant="body2" 
-          color={isConnected ? 'text.secondary' : 'error.main'}
-          sx={{ fontStyle: 'italic' }}
-        >
-          {status}
-        </Typography>
-        
-        <Fade in={isProcessing}>
-          <CircularProgress size={24} sx={{ position: 'absolute', top: '50%', left: '50%', marginLeft: -12, marginTop: -12 }} />
-        </Fade>
-        
-        <MicButton 
-          onClick={toggleListening} 
-          className={isListening ? 'recording' : ''}
-          disabled={!isConnected}
-        >
-          {isListening ? <MicOffIcon fontSize="large" /> : <MicIcon fontSize="large" />}
-        </MicButton>
-      </Box>
+      <div className="flex h-screen">
+        {/* Lista de Tarefas */}
+        <div className="w-1/3 border-r border-gray-200 p-4 overflow-y-auto bg-gray-50">
+          <TaskList />
+        </div>
+
+        {/* Chat */}
+        <Chat
+          messages={messages}
+          isConnected={isConnected}
+          isProcessing={isProcessing}
+          isListening={isListening}
+          status={status}
+          onToggleListening={toggleListening}
+          isTyping={isTyping}
+          typingDots={typingDots}
+          liveText={liveText}
+        />
+      </div>
     </Container>
   );
 }
