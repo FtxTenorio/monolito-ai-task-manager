@@ -1,139 +1,18 @@
-import React from 'react';
-import { Box, Typography, Paper, IconButton, CircularProgress, Theme } from '@mui/material';
+import React, { useRef, useState } from 'react';
+import { Box, Typography, CircularProgress, Fade } from '@mui/material';
 import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
-import { styled } from '@mui/material/styles';
+import styled from '@emotion/styled';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
-// Componentes estilizados
-const ChatContainer = styled(Box)(({ theme }: { theme: Theme }) => ({
-  display: 'flex',
-  flexDirection: 'column',
-  gap: theme.spacing(2),
-  maxHeight: '60vh',
-  overflowY: 'auto',
-  padding: theme.spacing(2),
-  marginBottom: theme.spacing(2),
-  scrollBehavior: 'smooth',
-}));
-
-const MessageBubble = styled(Paper)<{ isUser: boolean }>(({ theme, isUser }: { theme: Theme; isUser: boolean }) => ({
-  padding: theme.spacing(2),
-  maxWidth: '80%',
-  alignSelf: isUser ? 'flex-end' : 'flex-start',
-  backgroundColor: isUser ? theme.palette.primary.light : theme.palette.grey[100],
-  color: isUser ? theme.palette.primary.contrastText : theme.palette.text.primary,
-}));
-
-const ThinkingContainer = styled(Paper)(({ theme }: { theme: Theme }) => ({
-  padding: theme.spacing(2),
-  marginTop: theme.spacing(2),
-  backgroundColor: theme.palette.grey[50],
-  border: `1px dashed ${theme.palette.primary.main}`,
-}));
-
-const ThinkingStep = styled(Box)(({ theme }: { theme: Theme }) => ({
-  display: 'flex',
-  alignItems: 'flex-start',
-  gap: theme.spacing(1),
-  marginBottom: theme.spacing(1),
-  '&:last-child': {
-    marginBottom: 0,
-  },
-}));
-
-const ThinkingIcon = styled(Box)(({ theme }: { theme: Theme }) => ({
-  width: 24,
-  height: 24,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  color: theme.palette.primary.main,
-}));
-
-const MessageContent = styled(Box)(({ theme }: { theme: Theme }) => ({
-  '& p': {
-    margin: theme.spacing(1, 0),
-  },
-  '& h1, & h2, & h3, & h4, & h5, & h6': {
-    margin: theme.spacing(2, 0, 1),
-    color: theme.palette.text.primary,
-    fontWeight: 500,
-    lineHeight: 1.2,
-  },
-  '& h1': {
-    fontSize: '1.5rem',
-  },
-  '& h2': {
-    fontSize: '1.25rem',
-  },
-  '& h3': {
-    fontSize: '1.1rem',
-  },
-  '& pre': {
-    margin: 0,
-    padding: 0,
-    backgroundColor: 'transparent',
-  },
-  '& code': {
-    backgroundColor: 'transparent',
-    padding: theme.spacing(0.5),
-    borderRadius: theme.shape.borderRadius,
-    fontFamily: 'monospace',
-    fontSize: '0.9em',
-    color: theme.palette.primary.main,
-  },
-  '& ul, & ol': {
-    margin: theme.spacing(1, 0),
-    paddingLeft: theme.spacing(3),
-    '& li': {
-      margin: theme.spacing(0.5, 0),
-    },
-  },
-  '& blockquote': {
-    borderLeft: `4px solid ${theme.palette.primary.main}`,
-    margin: theme.spacing(1, 0),
-    paddingLeft: theme.spacing(1),
-    color: theme.palette.text.secondary,
-  },
-  '& table': {
-    borderCollapse: 'collapse',
-    width: '100%',
-    margin: theme.spacing(1, 0),
-  },
-  '& th, & td': {
-    border: `1px solid ${theme.palette.divider}`,
-    padding: theme.spacing(0.5),
-    textAlign: 'left',
-  },
-  '& th': {
-    backgroundColor: theme.palette.grey[100],
-  },
-  '& a': {
-    color: theme.palette.primary.main,
-    textDecoration: 'none',
-    '&:hover': {
-      textDecoration: 'underline',
-    },
-  },
-  '& img': {
-    maxWidth: '100%',
-    height: 'auto',
-    borderRadius: theme.shape.borderRadius,
-    margin: theme.spacing(1, 0),
-  },
-}));
-
-// Interface para mensagens
 interface Message {
   text: string;
   isUser: boolean;
 }
 
-// Interface para atualizações de pensamento
 interface ThinkingUpdate {
   type: string;
   update_type: string;
@@ -147,11 +26,120 @@ interface ChatProps {
   isListening: boolean;
   status: string;
   onToggleListening: () => void;
-  isTyping: boolean;
-  typingDots: string;
-  liveText: string;
+  isTyping?: boolean;
+  typingDots?: string;
+  liveText?: string;
   thinkingUpdates: ThinkingUpdate[];
 }
+
+const ChatContainer = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+`;
+
+const MicButton = styled.button<{ isRecording?: boolean }>`
+  background: ${props => props.isRecording ? '#ff4444' : '#4CAF50'};
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+
+  &:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+  }
+
+  &:hover:not(:disabled) {
+    transform: scale(1.1);
+  }
+`;
+
+const MessageBubble = styled.div<{ isUser: boolean }>`
+  max-width: 70%;
+  margin: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  background-color: ${props => props.isUser ? '#e3f2fd' : '#f5f5f5'};
+  align-self: ${props => props.isUser ? 'flex-end' : 'flex-start'};
+`;
+
+const MessageContent = styled.div`
+  pre {
+    margin: 0;
+    padding: 1rem;
+    background: #1e1e1e;
+    border-radius: 4px;
+    overflow-x: auto;
+  }
+
+  code {
+    font-family: 'Fira Code', monospace;
+  }
+`;
+
+const CodeBlock = styled.div`
+  position: relative;
+  margin: 1rem 0;
+
+  .language-label {
+    position: absolute;
+    top: 0;
+    right: 0;
+    padding: 0.25rem 0.5rem;
+    background: #333;
+    color: #fff;
+    font-size: 0.75rem;
+    border-radius: 0 4px 0 4px;
+  }
+`;
+
+const LiveTextContainer = styled(Box)`
+  position: fixed;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 1rem;
+  border-radius: 8px;
+  max-width: 80%;
+  text-align: center;
+`;
+
+const ThinkingContainer = styled.div`
+  margin-top: 1rem;
+  padding: 1rem;
+  background-color: #f9f9f9;
+  border: 1px dashed #2196f3;
+  border-radius: 8px;
+`;
+
+const ThinkingStep = styled.div`
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
+`;
+
+const ThinkingIcon = styled.div`
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 0.5rem;
+  color: #2196f3;
+`;
 
 const Chat: React.FC<ChatProps> = ({
   messages,
@@ -165,95 +153,108 @@ const Chat: React.FC<ChatProps> = ({
   liveText,
   thinkingUpdates,
 }) => {
-  const chatContainerRef = React.useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   return (
-    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+    <Box className="flex-1 flex flex-col bg-white">
       <ChatContainer ref={chatContainerRef}>
         {messages.map((message, index) => (
           <MessageBubble key={index} isUser={message.isUser}>
-            <MessageContent>
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                  code({ className, children, ...props }) {
-                    const match = /language-(\w+)/.exec(className || '');
-                    return match ? (
-                      <SyntaxHighlighter
-                        style={vscDarkPlus as any}
-                        language={match[1]}
-                        PreTag="div"
-                        {...props}
-                      >
-                        {String(children).replace(/\n$/, '')}
-                      </SyntaxHighlighter>
-                    ) : (
-                      <code className={className} {...props}>
-                        {children}
-                      </code>
-                    );
-                  },
-                }}
-              >
-                {message.text}
-              </ReactMarkdown>
-            </MessageContent>
+            {message.isUser ? (
+              <Typography>{message.text}</Typography>
+            ) : (
+              <MessageContent>
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    code({ className, children }) {
+                      const match = /language-(\w+)/.exec(className || '');
+                      const language = match ? match[1] : '';
+                      return match ? (
+                        <CodeBlock>
+                          <div className="language-label">{language}</div>
+                          <SyntaxHighlighter
+                            style={vscDarkPlus as any}
+                            language={language}
+                            PreTag="div"
+                          >
+                            {String(children).replace(/\n$/, '')}
+                          </SyntaxHighlighter>
+                        </CodeBlock>
+                      ) : (
+                        <code className={className}>
+                          {children}
+                        </code>
+                      );
+                    },
+                  }}
+                >
+                  {message.text}
+                </ReactMarkdown>
+              </MessageContent>
+            )}
           </MessageBubble>
         ))}
-
-        {/* Container de pensamento */}
-        {thinkingUpdates.length > 0 && (
-          <ThinkingContainer>
-            <Typography variant="subtitle2" color="primary" gutterBottom>
-              Processo de Pensamento
-            </Typography>
-            {thinkingUpdates.map((update, index) => (
-              <ThinkingStep key={index}>
-                <ThinkingIcon>
-                  {update.update_type === 'start' && '🔄'}
-                  {update.update_type === 'tool_start' && '🔧'}
-                  {update.update_type === 'tool_end' && '✅'}
-                  {update.update_type === 'chain_start' && '⛓️'}
-                  {update.update_type === 'chain_end' && '✨'}
-                  {update.update_type === 'complete' && '🎉'}
-                  {update.update_type === 'error' && '❌'}
-                </ThinkingIcon>
-                <Typography variant="body2">{update.content}</Typography>
-              </ThinkingStep>
-            ))}
-          </ThinkingContainer>
-        )}
-
-        {/* Indicador de digitação */}
         {isTyping && (
           <MessageBubble isUser={false}>
-            <Typography>
-              Digitando{typingDots}
-            </Typography>
-          </MessageBubble>
-        )}
-
-        {/* Texto em tempo real */}
-        {liveText && (
-          <MessageBubble isUser={true}>
-            <Typography>{liveText}</Typography>
+            <Typography>.{typingDots}</Typography>
           </MessageBubble>
         )}
       </ChatContainer>
 
-      {/* Status e controles */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2 }}>
-        <Typography variant="body2" color="text.secondary">
-          {status}
-        </Typography>
-        <IconButton
-          onClick={onToggleListening}
-          color={isListening ? 'secondary' : 'primary'}
-          disabled={!isConnected}
-        >
-          {isListening ? <MicOffIcon /> : <MicIcon />}
-        </IconButton>
-        {isProcessing && <CircularProgress size={24} />}
+      {isListening && (
+        <LiveTextContainer>
+          <Typography variant="body1" color="text.secondary">
+            {liveText || 'Falando...'}
+          </Typography>
+        </LiveTextContainer>
+      )}
+
+      {/* Container de pensamento */}
+      {thinkingUpdates.length > 0 && (
+        <ThinkingContainer>
+          <Typography variant="subtitle2" color="primary" gutterBottom>
+            Processo de Pensamento
+          </Typography>
+          {thinkingUpdates.map((update, index) => (
+            <ThinkingStep key={index}>
+              <ThinkingIcon>
+                {update.update_type === 'start' && '🔄'}
+                {update.update_type === 'tool_start' && '🔧'}
+                {update.update_type === 'tool_end' && '✅'}
+                {update.update_type === 'chain_start' && '⛓️'}
+                {update.update_type === 'chain_end' && '✨'}
+                {update.update_type === 'complete' && '🎉'}
+                {update.update_type === 'error' && '❌'}
+              </ThinkingIcon>
+              <Typography variant="body2">{update.content}</Typography>
+            </ThinkingStep>
+          ))}
+        </ThinkingContainer>
+      )}
+
+      <Box className="p-4 border-t border-gray-200">
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+          <Typography 
+            variant="body2" 
+            color={isConnected ? 'text.secondary' : 'error.main'}
+            sx={{ fontStyle: 'italic' }}
+          >
+            {status}
+          </Typography>
+          
+          <Fade in={isProcessing}>
+            <CircularProgress size={24} sx={{ position: 'absolute', top: '50%', left: '50%', marginLeft: -12, marginTop: -12 }} />
+          </Fade>
+          
+          <MicButton
+            onClick={onToggleListening}
+            isRecording={isListening}
+            disabled={!isConnected}
+          >
+            {isListening ? <MicOffIcon fontSize="large" /> : <MicIcon fontSize="large" />}
+          </MicButton>
+        </Box>
       </Box>
     </Box>
   );
