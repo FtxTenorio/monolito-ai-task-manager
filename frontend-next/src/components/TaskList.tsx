@@ -54,7 +54,11 @@ const prioridades = ['Alta', 'Média', 'Baixa'];
 const categorias = ['Compasso', 'Geral', 'Continuar', 'Desenvolvimento', 'Backup'];
 const status = ['Pendente', 'Concluído'];
 
-const TaskList = forwardRef<{ fetchTasks: () => void }>((props, ref) => {
+export interface TaskListRef {
+  refresh: () => void;
+}
+
+const TaskList = forwardRef<TaskListRef>((props, ref) => {
   // Estados
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -219,7 +223,9 @@ const TaskList = forwardRef<{ fetchTasks: () => void }>((props, ref) => {
 
   // Expor a função fetchTasks através da ref
   useImperativeHandle(ref, () => ({
-    fetchTasks
+    refresh: () => {
+      fetchTasks();
+    }
   }));
 
   return (

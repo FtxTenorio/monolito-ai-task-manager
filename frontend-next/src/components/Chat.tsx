@@ -1,11 +1,14 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Box, Typography, CircularProgress, Fade, IconButton, Tooltip, Menu, MenuItem, Divider } from '@mui/material';
+import { Box, Typography, CircularProgress, Fade, IconButton, Tooltip, Menu, MenuItem, Divider, Fab, Dialog, DialogTitle, DialogContent, IconButton as MuiIconButton } from '@mui/material';
 import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import CheckIcon from '@mui/icons-material/Check';
+import ListAltIcon from '@mui/icons-material/ListAlt';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
 import styled from '@emotion/styled';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -13,6 +16,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { Message } from '@/types';
 import RoutineCalendar, { Routine, RoutineCalendarRef } from './RoutineCalendar';
+import TaskList, { TaskListRef } from './TaskList';
 
 interface ChatProps {
   messages: Message[];
@@ -140,11 +144,13 @@ const Chat: React.FC<ChatProps> = ({
 }) => {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const routineCalendarRef = useRef<RoutineCalendarRef>(null);
+  const taskListRef = useRef<TaskListRef>(null);
   const [localMessages, setLocalMessages] = useState<Message[]>(propMessages);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedMessageIndex, setSelectedMessageIndex] = useState<number | null>(null);
   const [showRoutineCalendar, setShowRoutineCalendar] = useState(true);
+  const [isTaskListExpanded, setIsTaskListExpanded] = useState(false);
   
   // Efeito para sincronizar as mensagens locais com as props
   useEffect(() => {
@@ -196,6 +202,18 @@ const Chat: React.FC<ChatProps> = ({
   const handleRoutineSelect = (routine: Routine) => {
     // Aqui você pode adicionar lógica para lidar com a seleção de uma rotina
     console.log('Selected routine:', routine);
+  };
+
+  const handleShowRoutineCalendar = () => {
+    setShowRoutineCalendar(true);
+    // Pequeno delay para garantir que o componente está montado
+    setTimeout(() => {
+      routineCalendarRef.current?.fetchRoutines();
+    }, 100);
+  };
+
+  const handleTaskListOpen = () => {
+    setIsTaskListExpanded(true);
   };
 
   // Renderizar mensagens
@@ -274,7 +292,7 @@ const Chat: React.FC<ChatProps> = ({
   };
 
   return (
-    <Box sx={{ position: 'relative', height: '100%', display: 'flex' }}>
+    <Box sx={{ position: 'relative', height: '100%', display: 'flex', flexDirection: 'column' }}>
       <ChatContainer ref={chatContainerRef}>
         {localMessages && localMessages.length > 0 ? (
           renderMessages()
@@ -334,6 +352,54 @@ const Chat: React.FC<ChatProps> = ({
           </MicButton>
         </Box>
       </Box>
+      
+      {/* Botões de atalho para tarefas e rotinas */}
+      <Box sx={{ position: 'fixed', bottom: 24, right: 24, display: 'flex', gap: 2 }}>
+        {!showRoutineCalendar && (
+          <Tooltip title="Ver rotinas">
+            <Fab 
+              color="primary" 
+              onClick={handleShowRoutineCalendar}
+              sx={{ bgcolor: 'primary.main' }}
+            >
+              <CalendarMonthIcon />
+            </Fab>
+          </Tooltip>
+        )}
+        <Tooltip title="Ver todas as tarefas">
+          <Fab 
+            color="primary" 
+            onClick={handleTaskListOpen}
+            sx={{ bgcolor: 'primary.main' }}
+          >
+            <ListAltIcon />
+          </Fab>
+        </Tooltip>
+      </Box>
+      
+      {/* Dialog para TaskList expandida */}
+      <Dialog
+        open={isTaskListExpanded}
+        onClose={() => setIsTaskListExpanded(false)}
+        maxWidth="lg"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h6">Minhas Tarefas</Typography>
+            <MuiIconButton 
+              onClick={() => setIsTaskListExpanded(false)}
+              color="primary"
+              size="small"
+            >
+              <FullscreenExitIcon />
+            </MuiIconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <TaskList ref={taskListRef} />
+        </DialogContent>
+      </Dialog>
       
       <Menu
         anchorEl={anchorEl}
