@@ -344,10 +344,11 @@ export default function Home() {
           setMessages(prev => [...prev, { 
             text: data.content, 
             isUser: false,
-            thinkingUpdates: thinkingUpdates,
+            thinkingUpdates: [...thinkingUpdates],
             processingStartTime: new Date(),
             processingEndTime: new Date()
           }]);
+          setThinkingUpdates([]);
           setIsTyping(false);
           setIsProcessing(false);
           setStatus('Resposta recebida. Clique no microfone para falar novamente.');
@@ -410,6 +411,7 @@ export default function Home() {
               setLiveText('');
               
               if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+                setThinkingUpdates([]);
                 socketRef.current.send(JSON.stringify({ 
                   text: transcript,
                   format: responseFormat

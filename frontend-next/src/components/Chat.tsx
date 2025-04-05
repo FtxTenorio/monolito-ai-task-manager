@@ -722,16 +722,23 @@ const Chat: React.FC<ChatProps> = ({
         
         // Atualizar a mensagem com as atualizações de processamento
         const updatedMessages = [...localMessages];
+        
+        // Verificar se a mensagem já tem thinkingUpdates
+        const existingUpdates = updatedMessages[actualIndex].thinkingUpdates || [];
+        
+        // Combinar as atualizações existentes com as novas
+        const combinedUpdates = [...existingUpdates, ...thinkingUpdates];
+        
         updatedMessages[actualIndex] = {
           ...updatedMessages[actualIndex],
-          thinkingUpdates: thinkingUpdates,
+          thinkingUpdates: combinedUpdates,
           processingStartTime: updatedMessages[actualIndex].processingStartTime || new Date(),
           processingEndTime: isProcessing ? undefined : new Date()
         };
         
         console.log("Atualizando mensagem com feedback:", {
           index: actualIndex,
-          thinkingUpdatesLength: thinkingUpdates.length,
+          thinkingUpdatesLength: combinedUpdates.length,
           message: updatedMessages[actualIndex]
         });
         
