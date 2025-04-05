@@ -211,12 +211,23 @@ def create_task(input_str: str) -> str:
         str: Mensagem de sucesso ou erro
     """
     try:
+        print(f"Recebido input: {input_str}")
+        
         # Dividir a string de entrada em partes
         parts = input_str.split("|")
+        print(f"Partes divididas: {parts}")
+        
         if len(parts) != 4:
             return "Erro: Formato inválido. Use 'descrição|prioridade|categoria|status'"
         
         descricao, prioridade, categoria, status = parts
+        
+        # Normalizar valores
+        prioridade = prioridade.strip()
+        categoria = categoria.strip()
+        status = status.strip()
+        
+        print(f"Valores normalizados: descrição={descricao}, prioridade={prioridade}, categoria={categoria}, status={status}")
         
         # Validar valores aceitos
         if prioridade not in ["Alta", "Média", "Baixa"]:
@@ -232,13 +243,18 @@ def create_task(input_str: str) -> str:
             "status": status
         }
         
+        print(f"Enviando dados para API: {task_data}")
+        
         response = requests.post('https://api.itenorio.com/lambda/tasks', json=task_data)
+        
+        print(f"Resposta da API: {response.status_code} - {response.text}")
         
         if response.status_code == 200:
             return "Tarefa criada com sucesso!"
         else:
             return f"Erro ao criar tarefa: {response.text}"
     except Exception as e:
+        print(f"Exceção ao criar tarefa: {str(e)}")
         return f"Erro ao criar tarefa: {str(e)}"
 
 def update_task(input_str: str) -> str:
