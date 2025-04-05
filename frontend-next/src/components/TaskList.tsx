@@ -82,12 +82,15 @@ const TaskList = forwardRef<{ fetchTasks: () => void }>((props, ref) => {
   const fetchTasks = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:8000/tasks');
-      setTasks(response.data);
+      const response = await axios.get('https://api.itenorio.com/lambda/tasks');
+      // Garantir que tasks seja sempre um array
+      const tasksData = response.data?.body?.Items || response.data || [];
+      setTasks(Array.isArray(tasksData) ? tasksData : []);
       setError(null);
     } catch (error) {
       console.error('Erro ao buscar tarefas:', error);
       setError('Não foi possível carregar as tarefas. Tente novamente mais tarde.');
+      setTasks([]); // Em caso de erro, garantir que tasks seja um array vazio
     } finally {
       setLoading(false);
     }
@@ -99,14 +102,14 @@ const TaskList = forwardRef<{ fetchTasks: () => void }>((props, ref) => {
   }, []);
 
   // Filtrar tarefas
-  const filteredTasks = tasks.filter(task => {
+  const filteredTasks = Array.isArray(tasks) ? tasks.filter(task => {
     const matchDescricao = task.Descrição.toLowerCase().includes(filtroDescricao.toLowerCase());
     const matchPrioridade = !filtroPrioridade || task.Prioridade === filtroPrioridade;
     const matchCategoria = !filtroCategoria || task.Categoria === filtroCategoria;
     const matchStatus = !filtroStatus || task.Status === filtroStatus;
     
     return matchDescricao && matchPrioridade && matchCategoria && matchStatus;
-  });
+  }) : [];
 
   // Manipuladores de eventos
   const handleOpenAddDialog = () => {
