@@ -479,41 +479,29 @@ export default function Home() {
 
   // Função para adicionar uma mensagem do usuário
   const addUserMessage = (text: string) => {
-    setMessages(prev => [...prev, { text, isUser: true }]);
-    setLiveText('');
+    // Adicionar a mensagem do usuário
+    setMessages(prevMessages => [...prevMessages, { text, isUser: true }]);
     
-    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      // Não limpar as atualizações de processamento aqui, apenas quando a resposta for recebida
-      socketRef.current.send(JSON.stringify({ 
-        text: text,
-        format: responseFormat
-      }));
-      setStatus('Processando sua mensagem...');
-      setIsProcessing(true);
-      setIsTyping(true);
-    }
+    // Limpar as atualizações antes de enviar uma nova mensagem
+    setThinkingUpdates([]);
   };
 
   // Função para adicionar uma mensagem da IA
-  const addAIMessage = (text: string) => {
-    // Criar uma cópia das atualizações de processamento atuais
-    const currentUpdates = [...thinkingUpdates];
+  const addAIMessage = (text: string, updates: ThinkingUpdate[] = []) => {
+    setMessages(prevMessages => [
+      ...prevMessages,
+      {
+        text,
+        isUser: false,
+        thinkingUpdates: updates,
+        processingStartTime: updates.length > 0 ? new Date() : undefined,
+        processingEndTime: updates.length > 0 ? new Date() : undefined
+      }
+    ]);
     
-    // Adicionar a mensagem com as atualizações de processamento
-    setMessages(prev => [...prev, { 
-      text: text, 
-      isUser: false,
-      thinkingUpdates: currentUpdates,
-      processingStartTime: new Date(),
-      processingEndTime: new Date()
-    }]);
-    
-    // Não limpar as atualizações de processamento após adicionar a mensagem
-    // para garantir que o feedback permaneça visível
-    // setThinkingUpdates([]);
-    setIsTyping(false);
+    // Limpar as atualizações após adicionar a mensagem
+    setThinkingUpdates([]);
     setIsProcessing(false);
-    setStatus('Resposta recebida. Clique no microfone para falar novamente.');
   };
 
   // Função para adicionar uma mensagem de erro
@@ -528,38 +516,38 @@ export default function Home() {
   useEffect(() => {
     if (socketRef.current) {
       const handleMessage = (event: MessageEvent) => {
-        try {
-          const data = JSON.parse(event.data);
-          console.log("Recebido do WebSocket:", data);
+        const data = JSON.parse(event.data);
+        console.log("Mensagem recebida:", data);
+
+        if (data.type === 'thinking_update') {
+          // Criar uma cópia das atualizações atuais
+          const currentUpdates = [...thinkingUpdates];
           
-          if (data.type === 'thinking') {
-            // Atualizar as atualizações de processamento em tempo real
-            console.log("Recebendo atualização de processamento:", data);
-            
-            // Verificar se a atualização já existe para evitar duplicatas
-            setThinkingUpdates(prev => {
-              // Verificar se já existe uma atualização idêntica
-              const isDuplicate = prev.some(update => 
-                update.update_type === data.update_type && 
-                JSON.stringify(update.content) === JSON.stringify(data.content)
-              );
-              
-              if (isDuplicate) {
-                console.log("Atualização duplicada ignorada:", data);
-                return prev;
-              }
-              
-              return [...prev, data];
-            });
-          } else if (data.type === 'message') {
-            console.log("Adicionando mensagem ao chat:", data.content);
-            addAIMessage(data.content);
-          } else if (data.type === 'error') {
-            console.error("Erro recebido do servidor:", data.content);
-            addErrorMessage(data.content);
+          // Adicionar a nova atualização
+          const newUpdate = data.content;
+          
+          // Se for uma atualização de início de processamento, limpar as atualizações anteriores
+          if (newUpdate.update_type === 'start') {
+            setThinkingUpdates([newUpdate]);
+          } else {
+            // Caso contrário, adicionar à lista existente
+            setThinkingUpdates([...currentUpdates, newUpdate]);
           }
-        } catch (e) {
-          console.error('Erro ao processar mensagem do WebSocket:', e);
+          
+          // Se for uma atualização de conclusão, adicionar a mensagem
+          if (newUpdate.update_type === 'complete') {
+            const messageText = newUpdate.content.message || '';
+            addAIMessage(messageText, [...currentUpdates, newUpdate]);
+            // Limpar as atualizações após adicionar a mensagem
+            setThinkingUpdates([]);
+          }
+        } else if (data.type === 'message') {
+          addAIMessage(data.content);
+        } else if (data.type === 'status') {
+          setStatus(data.content);
+        } else if (data.type === 'error') {
+          console.error("Erro recebido:", data.content);
+          setStatus(`Erro: ${data.content}`);
         }
       };
       

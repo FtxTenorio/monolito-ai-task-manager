@@ -722,46 +722,33 @@ const Chat: React.FC<ChatProps> = ({
         
         // Atualizar a mensagem com as atualizações de processamento
         const updatedMessages = [...localMessages];
+        const currentMessage = updatedMessages[actualIndex];
         
         // Verificar se a mensagem já tem thinkingUpdates
-        const existingUpdates = updatedMessages[actualIndex].thinkingUpdates || [];
+        const existingUpdates = currentMessage.thinkingUpdates || [];
         console.log("Atualizações existentes:", existingUpdates.length);
         console.log("Novas atualizações:", thinkingUpdates.length);
         
-        // Combinar as atualizações existentes com as novas, evitando duplicatas
-        const combinedUpdates = [...existingUpdates];
-        
-        // Adicionar apenas atualizações que não existem ainda
-        thinkingUpdates.forEach(newUpdate => {
-          const isDuplicate = combinedUpdates.some(existingUpdate => 
-            existingUpdate.update_type === newUpdate.update_type && 
-            JSON.stringify(existingUpdate.content) === JSON.stringify(newUpdate.content)
-          );
+        // Atualizar apenas se as atualizações forem diferentes
+        if (JSON.stringify(existingUpdates) !== JSON.stringify(thinkingUpdates)) {
+          updatedMessages[actualIndex] = {
+            ...currentMessage,
+            thinkingUpdates: thinkingUpdates,
+            processingStartTime: currentMessage.processingStartTime || new Date(),
+            processingEndTime: isProcessing ? undefined : new Date(),
+            // Expandir automaticamente o feedback se estiver habilitado
+            isFeedbackExpanded: autoExpandFeedback ? true : currentMessage.isFeedbackExpanded
+          };
           
-          if (!isDuplicate) {
-            combinedUpdates.push(newUpdate);
-          }
-        });
-        
-        console.log("Atualizações combinadas:", combinedUpdates.length);
-        
-        updatedMessages[actualIndex] = {
-          ...updatedMessages[actualIndex],
-          thinkingUpdates: combinedUpdates,
-          processingStartTime: updatedMessages[actualIndex].processingStartTime || new Date(),
-          processingEndTime: isProcessing ? undefined : new Date(),
-          // Expandir automaticamente o feedback se estiver habilitado
-          isFeedbackExpanded: autoExpandFeedback ? true : updatedMessages[actualIndex].isFeedbackExpanded
-        };
-        
-        console.log("Atualizando mensagem com feedback:", {
-          index: actualIndex,
-          thinkingUpdatesLength: combinedUpdates.length,
-          message: updatedMessages[actualIndex]
-        });
-        
-        // Atualizar o estado local das mensagens
-        setLocalMessages(updatedMessages);
+          console.log("Atualizando mensagem com feedback:", {
+            index: actualIndex,
+            thinkingUpdatesLength: thinkingUpdates.length,
+            message: updatedMessages[actualIndex]
+          });
+          
+          // Atualizar o estado local das mensagens
+          setLocalMessages(updatedMessages);
+        }
       }
     }
   }, [thinkingUpdates, localMessages, isProcessing, autoExpandFeedback]);
