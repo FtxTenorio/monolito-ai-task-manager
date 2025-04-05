@@ -102,12 +102,79 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('https://api.itenorio.com/lambda/routines');
-      if (!response.ok) {
-        throw new Error(`Error fetching routines: ${response.statusText}`);
-      }
-      const data = await response.json();
-      setRoutines(data.data || []);
+      // Dados mockados para teste
+      const mockRoutines: Routine[] = [
+        {
+          id: '1',
+          name: 'Reunião de Equipe',
+          description: 'Reunião semanal com a equipe de desenvolvimento',
+          status: 'pending',
+          schedule: new Date(new Date().setHours(10, 0, 0, 0)).toISOString(),
+          frequency: 'weekly',
+          priority: 'high',
+          tags: ['reunião', 'equipe'],
+          estimated_duration: 60,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        {
+          id: '2',
+          name: 'Exercícios Matinais',
+          description: 'Rotina de exercícios físicos',
+          status: 'completed',
+          schedule: new Date(new Date().setHours(7, 0, 0, 0)).toISOString(),
+          frequency: 'daily',
+          priority: 'medium',
+          tags: ['saúde', 'exercícios'],
+          estimated_duration: 30,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        {
+          id: '3',
+          name: 'Leitura',
+          description: 'Leitura de artigos técnicos',
+          status: 'pending',
+          schedule: new Date(new Date().setHours(20, 0, 0, 0)).toISOString(),
+          frequency: 'daily',
+          priority: 'low',
+          tags: ['estudo', 'leitura'],
+          estimated_duration: 45,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        {
+          id: '4',
+          name: 'Planejamento Semanal',
+          description: 'Revisão e planejamento das tarefas da semana',
+          status: 'pending',
+          schedule: new Date(new Date().setDate(new Date().getDate() + 1)).setHours(9, 0, 0, 0).toString(),
+          frequency: 'weekly',
+          priority: 'high',
+          tags: ['planejamento', 'organização'],
+          estimated_duration: 90,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        {
+          id: '5',
+          name: 'Meditação',
+          description: 'Sessão de meditação guiada',
+          status: 'pending',
+          schedule: new Date(new Date().setHours(6, 30, 0, 0)).toISOString(),
+          frequency: 'daily',
+          priority: 'medium',
+          tags: ['saúde', 'meditação'],
+          estimated_duration: 15,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }
+      ];
+
+      // Simula um delay de rede
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      setRoutines(mockRoutines);
     } catch (err) {
       console.error('Error fetching routines:', err);
       setError('Failed to load routines. Please try again later.');
