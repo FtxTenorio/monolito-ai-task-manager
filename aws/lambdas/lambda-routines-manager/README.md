@@ -101,6 +101,8 @@ Exemplo de rotina:
   "priority": "high",
   "tags": ["saúde", "exercício"],
   "estimated_duration": 30,
+  "start_date": "2023-04-05T08:00:00",
+  "end_date": "2023-04-05T08:30:00",
   "created_at": "2023-04-05T12:00:00",
   "updated_at": "2023-04-05T12:00:00"
 }
@@ -132,6 +134,8 @@ Resposta esperada:
             "priority": "high",
             "tags": ["saúde", "exercício"],
             "estimated_duration": 30,
+            "start_date": "2023-04-05T08:00:00",
+            "end_date": "2023-04-05T08:30:00",
             "created_at": "2023-04-05T12:00:00",
             "updated_at": "2023-04-05T12:00:00"
         }
@@ -163,6 +167,8 @@ Resposta esperada:
         "priority": "high",
         "tags": ["saúde", "exercício"],
         "estimated_duration": 30,
+        "start_date": "2023-04-05T08:00:00",
+        "end_date": "2023-04-05T08:30:00",
         "created_at": "2023-04-05T12:00:00",
         "updated_at": "2023-04-05T12:00:00"
     }
@@ -185,7 +191,9 @@ Resposta esperada:
     "frequency": "daily",
     "priority": "medium",
     "tags": ["estudo", "programação", "inglês"],
-    "estimated_duration": 120
+    "estimated_duration": 120,
+    "start_date": "2023-04-05T20:00:00",
+    "end_date": "2023-04-05T22:00:00"
 }
 ```
 
@@ -205,6 +213,8 @@ Resposta esperada:
         "priority": "medium",
         "tags": ["estudo", "programação", "inglês"],
         "estimated_duration": 120,
+        "start_date": "2023-04-05T20:00:00",
+        "end_date": "2023-04-05T22:00:00",
         "created_at": "2023-04-05T14:00:00",
         "updated_at": "2023-04-05T14:00:00"
     }
@@ -229,7 +239,9 @@ Resposta esperada:
     "frequency": "daily",
     "priority": "medium",
     "tags": ["saúde", "exercício", "bem-estar"],
-    "estimated_duration": 45
+    "estimated_duration": 45,
+    "start_date": "2023-04-05T09:00:00",
+    "end_date": "2023-04-05T09:45:00"
 }
 ```
 
@@ -249,6 +261,8 @@ Resposta esperada:
         "priority": "medium",
         "tags": ["saúde", "exercício", "bem-estar"],
         "estimated_duration": 45,
+        "start_date": "2023-04-05T09:00:00",
+        "end_date": "2023-04-05T09:45:00",
         "created_at": "2023-04-05T12:00:00",
         "updated_at": "2023-04-05T15:00:00"
     }
@@ -363,4 +377,39 @@ sam local invoke GetRoutinesFunction --event events/event.json
 - GET /routines/{id} - Get a specific routine
 - POST /routines - Create a new routine
 - PUT /routines/{id} - Update a routine
-- DELETE /routines/{id} - Delete a routine 
+- DELETE /routines/{id} - Delete a routine
+
+## Modelo de Dados
+
+### Rotina (Routine)
+
+Uma rotina é representada por um objeto JSON com os seguintes campos:
+
+| Campo | Tipo | Descrição | Obrigatório |
+|-------|------|-----------|-------------|
+| id | string | Identificador único da rotina | Não (gerado automaticamente) |
+| name | string | Nome da rotina | Sim |
+| description | string | Descrição da rotina | Sim |
+| status | string | Status da rotina (pending, in_progress, completed, cancelled) | Não (default: "pending") |
+| schedule | string | Horário programado para início (formato: "HH:MM") | Não |
+| frequency | string | Frequência de repetição da rotina | Não (default: "daily") |
+| priority | string | Prioridade da rotina (low, medium, high) | Não (default: "medium") |
+| tags | array | Lista de tags para categorização | Não |
+| estimated_duration | number | Duração estimada em minutos | Não (default: 0) |
+| start_date | string | Data e hora de início (formato ISO) | Não |
+| end_date | string | Data e hora de término (formato ISO) | Não |
+| created_at | string | Data de criação (formato ISO) | Não (gerado automaticamente) |
+| updated_at | string | Data de última atualização (formato ISO) | Não (gerado automaticamente) |
+
+### Tipos de Frequência Disponíveis
+
+O campo `frequency` aceita os seguintes valores:
+
+| Valor | Descrição |
+|-------|-----------|
+| daily | Diariamente |
+| weekly | Semanalmente |
+| monthly | Mensalmente |
+| weekdays | Dias úteis (segunda a sexta) |
+| weekends | Finais de semana (sábado e domingo) |
+| custom | Frequência personalizada | 
