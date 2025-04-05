@@ -77,11 +77,22 @@ class ToolAgent(BaseAgent):
                 
                 def on_tool_start(self, serialized, input_str, **kwargs):
                     if self.websocket:
-                        asyncio.create_task(self.send_update_func("tool_start", f"Usando ferramenta: {serialized.get('name', 'desconhecida')}"))
+                        tool_name = serialized.get('name', 'desconhecida')
+                        tool_description = serialized.get('description', 'Sem descrição')
+                        tool_input = input_str[:100] + '...' if len(input_str) > 100 else input_str
+                        
+                        asyncio.create_task(self.send_update_func(
+                            "tool_start", 
+                            f"Usando ferramenta: {tool_name}\nDescrição: {tool_description}\nEntrada: {tool_input}"
+                        ))
                 
                 def on_tool_end(self, output, **kwargs):
                     if self.websocket:
-                        asyncio.create_task(self.send_update_func("tool_end", f"Resultado: {output}"))
+                        output_preview = output[:100] + '...' if len(output) > 100 else output
+                        asyncio.create_task(self.send_update_func(
+                            "tool_end", 
+                            f"Resultado: {output_preview}"
+                        ))
                 
                 def on_chain_start(self, serialized, inputs, **kwargs):
                     if self.websocket:
