@@ -15,13 +15,19 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  SelectChangeEvent
+  SelectChangeEvent,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  Button
 } from '@mui/material';
 import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
 import WifiIcon from '@mui/icons-material/Wifi';
 import WifiOffIcon from '@mui/icons-material/WifiOff';
 import LanguageIcon from '@mui/icons-material/Language';
+import FullscreenIcon from '@mui/icons-material/Fullscreen';
+import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
 import { styled } from '@mui/material/styles';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -231,6 +237,7 @@ export default function Home() {
   const [isTyping, setIsTyping] = useState(false);
   const [typingDots, setTypingDots] = useState('');
   const [responseFormat, setResponseFormat] = useState('markdown');
+  const [isTaskListExpanded, setIsTaskListExpanded] = useState(false);
   
   const socketRef = useRef<WebSocket | null>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
@@ -549,7 +556,17 @@ export default function Home() {
       
       <div className="flex h-screen">
         {/* Lista de Tarefas */}
-        <div className="w-1/3 border-r border-gray-200 p-4 overflow-y-auto bg-gray-50">
+        <div className={`${isTaskListExpanded ? 'w-1/2' : 'w-1/4'} border-r border-gray-200 p-4 overflow-y-auto bg-gray-50 transition-all duration-300`}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6">Minhas Tarefas</Typography>
+            <IconButton 
+              onClick={() => setIsTaskListExpanded(!isTaskListExpanded)}
+              color="primary"
+              size="small"
+            >
+              {isTaskListExpanded ? <FullscreenExitIcon /> : <FullscreenIcon />}
+            </IconButton>
+          </Box>
           <TaskList />
         </div>
 
@@ -566,6 +583,30 @@ export default function Home() {
           liveText={liveText}
         />
       </div>
+
+      {/* Dialog para TaskList expandida */}
+      <Dialog
+        open={isTaskListExpanded}
+        onClose={() => setIsTaskListExpanded(false)}
+        maxWidth="lg"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h6">Minhas Tarefas</Typography>
+            <IconButton 
+              onClick={() => setIsTaskListExpanded(false)}
+              color="primary"
+              size="small"
+            >
+              <FullscreenExitIcon />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <TaskList />
+        </DialogContent>
+      </Dialog>
     </Container>
   );
 }
