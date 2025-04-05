@@ -19,7 +19,8 @@ import {
   Dialog,
   DialogContent,
   DialogTitle,
-  Button
+  Button,
+  Fab
 } from '@mui/material';
 import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
@@ -28,6 +29,8 @@ import WifiOffIcon from '@mui/icons-material/WifiOff';
 import LanguageIcon from '@mui/icons-material/Language';
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
+import AddIcon from '@mui/icons-material/Add';
+import ListAltIcon from '@mui/icons-material/ListAlt';
 import { styled } from '@mui/material/styles';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -555,21 +558,6 @@ export default function Home() {
       </Typography>
       
       <div className="flex h-screen">
-        {/* Lista de Tarefas */}
-        <div className={`${isTaskListExpanded ? 'w-1/2' : 'w-1/4'} border-r border-gray-200 p-4 overflow-y-auto bg-gray-50 transition-all duration-300`}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h6">Minhas Tarefas</Typography>
-            <IconButton 
-              onClick={() => setIsTaskListExpanded(!isTaskListExpanded)}
-              color="primary"
-              size="small"
-            >
-              {isTaskListExpanded ? <FullscreenExitIcon /> : <FullscreenIcon />}
-            </IconButton>
-          </Box>
-          <TaskList />
-        </div>
-
         {/* Chat */}
         <Chat
           messages={messages}
@@ -583,6 +571,19 @@ export default function Home() {
           liveText={liveText}
         />
       </div>
+
+      {/* Botões de atalho para tarefas */}
+      <Box sx={{ position: 'fixed', bottom: 24, right: 24, display: 'flex', gap: 2 }}>
+        <Tooltip title="Ver todas as tarefas">
+          <Fab 
+            color="primary" 
+            onClick={() => setIsTaskListExpanded(true)}
+            sx={{ bgcolor: 'primary.main' }}
+          >
+            <ListAltIcon />
+          </Fab>
+        </Tooltip>
+      </Box>
 
       {/* Dialog para TaskList expandida */}
       <Dialog
