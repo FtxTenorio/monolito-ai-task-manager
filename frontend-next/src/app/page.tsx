@@ -274,7 +274,7 @@ export default function Home() {
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const taskListRef = useRef<{ fetchTasks: () => void }>(null);
+  const taskListRef = useRef<{ fetchTasks: () => void; refresh: () => void }>(null);
   
   const SILENCE_THRESHOLD = 1500; // 1.5 segundos de silêncio
   const MAX_RECONNECT_ATTEMPTS = 5;
@@ -455,7 +455,7 @@ export default function Home() {
     setIsTaskListExpanded(true);
     // Pequeno delay para garantir que o componente está montado
     setTimeout(() => {
-      taskListRef.current?.fetchTasks();
+      taskListRef.current?.refresh();
     }, 100);
   };
 
