@@ -107,23 +107,43 @@ const LanguageSelector = styled(FormControl)(({ theme }) => ({
 
 const MessageContent = styled(Box)(({ theme }) => ({
   '& p': {
-    margin: 0,
+    margin: theme.spacing(1, 0),
+  },
+  '& h1, & h2, & h3, & h4, & h5, & h6': {
+    margin: theme.spacing(2, 0, 1),
+    color: theme.palette.text.primary,
+    fontWeight: 500,
+    lineHeight: 1.2,
+  },
+  '& h1': {
+    fontSize: '1.5rem',
+  },
+  '& h2': {
+    fontSize: '1.25rem',
+  },
+  '& h3': {
+    fontSize: '1.1rem',
   },
   '& pre': {
     backgroundColor: theme.palette.grey[100],
     padding: theme.spacing(1),
     borderRadius: theme.shape.borderRadius,
     overflowX: 'auto',
+    margin: theme.spacing(1, 0),
   },
   '& code': {
     backgroundColor: theme.palette.grey[100],
     padding: theme.spacing(0.5),
     borderRadius: theme.shape.borderRadius,
     fontFamily: 'monospace',
+    fontSize: '0.9em',
   },
   '& ul, & ol': {
     margin: theme.spacing(1, 0),
-    paddingLeft: theme.spacing(2),
+    paddingLeft: theme.spacing(3),
+    '& li': {
+      margin: theme.spacing(0.5, 0),
+    },
   },
   '& blockquote': {
     borderLeft: `4px solid ${theme.palette.primary.main}`,
@@ -143,6 +163,19 @@ const MessageContent = styled(Box)(({ theme }) => ({
   },
   '& th': {
     backgroundColor: theme.palette.grey[100],
+  },
+  '& a': {
+    color: theme.palette.primary.main,
+    textDecoration: 'none',
+    '&:hover': {
+      textDecoration: 'underline',
+    },
+  },
+  '& img': {
+    maxWidth: '100%',
+    height: 'auto',
+    borderRadius: theme.shape.borderRadius,
+    margin: theme.spacing(1, 0),
   },
 }));
 
