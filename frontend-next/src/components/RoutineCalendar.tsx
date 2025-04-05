@@ -17,6 +17,10 @@ import {
   useTheme,
   useMediaQuery,
   Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  IconButton as MuiIconButton,
 } from '@mui/material';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
@@ -543,12 +547,12 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
               <MenuItem value="month">Mês</MenuItem>
             </Select>
           </FormControl>
-          <Tooltip title={isMaximized ? "Restaurar" : "Maximizar"}>
+          <Tooltip title="Restaurar">
             <IconButton onClick={handleMaximize} size="small">
-              {isMaximized ? <FullscreenExitIcon /> : <FullscreenIcon />}
+              <FullscreenExitIcon />
             </IconButton>
           </Tooltip>
-          <Tooltip title="Esconder">
+          <Tooltip title="Fechar">
             <IconButton onClick={handleHide} size="small">
               <CloseIcon />
             </IconButton>
@@ -745,10 +749,123 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
     <>
       {isVisible && (
         isMaximized ? (
-          <MaximizedPanel elevation={3}>
-            {renderHeader()}
-            {renderContent()}
-          </MaximizedPanel>
+          <Dialog
+            open={true}
+            onClose={handleHide}
+            maxWidth="xl"
+            fullWidth
+            PaperProps={{
+              sx: {
+                height: '90vh',
+                maxHeight: '90vh',
+              }
+            }}
+          >
+            <DialogTitle>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="h6">
+                  Rotinas
+                  {(statusFilter !== 'all' || priorityFilter !== 'all' || frequencyFilter !== 'all') && (
+                    <Typography component="span" variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>
+                      ({getFilteredRoutinesCount()} de {routines.length})
+                    </Typography>
+                  )}
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <FormControl size="small" sx={{ minWidth: 120 }}>
+                    <Select
+                      value={viewMode}
+                      onChange={(e: SelectChangeEvent) => setViewMode(e.target.value as 'week' | 'month')}
+                      size="small"
+                    >
+                      <MenuItem value="week">Semana</MenuItem>
+                      <MenuItem value="month">Mês</MenuItem>
+                    </Select>
+                  </FormControl>
+                  <Tooltip title="Restaurar">
+                    <IconButton onClick={handleMaximize} size="small">
+                      <FullscreenExitIcon />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Fechar">
+                    <IconButton onClick={handleHide} size="small">
+                      <CloseIcon />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
+                <IconButton onClick={handlePreviousWeek} size="small">
+                  <ChevronLeftIcon />
+                </IconButton>
+                <Typography variant="subtitle1">
+                  {viewMode === 'week' 
+                    ? `${formatDate(getWeekDates()[0])} - ${formatDate(getWeekDates()[6])}`
+                    : formatMonthYear(currentWeek)
+                  }
+                </Typography>
+                <IconButton onClick={handleNextWeek} size="small">
+                  <ChevronRightIcon />
+                </IconButton>
+                <IconButton onClick={handleToday} size="small">
+                  <TodayIcon />
+                </IconButton>
+              </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
+                <Button 
+                  size="small" 
+                  onClick={clearFilters}
+                  disabled={statusFilter === 'all' && priorityFilter === 'all' && frequencyFilter === 'all'}
+                >
+                  Limpar filtros
+                </Button>
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  <FormControl size="small" sx={{ minWidth: 150 }}>
+                    <Select
+                      value={statusFilter}
+                      onChange={(e: SelectChangeEvent) => setStatusFilter(e.target.value)}
+                      size="small"
+                    >
+                      <MenuItem value="all">Todos os status</MenuItem>
+                      <MenuItem value="pending">Pendentes</MenuItem>
+                      <MenuItem value="completed">Concluídas</MenuItem>
+                      <MenuItem value="cancelled">Canceladas</MenuItem>
+                    </Select>
+                  </FormControl>
+                  <FormControl size="small" sx={{ minWidth: 150 }}>
+                    <Select
+                      value={priorityFilter}
+                      onChange={(e: SelectChangeEvent) => setPriorityFilter(e.target.value)}
+                      size="small"
+                    >
+                      <MenuItem value="all">Todas as prioridades</MenuItem>
+                      <MenuItem value="high">Alta</MenuItem>
+                      <MenuItem value="medium">Média</MenuItem>
+                      <MenuItem value="low">Baixa</MenuItem>
+                    </Select>
+                  </FormControl>
+                  <FormControl size="small" sx={{ minWidth: 150 }}>
+                    <Select
+                      value={frequencyFilter}
+                      onChange={(e: SelectChangeEvent) => setFrequencyFilter(e.target.value)}
+                      size="small"
+                    >
+                      <MenuItem value="all">Todas as frequências</MenuItem>
+                      <MenuItem value="daily">Diária</MenuItem>
+                      <MenuItem value="weekly">Semanal</MenuItem>
+                      <MenuItem value="monthly">Mensal</MenuItem>
+                      <MenuItem value="weekdays">Dias úteis</MenuItem>
+                      <MenuItem value="weekends">Finais de semana</MenuItem>
+                      <MenuItem value="custom">Personalizada</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Box>
+              </Box>
+            </DialogTitle>
+            <DialogContent>
+              {renderContent()}
+            </DialogContent>
+          </Dialog>
         ) : (
           <FloatingPanel elevation={3}>
             {renderHeader()}
