@@ -107,6 +107,20 @@ const LanguageSelector = styled(FormControl)(({ theme }) => ({
   },
 }));
 
+const ResponseFormatSelector = styled(FormControl)(({ theme }) => ({
+  minWidth: 120,
+  backgroundColor: 'rgba(255, 255, 255, 0.9)',
+  borderRadius: theme.shape.borderRadius,
+  '& .MuiOutlinedInput-root': {
+    '& fieldset': {
+      borderColor: theme.palette.primary.main,
+    },
+    '&:hover fieldset': {
+      borderColor: theme.palette.primary.dark,
+    },
+  },
+}));
+
 const CodeBlock = styled(Box)(({ theme }) => ({
   position: 'relative',
   margin: theme.spacing(1, 0),
@@ -214,6 +228,7 @@ export default function Home() {
   const [selectedLanguage, setSelectedLanguage] = useState('pt-BR');
   const [isTyping, setIsTyping] = useState(false);
   const [typingDots, setTypingDots] = useState('');
+  const [responseFormat, setResponseFormat] = useState('markdown');
   
   const socketRef = useRef<WebSocket | null>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
@@ -408,7 +423,10 @@ export default function Home() {
               setLiveText('');
               
               if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-                socketRef.current.send(JSON.stringify({ text: transcript }));
+                socketRef.current.send(JSON.stringify({ 
+                  text: transcript,
+                  format: responseFormat
+                }));
                 setStatus('Processando sua mensagem...');
                 setIsProcessing(true);
                 setIsTyping(true);
@@ -436,7 +454,7 @@ export default function Home() {
         clearTimeout(silenceTimerRef.current);
       }
     };
-  }, [isListening, isStopping, selectedLanguage]);
+  }, [isListening, isStopping, selectedLanguage, responseFormat]);
 
   const handleLanguageChange = (event: SelectChangeEvent<string>) => {
     const newLanguage = event.target.value;
@@ -448,6 +466,10 @@ export default function Home() {
       recognitionRef.current.lang = newLanguage;
       recognitionRef.current.start();
     }
+  };
+
+  const handleFormatChange = (event: SelectChangeEvent<string>) => {
+    setResponseFormat(event.target.value);
   };
 
   return (
@@ -498,6 +520,25 @@ export default function Home() {
             <MenuItem value="ru-RU">Русский</MenuItem>
           </Select>
         </LanguageSelector>
+
+        <ResponseFormatSelector size="small">
+          <InputLabel id="format-select-label">
+            <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center' }}>
+              <span style={{ marginRight: 8 }}>Formato</span>
+            </Typography>
+          </InputLabel>
+          <Select
+            labelId="format-select-label"
+            value={responseFormat}
+            label="Formato"
+            onChange={handleFormatChange}
+            disabled={isListening}
+          >
+            <MenuItem value="markdown">Markdown</MenuItem>
+            <MenuItem value="text">Texto Simples</MenuItem>
+            <MenuItem value="html">HTML</MenuItem>
+          </Select>
+        </ResponseFormatSelector>
       </ConnectionIndicator>
 
       <Typography variant="h1" component="h1" align="center" gutterBottom>

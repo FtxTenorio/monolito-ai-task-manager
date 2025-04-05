@@ -2,7 +2,7 @@ from langchain.agents import AgentExecutor, create_openai_functions_agent
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage, AIMessage
 from .base_agent import BaseAgent
-from .tools import get_available_tools
+from .tools import get_available_tools, format_response
 
 class ToolAgent(BaseAgent):
     def __init__(self, system_prompt="Você é um assistente útil e amigável com acesso a ferramentas. Use as ferramentas disponíveis quando necessário para fornecer respostas mais precisas e atualizadas."):
@@ -33,15 +33,16 @@ class ToolAgent(BaseAgent):
             verbose=True
         )
     
-    def process_message(self, message):
+    def process_message(self, message, response_format="markdown"):
         """
         Processa uma mensagem do usuário usando o agente com ferramentas.
         
         Args:
             message (str): A mensagem do usuário
+            response_format (str): Formato da resposta (markdown, text, html)
             
         Returns:
-            str: A resposta do agente
+            str: A resposta do agente formatada
         """
         # Adicionar a mensagem do usuário ao histórico
         self.conversation_history.append(HumanMessage(content=message))
@@ -54,7 +55,10 @@ class ToolAgent(BaseAgent):
         
         response_text = response["output"]
         
-        # Adicionar a resposta ao histórico
+        # Formatar a resposta de acordo com o formato solicitado
+        formatted_response = format_response(response_text, response_format)
+        
+        # Adicionar a resposta ao histórico (mantém o formato original para o histórico)
         self.conversation_history.append(AIMessage(content=response_text))
         
-        return response_text 
+        return formatted_response 

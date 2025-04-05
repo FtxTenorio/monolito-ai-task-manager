@@ -38,7 +38,7 @@ class ConnectionManager:
             del self.last_texts[client_id]
         print(f"Cliente desconectado: {client_id}")
     
-    async def process_message(self, client_id: int, message: str):
+    async def process_message(self, client_id: int, message: str, response_format: str = "markdown"):
         if client_id not in self.active_connections:
             return
         
@@ -53,14 +53,14 @@ class ConnectionManager:
             print(f"Recebido: {message} (Similaridade: {similarity:.2f})")
             
             try:
-                # Obter resposta do agente
-                response_text = self.agents[client_id].process_message(current_text)
+                # Obter resposta do agente com o formato especificado
+                response_text = self.agents[client_id].process_message(current_text, response_format)
                 
                 print(f"Resposta: {response_text}")
                 
                 # Enviar a resposta de volta para o frontend
                 await self.active_connections[client_id].send_text(
-                    json.dumps({"response": response_text})
+                    json.dumps({"response": response_text, "format": response_format})
                 )
                 
                 # Atualizar o último texto
@@ -101,7 +101,9 @@ async def websocket_endpoint(websocket: WebSocket):
                 data_json = json.loads(data)
                 
                 if "text" in data_json:
-                    await manager.process_message(client_id, data_json["text"])
+                    # Extrair o formato da resposta, padrão é markdown
+                    response_format = data_json.get("format", "markdown")
+                    await manager.process_message(client_id, data_json["text"], response_format)
                 elif "idle" in data_json:
                     print(f"Recebido: {data_json} (Sinal de idle)")
             except WebSocketDisconnect:

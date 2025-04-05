@@ -6,6 +6,9 @@ from typing import Optional
 import time
 from datetime import datetime
 import locale
+import re
+from bs4 import BeautifulSoup
+import markdown
 
 # Configurar locale para português
 try:
@@ -118,6 +121,49 @@ def get_datetime_info(query: str = "") -> str:
     except Exception as e:
         return f"Erro ao obter informações de data e hora: {str(e)}"
 
+def format_response(text: str, format_type: str = "markdown") -> str:
+    """
+    Formata a resposta de acordo com o tipo especificado.
+    
+    Args:
+        text (str): Texto a ser formatado
+        format_type (str): Tipo de formatação ('markdown', 'text', 'html')
+        
+    Returns:
+        str: Texto formatado
+    """
+    if format_type == "text":
+        # Remove formatação markdown
+        text = re.sub(r'#+\s+', '', text)  # Remove headers
+        text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)  # Remove bold
+        text = re.sub(r'\*(.*?)\*', r'\1', text)  # Remove italic
+        text = re.sub(r'`(.*?)`', r'\1', text)  # Remove code
+        text = re.sub(r'\[(.*?)\]\(.*?\)', r'\1', text)  # Remove links
+        text = re.sub(r'\n\s*[-*]\s+', '\n• ', text)  # Padroniza listas
+        text = re.sub(r'\n\s*\d+\.\s+', '\n', text)  # Remove numeração
+        return text.strip()
+    
+    elif format_type == "html":
+        # Converte markdown para HTML
+        html = markdown.markdown(text, extensions=['fenced_code', 'tables'])
+        # Adiciona classes CSS para estilização
+        soup = BeautifulSoup(html, 'html.parser')
+        
+        # Adiciona classes para diferentes elementos
+        for tag in soup.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6']):
+            tag['class'] = tag.get('class', []) + ['heading']
+        
+        for tag in soup.find_all('code'):
+            tag['class'] = tag.get('class', []) + ['code-block']
+        
+        for tag in soup.find_all('pre'):
+            tag['class'] = tag.get('class', []) + ['pre-block']
+        
+        return str(soup)
+    
+    # Se for markdown ou qualquer outro formato, retorna o texto original
+    return text
+
 def get_available_tools():
     """
     Retorna as ferramentas disponíveis para o agente.
@@ -140,6 +186,11 @@ def get_available_tools():
             name="datetime_info",
             func=get_datetime_info,
             description="Fornece informações sobre a data e hora atual. Use esta ferramenta quando precisar de informações temporais. Não precisa enviar parâmetros."
+        ),
+        Tool(
+            name="format_response",
+            func=format_response,
+            description="Formata a resposta de acordo com o tipo especificado (markdown, text, html). Use esta ferramenta para formatar a saída."
         )
     ]
     
