@@ -12,6 +12,7 @@ import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { Message } from '@/types';
+import RoutineCalendar, { Routine, RoutineCalendarRef } from './RoutineCalendar';
 
 interface ChatProps {
   messages: Message[];
@@ -138,10 +139,12 @@ const Chat: React.FC<ChatProps> = ({
   onRetryMessage
 }) => {
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const routineCalendarRef = useRef<RoutineCalendarRef>(null);
   const [localMessages, setLocalMessages] = useState<Message[]>(propMessages);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedMessageIndex, setSelectedMessageIndex] = useState<number | null>(null);
+  const [showRoutineCalendar, setShowRoutineCalendar] = useState(true);
   
   // Efeito para sincronizar as mensagens locais com as props
   useEffect(() => {
@@ -188,6 +191,11 @@ const Chat: React.FC<ChatProps> = ({
       }
     }
     handleMenuClose();
+  };
+
+  const handleRoutineSelect = (routine: Routine) => {
+    // Aqui você pode adicionar lógica para lidar com a seleção de uma rotina
+    console.log('Selected routine:', routine);
   };
 
   // Renderizar mensagens
@@ -266,7 +274,7 @@ const Chat: React.FC<ChatProps> = ({
   };
 
   return (
-    <Box className="flex-1 flex flex-col bg-white">
+    <Box sx={{ position: 'relative', height: '100%', display: 'flex' }}>
       <ChatContainer ref={chatContainerRef}>
         {localMessages && localMessages.length > 0 ? (
           renderMessages()
@@ -289,14 +297,18 @@ const Chat: React.FC<ChatProps> = ({
             <Typography>.{typingDots}</Typography>
           </Box>
         )}
+        {liveText && (
+          <LiveTextContainer>
+            <Typography>{liveText}</Typography>
+          </LiveTextContainer>
+        )}
       </ChatContainer>
 
-      {isListening && (
-        <LiveTextContainer>
-          <Typography variant="body1" color="text.secondary">
-            {liveText || 'Falando...'}
-          </Typography>
-        </LiveTextContainer>
+      {showRoutineCalendar && (
+        <RoutineCalendar
+          ref={routineCalendarRef}
+          onRoutineSelect={handleRoutineSelect}
+        />
       )}
 
       <Box className="p-4 border-t border-gray-200">
@@ -328,19 +340,13 @@ const Chat: React.FC<ChatProps> = ({
         open={Boolean(anchorEl)}
         onClose={handleMenuClose}
       >
-        {selectedMessageIndex !== null && localMessages[selectedMessageIndex] && !localMessages[selectedMessageIndex].isUser && (
-          <MenuItem onClick={handleSpeakMessage}>
-            <Typography variant="body2">Ler em voz alta</Typography>
-          </MenuItem>
-        )}
-        {selectedMessageIndex !== null && onRetryMessage && (
-          <MenuItem onClick={handleRetryMessage}>
-            <Typography variant="body2">Tentar novamente</Typography>
-          </MenuItem>
-        )}
-        <Divider />
-        <MenuItem onClick={handleMenuClose}>
-          <Typography variant="body2">Fechar</Typography>
+        <MenuItem onClick={handleRetryMessage}>
+          <RefreshIcon fontSize="small" sx={{ mr: 1 }} />
+          Tentar novamente
+        </MenuItem>
+        <MenuItem onClick={handleSpeakMessage}>
+          <MicIcon fontSize="small" sx={{ mr: 1 }} />
+          Ouvir mensagem
         </MenuItem>
       </Menu>
     </Box>

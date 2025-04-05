@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground-rgb: 255, 255, 255;
+    --background-start-rgb: 0, 0, 0;
+    --background-end-rgb: 0, 0, 0;
+  }
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))
+    )
+    rgb(var(--background-start-rgb));
+}
+
+/* RoutineCalendar styles */
+.routine-calendar {
+  transition: all 0.3s ease;
+}
+
+.routine-calendar:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.routine-item {
+  transition: all 0.2s ease;
+}
+
+.routine-item:hover {
+  transform: translateX(4px);
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.day-column {
+  min-height: 120px;
+  transition: all 0.2s ease;
+}
+
+.day-column:hover {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+/* Priority colors */
+.priority-high {
+  border-left-color: #f44336;
+}
+
+.priority-medium {
+  border-left-color: #ff9800;
+}
+
+.priority-low {
+  border-left-color: #4caf50;
+}
+
+/* Status colors */
+.status-pending {
+  color: #757575;
+}
+
+.status-completed {
+  color: #4caf50;
+}
+
+.status-cancelled {
+  color: #f44336;
+} 

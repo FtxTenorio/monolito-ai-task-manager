@@ -32,7 +32,23 @@ export interface ThinkingUpdate {
 export interface Message {
   text: string;
   isUser: boolean;
-  processingStartTime?: Date;
-  processingEndTime?: Date;
-  isFeedbackExpanded?: boolean;
+  timestamp?: string;
+}
+
+export interface Routine {
+  id: string;
+  name: string;
+  description: string;
+  status: 'pending' | 'completed' | 'cancelled';
+  schedule: string;
+  frequency: 'daily' | 'weekly' | 'monthly';
+  priority: 'low' | 'medium' | 'high';
+  tags: string[];
+  estimated_duration: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RoutineCalendarRef {
+  fetchRoutines: () => void;
 } 
