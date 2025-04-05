@@ -38,6 +38,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import TaskList from '@/components/TaskList';
 import Chat from '@/components/Chat';
+import { Message } from '@/types';
 
 // Componentes estilizados
 const ChatContainer = styled(Box)(({ theme }) => ({
@@ -220,20 +221,37 @@ const MessageContent = styled(Box)(({ theme }) => ({
   },
 }));
 
-// Interface para mensagens
-interface Message {
-  text: string;
-  isUser: boolean;
-  thinkingUpdates?: ThinkingUpdate[];
-  processingStartTime?: Date;
-  processingEndTime?: Date;
-}
-
-interface ThinkingUpdate {
-  type: string;
-  update_type: string;
-  content: string;
-}
+// Componente para exibir ferramentas ativas
+const ToolExecutionIndicator = ({ activeTools }: { activeTools: string[] }) => {
+  if (activeTools.length === 0) return null;
+  
+  return (
+    <Box 
+      sx={{ 
+        position: 'fixed', 
+        bottom: 100, 
+        left: '50%', 
+        transform: 'translateX(-50%)',
+        backgroundColor: 'rgba(33, 150, 243, 0.9)',
+        color: 'white',
+        padding: '8px 16px',
+        borderRadius: '20px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1,
+        boxShadow: '0 2px 10px rgba(0, 0, 0, 0.2)',
+        zIndex: 1000,
+        maxWidth: '80%',
+        overflow: 'hidden'
+      }}
+    >
+      <CircularProgress size={16} sx={{ color: 'white' }} />
+      <Typography variant="body2" sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        Executando: {activeTools.join(', ')}
+      </Typography>
+    </Box>
+  );
+};
 
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -250,7 +268,6 @@ export default function Home() {
   const [typingDots, setTypingDots] = useState('');
   const [responseFormat, setResponseFormat] = useState('markdown');
   const [isTaskListExpanded, setIsTaskListExpanded] = useState(false);
-  const [thinkingUpdates, setThinkingUpdates] = useState<ThinkingUpdate[]>([]);
   
   const socketRef = useRef<WebSocket | null>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
@@ -266,7 +283,6 @@ export default function Home() {
   // Adicionar logs para depuração
   console.log("Home renderizando com estado:", {
     messagesLength: messages.length,
-    thinkingUpdatesLength: thinkingUpdates.length,
     isProcessing
   });
 
@@ -338,11 +354,7 @@ export default function Home() {
         const data = JSON.parse(event.data);
         console.log("Recebido do WebSocket:", data);
         
-        if (data.type === 'thinking') {
-          // Atualizar as atualizações de processamento em tempo real
-          console.log("Recebendo atualização de processamento:", data);
-          setThinkingUpdates(prev => [...prev, data]);
-        } else if (data.type === 'message') {
+        if (data.type === 'message') {
           console.log("Adicionando mensagem ao chat:", data.content);
           addAIMessage(data.content);
         } else if (data.type === 'error') {
@@ -468,8 +480,6 @@ export default function Home() {
       setStatus('Reconhecimento de voz parado. Clique no microfone para começar.');
     } else {
       if (recognitionRef.current) {
-        // Limpar as atualizações de processamento antes de iniciar uma nova conversa
-        setThinkingUpdates([]);
         recognitionRef.current.start();
         setIsListening(true);
         setStatus('Falando...');
@@ -483,9 +493,6 @@ export default function Home() {
     setMessages(prevMessages => [...prevMessages, { text, isUser: true }]);
     setLiveText('');
     
-    // Limpar as atualizações antes de enviar uma nova mensagem
-    setThinkingUpdates([]);
-    
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
       socketRef.current.send(JSON.stringify({ 
         text: text,
@@ -498,20 +505,17 @@ export default function Home() {
   };
 
   // Função para adicionar uma mensagem da IA
-  const addAIMessage = (text: string, updates: ThinkingUpdate[] = []) => {
+  const addAIMessage = (text: string) => {
     setMessages(prevMessages => [
       ...prevMessages,
       {
         text,
         isUser: false,
-        thinkingUpdates: updates,
-        processingStartTime: updates.length > 0 ? new Date() : undefined,
-        processingEndTime: updates.length > 0 ? new Date() : undefined
+        processingStartTime: new Date(),
+        processingEndTime: new Date()
       }
     ]);
     
-    // Limpar as atualizações após adicionar a mensagem
-    setThinkingUpdates([]);
     setIsProcessing(false);
     setIsTyping(false);
     setStatus('Resposta recebida. Clique no microfone para falar novamente.');
@@ -522,58 +526,34 @@ export default function Home() {
     setMessages(prev => [...prev, { text: `Erro: ${text}`, isUser: false }]);
     setIsProcessing(false);
     setIsTyping(false);
-    setThinkingUpdates([]);
   };
 
-  // Modificar o manipulador de mensagens do WebSocket
-  useEffect(() => {
-    if (socketRef.current) {
-      const handleMessage = (event: MessageEvent) => {
-        try {
-          const data = JSON.parse(event.data);
-          console.log("Recebido do WebSocket:", data);
-
-          if (data.type === 'thinking_update') {
-            // Criar uma cópia das atualizações atuais
-            const currentUpdates = [...thinkingUpdates];
-            
-            // Adicionar a nova atualização
-            const newUpdate = data.content;
-            
-            // Se for uma atualização de início de processamento, limpar as atualizações anteriores
-            if (newUpdate.update_type === 'start') {
-              setThinkingUpdates([newUpdate]);
-            } else {
-              // Caso contrário, adicionar à lista existente
-              setThinkingUpdates([...currentUpdates, newUpdate]);
-            }
-            
-            // Se for uma atualização de conclusão, adicionar a mensagem
-            if (newUpdate.update_type === 'complete') {
-              const messageText = newUpdate.content.message || '';
-              addAIMessage(messageText, [...currentUpdates, newUpdate]);
-            }
-          } else if (data.type === 'message') {
-            console.log("Adicionando mensagem ao chat:", data.content);
-            addAIMessage(data.content);
-          } else if (data.type === 'error') {
-            console.error("Erro recebido do servidor:", data.content);
-            addErrorMessage(data.content);
-          }
-        } catch (e) {
-          console.error('Erro ao processar mensagem do WebSocket:', e);
-        }
-      };
+  // Função para tentar novamente uma mensagem
+  const handleRetryMessage = (messageIndex: number) => {
+    // Encontrar a mensagem do usuário correspondente
+    const userMessageIndex = messageIndex - 1;
+    if (userMessageIndex >= 0 && userMessageIndex < messages.length) {
+      const userMessage = messages[userMessageIndex];
       
-      socketRef.current.onmessage = handleMessage;
+      // Remover a mensagem da IA que falhou
+      setMessages(prevMessages => {
+        const newMessages = [...prevMessages];
+        newMessages.splice(messageIndex, 1);
+        return newMessages;
+      });
       
-      return () => {
-        if (socketRef.current) {
-          socketRef.current.onmessage = null;
-        }
-      };
+      // Reenviar a mensagem do usuário
+      if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+        socketRef.current.send(JSON.stringify({ 
+          text: userMessage.text,
+          format: responseFormat
+        }));
+        setStatus('Processando sua mensagem...');
+        setIsProcessing(true);
+        setIsTyping(true);
+      }
     }
-  }, [socketRef.current]);
+  };
 
   return (
     <Container maxWidth="md" sx={{ py: 4, height: '100vh', overflow: 'hidden' }}>
@@ -660,7 +640,7 @@ export default function Home() {
           isTyping={isTyping}
           typingDots={typingDots}
           liveText={liveText}
-          thinkingUpdates={thinkingUpdates}
+          onRetryMessage={handleRetryMessage}
         />
       </div>
 
