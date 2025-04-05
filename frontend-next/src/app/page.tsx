@@ -443,6 +443,34 @@ export default function Home() {
     }, 100);
   };
 
+  // Função para alternar o reconhecimento de voz
+  const toggleListening = () => {
+    if (isListening) {
+      // Primeiro, parar o reconhecimento
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+        recognitionRef.current.abort(); // Força a parada imediata
+      }
+      
+      // Limpar o timer de silêncio
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
+      }
+      
+      // Atualizar estados
+      setIsListening(false);
+      setLiveText('');
+      setStatus('Reconhecimento de voz parado. Clique no microfone para começar.');
+    } else {
+      if (recognitionRef.current) {
+        recognitionRef.current.start();
+        setIsListening(true);
+        setStatus('Falando...');
+      }
+    }
+  };
+
   return (
     <Container maxWidth="md" sx={{ py: 4, height: '100vh', overflow: 'hidden' }}>
       <ConnectionIndicator>
@@ -524,11 +552,7 @@ export default function Home() {
           isProcessing={isProcessing}
           isListening={isListening}
           status={status}
-          onToggleListening={() => {
-            setIsListening(!isListening);
-            setLiveText('');
-            setStatus('Reconhecimento de voz parado. Clique no microfone para começar.');
-          }}
+          onToggleListening={toggleListening}
           isTyping={isTyping}
           typingDots={typingDots}
           liveText={liveText}
