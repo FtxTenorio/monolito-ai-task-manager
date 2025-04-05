@@ -147,11 +147,12 @@ const MessageContent = styled(Box)(({ theme }) => ({
     backgroundColor: 'transparent',
   },
   '& code': {
-    backgroundColor: theme.palette.grey[100],
+    backgroundColor: 'transparent',
     padding: theme.spacing(0.5),
     borderRadius: theme.shape.borderRadius,
     fontFamily: 'monospace',
     fontSize: '0.9em',
+    color: theme.palette.primary.main,
   },
   '& ul, & ol': {
     margin: theme.spacing(1, 0),
