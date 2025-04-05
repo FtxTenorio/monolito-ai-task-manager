@@ -209,7 +209,12 @@ const Chat: React.FC<ChatProps> = ({
     // Pequeno delay para garantir que o componente está montado
     setTimeout(() => {
       routineCalendarRef.current?.fetchRoutines();
+      routineCalendarRef.current?.setVisible(true);
     }, 100);
+  };
+
+  const handleRoutineCalendarClose = () => {
+    setShowRoutineCalendar(false);
   };
 
   const handleTaskListOpen = () => {
@@ -326,6 +331,7 @@ const Chat: React.FC<ChatProps> = ({
         <RoutineCalendar
           ref={routineCalendarRef}
           onRoutineSelect={handleRoutineSelect}
+          onClose={handleRoutineCalendarClose}
         />
       )}
 
