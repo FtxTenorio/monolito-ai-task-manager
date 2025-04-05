@@ -224,6 +224,9 @@ const MessageContent = styled(Box)(({ theme }) => ({
 interface Message {
   text: string;
   isUser: boolean;
+  thinkingUpdates?: ThinkingUpdate[];
+  processingStartTime?: Date;
+  processingEndTime?: Date;
 }
 
 interface ThinkingUpdate {
@@ -341,23 +344,10 @@ export default function Home() {
           setThinkingUpdates(prev => [...prev, data]);
         } else if (data.type === 'message') {
           console.log("Adicionando mensagem ao chat:", data.content);
-          setMessages(prev => [...prev, { 
-            text: data.content, 
-            isUser: false,
-            thinkingUpdates: [...thinkingUpdates],
-            processingStartTime: new Date(),
-            processingEndTime: new Date()
-          }]);
-          setThinkingUpdates([]);
-          setIsTyping(false);
-          setIsProcessing(false);
-          setStatus('Resposta recebida. Clique no microfone para falar novamente.');
+          addAIMessage(data.content);
         } else if (data.type === 'error') {
           console.error("Erro recebido do servidor:", data.content);
-          setMessages(prev => [...prev, { text: `Erro: ${data.content}`, isUser: false }]);
-          setIsProcessing(false);
-          setIsTyping(false);
-          setThinkingUpdates([]);
+          addErrorMessage(data.content);
         }
       } catch (e) {
         console.error('Erro ao processar mensagem do WebSocket:', e);
@@ -407,19 +397,7 @@ export default function Home() {
           
           silenceTimerRef.current = setTimeout(() => {
             if (transcript.trim() && !isStopping) {
-              setMessages(prev => [...prev, { text: transcript, isUser: true }]);
-              setLiveText('');
-              
-              if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-                setThinkingUpdates([]);
-                socketRef.current.send(JSON.stringify({ 
-                  text: transcript,
-                  format: responseFormat
-                }));
-                setStatus('Processando sua mensagem...');
-                setIsProcessing(true);
-                setIsTyping(true);
-              }
+              addUserMessage(transcript);
             }
           }, SILENCE_THRESHOLD);
         };
@@ -490,12 +468,109 @@ export default function Home() {
       setStatus('Reconhecimento de voz parado. Clique no microfone para começar.');
     } else {
       if (recognitionRef.current) {
+        // Limpar as atualizações de processamento antes de iniciar uma nova conversa
+        setThinkingUpdates([]);
         recognitionRef.current.start();
         setIsListening(true);
         setStatus('Falando...');
       }
     }
   };
+
+  // Função para adicionar uma mensagem do usuário
+  const addUserMessage = (text: string) => {
+    setMessages(prev => [...prev, { text, isUser: true }]);
+    setLiveText('');
+    
+    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+      // Não limpar as atualizações de processamento aqui, apenas quando a resposta for recebida
+      socketRef.current.send(JSON.stringify({ 
+        text: text,
+        format: responseFormat
+      }));
+      setStatus('Processando sua mensagem...');
+      setIsProcessing(true);
+      setIsTyping(true);
+    }
+  };
+
+  // Função para adicionar uma mensagem da IA
+  const addAIMessage = (text: string) => {
+    // Criar uma cópia das atualizações de processamento atuais
+    const currentUpdates = [...thinkingUpdates];
+    
+    // Adicionar a mensagem com as atualizações de processamento
+    setMessages(prev => [...prev, { 
+      text: text, 
+      isUser: false,
+      thinkingUpdates: currentUpdates,
+      processingStartTime: new Date(),
+      processingEndTime: new Date()
+    }]);
+    
+    // Limpar as atualizações de processamento após adicionar a mensagem
+    setThinkingUpdates([]);
+    setIsTyping(false);
+    setIsProcessing(false);
+    setStatus('Resposta recebida. Clique no microfone para falar novamente.');
+  };
+
+  // Função para adicionar uma mensagem de erro
+  const addErrorMessage = (text: string) => {
+    setMessages(prev => [...prev, { text: `Erro: ${text}`, isUser: false }]);
+    setIsProcessing(false);
+    setIsTyping(false);
+    setThinkingUpdates([]);
+  };
+
+  // Modificar o manipulador de mensagens do WebSocket
+  useEffect(() => {
+    if (socketRef.current) {
+      const handleMessage = (event: MessageEvent) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log("Recebido do WebSocket:", data);
+          
+          if (data.type === 'thinking') {
+            // Atualizar as atualizações de processamento em tempo real
+            console.log("Recebendo atualização de processamento:", data);
+            
+            // Verificar se a atualização já existe para evitar duplicatas
+            setThinkingUpdates(prev => {
+              // Verificar se já existe uma atualização idêntica
+              const isDuplicate = prev.some(update => 
+                update.update_type === data.update_type && 
+                JSON.stringify(update.content) === JSON.stringify(data.content)
+              );
+              
+              if (isDuplicate) {
+                console.log("Atualização duplicada ignorada:", data);
+                return prev;
+              }
+              
+              return [...prev, data];
+            });
+          } else if (data.type === 'message') {
+            console.log("Adicionando mensagem ao chat:", data.content);
+            addAIMessage(data.content);
+          } else if (data.type === 'error') {
+            console.error("Erro recebido do servidor:", data.content);
+            addErrorMessage(data.content);
+          }
+        } catch (e) {
+          console.error('Erro ao processar mensagem do WebSocket:', e);
+        }
+      };
+      
+      socketRef.current.onmessage = handleMessage;
+      
+      return () => {
+        if (socketRef.current) {
+          socketRef.current.onmessage = null;
+        }
+      };
+    }
+  }, [socketRef.current]);
 
   return (
     <Container maxWidth="md" sx={{ py: 4, height: '100vh', overflow: 'hidden' }}>

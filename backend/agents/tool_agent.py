@@ -74,33 +74,135 @@ class ToolAgent(BaseAgent):
                 def __init__(self, websocket, send_update_func):
                     self.websocket = websocket
                     self.send_update_func = send_update_func
+                    self.tool_start_times = {}
+                    self.active_tools = []
                 
                 def on_tool_start(self, serialized, input_str, **kwargs):
                     if self.websocket:
                         tool_name = serialized.get('name', 'desconhecida')
                         tool_description = serialized.get('description', 'Sem descrição')
-                        tool_input = input_str[:100] + '...' if len(input_str) > 100 else input_str
+                        tool_parameters = serialized.get('parameters', {})
+                        
+                        # Registrar o início da execução da ferramenta
+                        self.tool_start_times[tool_name] = asyncio.get_event_loop().time()
+                        self.active_tools.append(tool_name)
+                        
+                        # Preparar informações detalhadas sobre a ferramenta
+                        tool_info = {
+                            "name": tool_name,
+                            "description": tool_description,
+                            "parameters": tool_parameters,
+                            "input": input_str,
+                            "start_time": self.tool_start_times[tool_name],
+                            "status": "running"
+                        }
                         
                         asyncio.create_task(self.send_update_func(
-                            "tool_start", 
-                            f"Usando ferramenta: {tool_name}\nDescrição: {tool_description}\nEntrada: {tool_input}"
+                            "tool_start",
+                            {
+                                "tool": tool_info,
+                                "active_tools": self.active_tools,
+                                "message": f"Iniciando execução da ferramenta: {tool_name}"
+                            }
                         ))
                 
                 def on_tool_end(self, output, **kwargs):
                     if self.websocket:
-                        output_preview = output[:100] + '...' if len(output) > 100 else output
+                        # Identificar a ferramenta mais recente
+                        if not self.active_tools:
+                            return
+                            
+                        tool_name = self.active_tools.pop()
+                        end_time = asyncio.get_event_loop().time()
+                        
+                        # Calcular o tempo de execução
+                        start_time = self.tool_start_times.get(tool_name)
+                        execution_time = end_time - start_time if start_time else None
+                        
+                        # Preparar informações sobre o resultado
+                        result_info = {
+                            "tool_name": tool_name,
+                            "execution_time": execution_time,
+                            "output": output,
+                            "status": "completed"
+                        }
+                        
                         asyncio.create_task(self.send_update_func(
-                            "tool_end", 
-                            f"Resultado: {output_preview}"
+                            "tool_end",
+                            {
+                                "result": result_info,
+                                "active_tools": self.active_tools,
+                                "message": f"Ferramenta {tool_name} concluída em {execution_time:.2f}s"
+                            }
                         ))
                 
                 def on_chain_start(self, serialized, inputs, **kwargs):
                     if self.websocket:
-                        asyncio.create_task(self.send_update_func("chain_start", f"Iniciando cadeia de processamento"))
+                        asyncio.create_task(self.send_update_func(
+                            "chain_start",
+                            {
+                                "message": "Iniciando cadeia de processamento",
+                                "inputs": inputs
+                            }
+                        ))
                 
                 def on_chain_end(self, outputs, **kwargs):
                     if self.websocket:
-                        asyncio.create_task(self.send_update_func("chain_end", f"Concluído"))
+                        asyncio.create_task(self.send_update_func(
+                            "chain_end",
+                            {
+                                "message": "Processamento concluído",
+                                "outputs": outputs
+                            }
+                        ))
+                
+                def on_llm_start(self, serialized, prompts, **kwargs):
+                    if self.websocket:
+                        asyncio.create_task(self.send_update_func(
+                            "llm_start",
+                            {
+                                "message": "Iniciando processamento do modelo de linguagem",
+                                "model": serialized.get("name", "unknown")
+                            }
+                        ))
+                
+                def on_llm_end(self, response, **kwargs):
+                    if self.websocket:
+                        asyncio.create_task(self.send_update_func(
+                            "llm_end",
+                            {
+                                "message": "Modelo de linguagem concluiu o processamento",
+                                "tokens_used": getattr(response, "llm_output", {}).get("token_usage", {})
+                            }
+                        ))
+                
+                def on_llm_error(self, error, **kwargs):
+                    if self.websocket:
+                        asyncio.create_task(self.send_update_func(
+                            "llm_error",
+                            {
+                                "message": f"Erro no modelo de linguagem: {str(error)}",
+                                "error": str(error)
+                            }
+                        ))
+                
+                def on_tool_error(self, error, **kwargs):
+                    if self.websocket:
+                        # Identificar a ferramenta mais recente
+                        if not self.active_tools:
+                            return
+                            
+                        tool_name = self.active_tools.pop()
+                        
+                        asyncio.create_task(self.send_update_func(
+                            "tool_error",
+                            {
+                                "tool_name": tool_name,
+                                "message": f"Erro na ferramenta {tool_name}: {str(error)}",
+                                "error": str(error),
+                                "active_tools": self.active_tools
+                            }
+                        ))
             
             # Configurar o callback handler
             callback_handler = WebSocketCallbackHandler(websocket, send_update) if websocket else None

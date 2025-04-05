@@ -518,9 +518,8 @@ const FeedbackAccordion = styled(Accordion)`
   border: 1px solid #e0e0e0;
   transition: all 0.3s ease;
   position: relative;
-  width: 80%;
+  width: 100%;
   box-sizing: border-box;
-  align-self: flex-start;
   
   &:before {
     display: none;
@@ -568,11 +567,12 @@ const FeedbackAccordionSummary = styled(AccordionSummary)`
 `;
 
 const FeedbackAccordionDetails = styled(AccordionDetails)`
-  padding: 0.25rem 0.5rem;
+  padding: 0.5rem;
   background-color: #f9f9f9;
-  max-height: 150px;
+  max-height: 200px;
   overflow-y: auto;
   transition: all 0.3s ease;
+  border-top: 1px solid #e0e0e0;
 `;
 
 const FeedbackHeader = styled(Box)`
@@ -725,9 +725,25 @@ const Chat: React.FC<ChatProps> = ({
         
         // Verificar se a mensagem já tem thinkingUpdates
         const existingUpdates = updatedMessages[actualIndex].thinkingUpdates || [];
+        console.log("Atualizações existentes:", existingUpdates.length);
+        console.log("Novas atualizações:", thinkingUpdates.length);
         
-        // Combinar as atualizações existentes com as novas
-        const combinedUpdates = [...existingUpdates, ...thinkingUpdates];
+        // Combinar as atualizações existentes com as novas, evitando duplicatas
+        const combinedUpdates = [...existingUpdates];
+        
+        // Adicionar apenas atualizações que não existem ainda
+        thinkingUpdates.forEach(newUpdate => {
+          const isDuplicate = combinedUpdates.some(existingUpdate => 
+            existingUpdate.update_type === newUpdate.update_type && 
+            JSON.stringify(existingUpdate.content) === JSON.stringify(newUpdate.content)
+          );
+          
+          if (!isDuplicate) {
+            combinedUpdates.push(newUpdate);
+          }
+        });
+        
+        console.log("Atualizações combinadas:", combinedUpdates.length);
         
         updatedMessages[actualIndex] = {
           ...updatedMessages[actualIndex],
@@ -994,165 +1010,10 @@ const Chat: React.FC<ChatProps> = ({
             
             // Verificar se a mensagem tem atualizações de processamento
             const hasThinkingUpdates = !message.isUser && message.thinkingUpdates && message.thinkingUpdates.length > 0;
-            console.log("Mensagem tem atualizações de processamento:", hasThinkingUpdates);
+            console.log("Mensagem tem atualizações de processamento:", hasThinkingUpdates, "para índice:", index);
             
             return (
               <React.Fragment key={index}>
-                {/* Mostrar feedback antes da mensagem da IA */}
-                {hasThinkingUpdates && (
-                  <Fade in={true} timeout={500}>
-                    <FeedbackAccordion 
-                      expanded={isFeedbackExpanded[index] || false} 
-                      onChange={handleFeedbackToggle(index)}
-                      TransitionProps={{ timeout: 300 }}
-                      className={getActiveTool(index) && !getActiveToolResult(index) ? 'active-tool' : ''}
-                    >
-                      {getActiveTool(index) && !getActiveToolResult(index) && <ActiveToolPulseIndicator />}
-                      <FeedbackAccordionSummary
-                        expandIcon={<ExpandMoreIcon />}
-                        aria-controls="feedback-content"
-                        id="feedback-header"
-                        className={getActiveTool(index) && !getActiveToolResult(index) ? 'active-tool-summary' : ''}
-                      >
-                        <FeedbackHeader>
-                          <FeedbackIcon>
-                            <NotificationsActiveIcon fontSize="small" />
-                          </FeedbackIcon>
-                          <FeedbackTitle variant="subtitle2">
-                            Feedback do Processamento
-                          </FeedbackTitle>
-                          <FeedbackCount badgeContent={message.thinkingUpdates?.length || 0} color="primary" />
-                          <IconButton 
-                            size="small" 
-                            onClick={handleAutoExpandToggle}
-                            sx={{ 
-                              ml: 1, 
-                              color: autoExpandFeedback ? '#1976d2' : '#757575',
-                              '&:hover': { backgroundColor: 'rgba(25, 118, 210, 0.1)' }
-                            }}
-                            title={autoExpandFeedback ? "Desativar expansão automática" : "Ativar expansão automática"}
-                          >
-                            {autoExpandFeedback ? <NotificationsActiveIcon fontSize="small" /> : <NotificationsIcon fontSize="small" />}
-                          </IconButton>
-                        </FeedbackHeader>
-                      </FeedbackAccordionSummary>
-                      <FeedbackAccordionDetails>
-                        {/* Indicador de ferramenta ativa */}
-                        {getActiveTool(index) && (
-                          <ActiveToolIndicator>
-                            <ActiveToolIcon>
-                              🔧
-                            </ActiveToolIcon>
-                            <ActiveToolContent>
-                              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                <ActiveToolName variant="body2">
-                                  {getToolInfo(getActiveTool(index)?.content).toolName}
-                                </ActiveToolName>
-                                {!getActiveToolResult(index) && (
-                                  <ToolLoadingIcon>
-                                    <CircularProgress size={16} color="primary" />
-                                  </ToolLoadingIcon>
-                                )}
-                              </Box>
-                              <ActiveToolDescription variant="body2">
-                                {getToolInfo(getActiveTool(index)?.content).toolDescription}
-                              </ActiveToolDescription>
-                              
-                              {/* Indicador de progresso */}
-                              {!getActiveToolResult(index) && (
-                                <ToolProgressIndicator>
-                                  <ToolProgressBar>
-                                    <ToolProgressFill progress={toolProgress} />
-                                  </ToolProgressBar>
-                                  <ToolProgressText variant="body2">
-                                    {toolProgress}%
-                                  </ToolProgressText>
-                                </ToolProgressIndicator>
-                              )}
-                            </ActiveToolContent>
-                          </ActiveToolIndicator>
-                        )}
-                        
-                        {/* Lista de atualizações de processamento */}
-                        {message.thinkingUpdates && message.thinkingUpdates.length > 0 ? (
-                          message.thinkingUpdates.map((update: ThinkingUpdate, updateIndex: number) => (
-                            <ThinkingStep key={updateIndex}>
-                              <ThinkingIcon>
-                                {update.update_type === 'start' && '🔄'}
-                                {update.update_type === 'tool_start' && '🔧'}
-                                {update.update_type === 'tool_end' && '✅'}
-                                {update.update_type === 'chain_start' && '⛓️'}
-                                {update.update_type === 'chain_end' && '✨'}
-                                {update.update_type === 'complete' && '🎉'}
-                                {update.update_type === 'error' && '❌'}
-                                {update.update_type === 'llm_start' && '🧠'}
-                                {update.update_type === 'llm_end' && '✨'}
-                              </ThinkingIcon>
-                              <ThinkingContent>
-                                <Typography variant="body2">
-                                  {update.update_type === 'tool_start' && 'Usando ferramenta'}
-                                  {update.update_type === 'tool_end' && 'Resultado da ferramenta'}
-                                  {update.update_type === 'start' && 'Iniciando processamento'}
-                                  {update.update_type === 'chain_start' && 'Iniciando cadeia de processamento'}
-                                  {update.update_type === 'chain_end' && 'Cadeia de processamento concluída'}
-                                  {update.update_type === 'complete' && 'Processamento concluído'}
-                                  {update.update_type === 'error' && 'Erro no processamento'}
-                                  {update.update_type === 'llm_start' && 'Iniciando modelo de linguagem'}
-                                  {update.update_type === 'llm_end' && 'Modelo de linguagem concluído'}
-                                </Typography>
-                                
-                                {(update.update_type === 'tool_start' || update.update_type === 'tool_end') && (
-                                  <ToolInfo>
-                                    {getContentMessage(update.content)}
-                                  </ToolInfo>
-                                )}
-                                
-                                {update.update_type !== 'tool_start' && update.update_type !== 'tool_end' && (
-                                  <Typography variant="body2" color="text.secondary">
-                                    {getContentMessage(update.content)}
-                                  </Typography>
-                                )}
-                              </ThinkingContent>
-                            </ThinkingStep>
-                          ))
-                        ) : (
-                          <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>
-                            Nenhuma atualização de processamento disponível.
-                          </Typography>
-                        )}
-                        
-                        {/* Resultado da ferramenta */}
-                        {getActiveToolResult(index) && (
-                          <ToolResultContainer>
-                            <ToolResultHeader>
-                              <ToolResultIcon>
-                                ✅
-                              </ToolResultIcon>
-                              <Typography variant="body2" fontWeight="600" color="#4caf50">
-                                Resultado da ferramenta
-                              </Typography>
-                            </ToolResultHeader>
-                            <ToolResultContent>
-                              {getContentMessage(getActiveToolResult(index)?.content)}
-                            </ToolResultContent>
-                          </ToolResultContainer>
-                        )}
-                        
-                        {/* Botão para abrir o resumo do processamento */}
-                        {message.processingEndTime && (
-                          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-                            <ProcessingSummaryButton
-                              onClick={() => handleOpenSummary(index)}
-                              startIcon={<InfoIcon />}
-                            >
-                              Ver resumo completo
-                            </ProcessingSummaryButton>
-                          </Box>
-                        )}
-                      </FeedbackAccordionDetails>
-                    </FeedbackAccordion>
-                  </Fade>
-                )}
                 <MessageBubble isUser={message.isUser}>
                   {message.isUser ? (
                     <Typography>{message.text}</Typography>
@@ -1185,6 +1046,169 @@ const Chat: React.FC<ChatProps> = ({
                       >
                         {message.text}
                       </ReactMarkdown>
+                      
+                      {/* Mostrar feedback dentro da mensagem da IA */}
+                      {!message.isUser && hasThinkingUpdates && (
+                        <Fade in={true} timeout={500}>
+                          <Box sx={{ mt: 2, borderTop: '1px solid #e0e0e0', pt: 1 }}>
+                            <FeedbackAccordion 
+                              expanded={isFeedbackExpanded[index] || false} 
+                              onChange={handleFeedbackToggle(index)}
+                              TransitionProps={{ timeout: 300 }}
+                              className={getActiveTool(index) && !getActiveToolResult(index) ? 'active-tool' : ''}
+                              sx={{ width: '100%', mb: 1 }}
+                            >
+                              {getActiveTool(index) && !getActiveToolResult(index) && <ActiveToolPulseIndicator />}
+                              <FeedbackAccordionSummary
+                                expandIcon={<ExpandMoreIcon />}
+                                aria-controls="feedback-content"
+                                id="feedback-header"
+                                className={getActiveTool(index) && !getActiveToolResult(index) ? 'active-tool-summary' : ''}
+                                sx={{ 
+                                  backgroundColor: isFeedbackExpanded[index] ? '#e3f2fd' : '#f0f7ff',
+                                  borderLeft: getActiveTool(index) && !getActiveToolResult(index) ? '3px solid #2196f3' : 'none'
+                                }}
+                              >
+                                <FeedbackHeader>
+                                  <FeedbackIcon>
+                                    <NotificationsActiveIcon fontSize="small" />
+                                  </FeedbackIcon>
+                                  <FeedbackTitle variant="subtitle2">
+                                    Feedback do Processamento
+                                  </FeedbackTitle>
+                                  <FeedbackCount badgeContent={message.thinkingUpdates?.length || 0} color="primary" />
+                                  <IconButton 
+                                    size="small" 
+                                    onClick={handleAutoExpandToggle}
+                                    sx={{ 
+                                      ml: 1, 
+                                      color: autoExpandFeedback ? '#1976d2' : '#757575',
+                                      '&:hover': { backgroundColor: 'rgba(25, 118, 210, 0.1)' }
+                                    }}
+                                    title={autoExpandFeedback ? "Desativar expansão automática" : "Ativar expansão automática"}
+                                  >
+                                    {autoExpandFeedback ? <NotificationsActiveIcon fontSize="small" /> : <NotificationsIcon fontSize="small" />}
+                                  </IconButton>
+                                </FeedbackHeader>
+                              </FeedbackAccordionSummary>
+                              <FeedbackAccordionDetails>
+                                {/* Indicador de ferramenta ativa */}
+                                {getActiveTool(index) && (
+                                  <ActiveToolIndicator>
+                                    <ActiveToolIcon>
+                                      🔧
+                                    </ActiveToolIcon>
+                                    <ActiveToolContent>
+                                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                        <ActiveToolName variant="body2">
+                                          {getToolInfo(getActiveTool(index)?.content).toolName}
+                                        </ActiveToolName>
+                                        {!getActiveToolResult(index) && (
+                                          <ToolLoadingIcon>
+                                            <CircularProgress size={16} color="primary" />
+                                          </ToolLoadingIcon>
+                                        )}
+                                      </Box>
+                                      <ActiveToolDescription variant="body2">
+                                        {getToolInfo(getActiveTool(index)?.content).toolDescription}
+                                      </ActiveToolDescription>
+                                      
+                                      {/* Indicador de progresso */}
+                                      {!getActiveToolResult(index) && (
+                                        <ToolProgressIndicator>
+                                          <ToolProgressBar>
+                                            <ToolProgressFill progress={toolProgress} />
+                                          </ToolProgressBar>
+                                          <ToolProgressText variant="body2">
+                                            {toolProgress}%
+                                          </ToolProgressText>
+                                        </ToolProgressIndicator>
+                                      )}
+                                    </ActiveToolContent>
+                                  </ActiveToolIndicator>
+                                )}
+                                
+                                {/* Lista de atualizações de processamento */}
+                                {message.thinkingUpdates && message.thinkingUpdates.length > 0 ? (
+                                  message.thinkingUpdates.map((update: ThinkingUpdate, updateIndex: number) => (
+                                    <ThinkingStep key={updateIndex}>
+                                      <ThinkingIcon>
+                                        {update.update_type === 'start' && '🔄'}
+                                        {update.update_type === 'tool_start' && '🔧'}
+                                        {update.update_type === 'tool_end' && '✅'}
+                                        {update.update_type === 'chain_start' && '⛓️'}
+                                        {update.update_type === 'chain_end' && '✨'}
+                                        {update.update_type === 'complete' && '🎉'}
+                                        {update.update_type === 'error' && '❌'}
+                                        {update.update_type === 'llm_start' && '🧠'}
+                                        {update.update_type === 'llm_end' && '✨'}
+                                      </ThinkingIcon>
+                                      <ThinkingContent>
+                                        <Typography variant="body2">
+                                          {update.update_type === 'tool_start' && 'Usando ferramenta'}
+                                          {update.update_type === 'tool_end' && 'Resultado da ferramenta'}
+                                          {update.update_type === 'start' && 'Iniciando processamento'}
+                                          {update.update_type === 'chain_start' && 'Iniciando cadeia de processamento'}
+                                          {update.update_type === 'chain_end' && 'Cadeia de processamento concluída'}
+                                          {update.update_type === 'complete' && 'Processamento concluído'}
+                                          {update.update_type === 'error' && 'Erro no processamento'}
+                                          {update.update_type === 'llm_start' && 'Iniciando modelo de linguagem'}
+                                          {update.update_type === 'llm_end' && 'Modelo de linguagem concluído'}
+                                        </Typography>
+                                        
+                                        {(update.update_type === 'tool_start' || update.update_type === 'tool_end') && (
+                                          <ToolInfo>
+                                            {getContentMessage(update.content)}
+                                          </ToolInfo>
+                                        )}
+                                        
+                                        {update.update_type !== 'tool_start' && update.update_type !== 'tool_end' && (
+                                          <Typography variant="body2" color="text.secondary">
+                                            {getContentMessage(update.content)}
+                                          </Typography>
+                                        )}
+                                      </ThinkingContent>
+                                    </ThinkingStep>
+                                  ))
+                                ) : (
+                                  <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>
+                                    Nenhuma atualização de processamento disponível.
+                                  </Typography>
+                                )}
+                                
+                                {/* Resultado da ferramenta */}
+                                {getActiveToolResult(index) && (
+                                  <ToolResultContainer>
+                                    <ToolResultHeader>
+                                      <ToolResultIcon>
+                                        ✅
+                                      </ToolResultIcon>
+                                      <Typography variant="body2" fontWeight="600" color="#4caf50">
+                                        Resultado da ferramenta
+                                      </Typography>
+                                    </ToolResultHeader>
+                                    <ToolResultContent>
+                                      {getContentMessage(getActiveToolResult(index)?.content)}
+                                    </ToolResultContent>
+                                  </ToolResultContainer>
+                                )}
+                                
+                                {/* Botão para abrir o resumo do processamento */}
+                                {message.processingEndTime && (
+                                  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                                    <ProcessingSummaryButton
+                                      onClick={() => handleOpenSummary(index)}
+                                      startIcon={<InfoIcon />}
+                                    >
+                                      Ver resumo completo
+                                    </ProcessingSummaryButton>
+                                  </Box>
+                                )}
+                              </FeedbackAccordionDetails>
+                            </FeedbackAccordion>
+                          </Box>
+                        </Fade>
+                      )}
                     </MessageContent>
                   )}
                 </MessageBubble>
