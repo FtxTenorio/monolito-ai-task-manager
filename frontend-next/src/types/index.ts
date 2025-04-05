@@ -39,12 +39,15 @@ export interface Routine {
   id: string;
   name: string;
   description: string;
-  status: 'pending' | 'completed' | 'cancelled';
+  status: 'active' | 'completed' | 'cancelled';
   schedule: string;
-  frequency: 'daily' | 'weekly' | 'monthly';
-  priority: 'low' | 'medium' | 'high';
+  frequency: 'daily' | 'weekly' | 'monthly' | 'weekdays' | 'weekends' | 'custom';
+  priority: 'high' | 'medium' | 'low';
   tags: string[];
   estimated_duration: number;
+  start_date?: string;
+  end_date?: string;
+  custom_days?: number[];
   created_at: string;
   updated_at: string;
 }
