@@ -56,7 +56,7 @@ class ToolAgent(BaseAgent):
             if websocket:
                 try:
                     await websocket.send_text(json.dumps({
-                        "type": "thinking",
+                        "type": "thinking_update",
                         "update_type": update_type,
                         "content": content
                     }))

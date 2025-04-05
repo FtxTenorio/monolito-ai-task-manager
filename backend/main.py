@@ -46,45 +46,42 @@ class ConnectionManager:
         last_text = self.last_texts[client_id]
         
         # Calcular a similaridade com o último texto
-        similarity = calculate_similarity(last_text, current_text)
+        # similarity = calculate_similarity(last_text, current_text)
         
         # Só aceitar se a similaridade for menor que 90% (ou seja, diferença maior que 10%)
-        if similarity < 0.9:
-            print(f"Recebido: {message} (Similaridade: {similarity:.2f})")
+        # print(f"Recebido: {message} (Similaridade: {similarity:.2f})")
+        
+        try:
+            # Obter resposta do agente com o formato especificado
+            response_text = await self.agents[client_id].process_message_async(
+                current_text, 
+                response_format,
+                self.active_connections[client_id]
+            )
             
-            try:
-                # Obter resposta do agente com o formato especificado
-                response_text = await self.agents[client_id].process_message_async(
-                    current_text, 
-                    response_format,
-                    self.active_connections[client_id]
-                )
-                
-                print(f"Resposta: {response_text}")
-                
-                # Enviar a resposta de volta para o frontend
-                message_data = {
-                    "type": "message",
-                    "content": response_text,
-                    "format": response_format
-                }
-                print(f"Enviando mensagem para o frontend: {json.dumps(message_data)}")
-                await self.active_connections[client_id].send_text(
-                    json.dumps(message_data)
-                )
-                
-                # Atualizar o último texto
-                self.last_texts[client_id] = current_text
-            except Exception as e:
-                print(f"Erro ao processar com o agente: {e}")
-                await self.active_connections[client_id].send_text(
-                    json.dumps({
-                        "type": "error",
-                        "content": "Erro ao processar sua solicitação."
-                    })
-                )
-        else:
-            print(f"Ignorado: {message} (Similaridade: {similarity:.2f})")
+            print(f"Resposta: {response_text}")
+            
+            # Enviar a resposta de volta para o frontend
+            message_data = {
+                "type": "message",
+                "content": response_text,
+                "format": response_format
+            }
+            print(f"Enviando mensagem para o frontend: {json.dumps(message_data)}")
+            await self.active_connections[client_id].send_text(
+                json.dumps(message_data)
+            )
+            
+            # Atualizar o último texto
+            self.last_texts[client_id] = current_text
+        except Exception as e:
+            print(f"Erro ao processar com o agente: {e}")
+            await self.active_connections[client_id].send_text(
+                json.dumps({
+                    "type": "error",
+                    "content": "Erro ao processar sua solicitação."
+                })
+            )
 
 # Criar o gerenciador de conexões
 manager = ConnectionManager()
