@@ -226,6 +226,12 @@ interface Message {
   isUser: boolean;
 }
 
+interface ThinkingUpdate {
+  type: string;
+  update_type: string;
+  content: string;
+}
+
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isListening, setIsListening] = useState(false);
@@ -241,6 +247,7 @@ export default function Home() {
   const [typingDots, setTypingDots] = useState('');
   const [responseFormat, setResponseFormat] = useState('markdown');
   const [isTaskListExpanded, setIsTaskListExpanded] = useState(false);
+  const [thinkingUpdates, setThinkingUpdates] = useState<ThinkingUpdate[]>([]);
   
   const socketRef = useRef<WebSocket | null>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
@@ -250,7 +257,7 @@ export default function Home() {
   const taskListRef = useRef<{ fetchTasks: () => void }>(null);
   
   const SILENCE_THRESHOLD = 1500; // 1.5 segundos de silêncio
-  const MAX_RECONNECT_ATTEMPTS = 3;
+  const MAX_RECONNECT_ATTEMPTS = 5;
   const RECONNECT_INTERVAL = 3000; // 3 segundos
 
   // Efeito para rolar para baixo quando novas mensagens chegarem
@@ -297,8 +304,16 @@ export default function Home() {
     socketRef.current.onclose = () => {
       if (isConnected) {
         setIsConnected(false);
-        if (!isReconnecting) {
-          startReconnectionProcess();
+        if (!isReconnecting && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+          setIsReconnecting(true);
+          setReconnectAttempts(prev => prev + 1);
+          setStatus('Reconectando...');
+          setTimeout(() => {
+            connectWebSocket();
+          }, 1000 * Math.min(reconnectAttempts + 1, 5));
+        } else if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+          setIsReconnecting(false);
+          setStatus('Não foi possível conectar ao servidor. Tente novamente mais tarde.');
         }
       }
     };
@@ -311,83 +326,18 @@ export default function Home() {
     socketRef.current.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        if (data.response) {
-          setMessages(prev => [...prev, { text: data.response, isUser: false }]);
-          setStatus('Resposta recebida. Clique no microfone para falar novamente.');
+        if (data.type === 'thinking') {
+          setThinkingUpdates(prev => [...prev, data]);
+        } else if (data.type === 'message') {
+          setMessages(prev => [...prev, { text: data.content, isUser: false }]);
           setIsProcessing(false);
           setIsTyping(false);
-        } else if (data.error) {
-          setStatus(`Erro: ${data.error}`);
-          setIsProcessing(false);
-          setIsTyping(false);
+          setThinkingUpdates([]);
         }
       } catch (e) {
-        console.error('Erro ao processar mensagem:', e);
-        setIsProcessing(false);
-        setIsTyping(false);
+        console.error('Erro ao processar mensagem do WebSocket:', e);
       }
     };
-  };
-
-  const startReconnectionProcess = () => {
-    setIsReconnecting(true);
-    setReconnectAttempts(1);
-    setStatus(`Desconectado do servidor. Tentativa de reconexão 1/${MAX_RECONNECT_ATTEMPTS}...`);
-    
-    const tryReconnect = (attempt: number) => {
-      if (attempt > MAX_RECONNECT_ATTEMPTS) {
-        setIsReconnecting(false);
-        setStatus('Não foi possível conectar ao servidor. Clique em "Tentar Novamente" para reconectar.');
-        return;
-      }
-
-      setReconnectAttempts(attempt);
-      setStatus(`Tentativa de reconexão ${attempt}/${MAX_RECONNECT_ATTEMPTS}...`);
-      connectWebSocket();
-
-      reconnectTimerRef.current = setTimeout(() => {
-        if (!isConnected) {
-          tryReconnect(attempt + 1);
-        }
-      }, RECONNECT_INTERVAL);
-    };
-
-    tryReconnect(1);
-  };
-
-  const handleRetryConnection = () => {
-    if (reconnectTimerRef.current) {
-      clearTimeout(reconnectTimerRef.current);
-    }
-    startReconnectionProcess();
-  };
-
-  // Função para alternar o reconhecimento de voz
-  const toggleListening = () => {
-    if (isListening) {
-      // Primeiro, parar o reconhecimento
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-        recognitionRef.current.abort(); // Força a parada imediata
-      }
-      
-      // Limpar o timer de silêncio
-      if (silenceTimerRef.current) {
-        clearTimeout(silenceTimerRef.current);
-        silenceTimerRef.current = null;
-      }
-      
-      // Atualizar estados
-      setIsListening(false);
-      setLiveText('');
-      setStatus('Reconhecimento de voz parado. Clique no microfone para começar.');
-    } else {
-      if (recognitionRef.current) {
-        recognitionRef.current.start();
-        setIsListening(true);
-        setStatus('Falando...');
-      }
-    }
   };
 
   // Inicializar WebSocket
@@ -503,7 +453,7 @@ export default function Home() {
             </IconButton>
             {!isConnected && !isReconnecting && (
               <IconButton 
-                onClick={handleRetryConnection}
+                onClick={connectWebSocket}
                 color="primary"
                 size="small"
                 sx={{ 
@@ -574,10 +524,15 @@ export default function Home() {
           isProcessing={isProcessing}
           isListening={isListening}
           status={status}
-          onToggleListening={toggleListening}
+          onToggleListening={() => {
+            setIsListening(!isListening);
+            setLiveText('');
+            setStatus('Reconhecimento de voz parado. Clique no microfone para começar.');
+          }}
           isTyping={isTyping}
           typingDots={typingDots}
           liveText={liveText}
+          thinkingUpdates={thinkingUpdates}
         />
       </div>
 

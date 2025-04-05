@@ -54,13 +54,21 @@ class ConnectionManager:
             
             try:
                 # Obter resposta do agente com o formato especificado
-                response_text = self.agents[client_id].process_message(current_text, response_format)
+                response_text = self.agents[client_id].process_message(
+                    current_text, 
+                    response_format,
+                    self.active_connections[client_id]
+                )
                 
                 print(f"Resposta: {response_text}")
                 
                 # Enviar a resposta de volta para o frontend
                 await self.active_connections[client_id].send_text(
-                    json.dumps({"response": response_text, "format": response_format})
+                    json.dumps({
+                        "type": "message",
+                        "content": response_text,
+                        "format": response_format
+                    })
                 )
                 
                 # Atualizar o último texto
@@ -68,7 +76,10 @@ class ConnectionManager:
             except Exception as e:
                 print(f"Erro ao processar com o agente: {e}")
                 await self.active_connections[client_id].send_text(
-                    json.dumps({"error": "Erro ao processar sua solicitação."})
+                    json.dumps({
+                        "type": "error",
+                        "content": "Erro ao processar sua solicitação."
+                    })
                 )
         else:
             print(f"Ignorado: {message} (Similaridade: {similarity:.2f})")
