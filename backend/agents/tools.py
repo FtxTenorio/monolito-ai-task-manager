@@ -4,6 +4,17 @@ import requests
 import json
 from typing import Optional
 import time
+from datetime import datetime
+import locale
+
+# Configurar locale para português
+try:
+    locale.setlocale(locale.LC_TIME, 'pt_BR.UTF-8')
+except:
+    try:
+        locale.setlocale(locale.LC_TIME, 'pt_BR')
+    except:
+        pass  # Se não conseguir configurar, usa o padrão
 
 def calculate_similarity(str1, str2):
     """
@@ -76,6 +87,37 @@ def safe_web_search(query: str) -> str:
     except Exception as e:
         return f"Não foi possível realizar a busca devido a um erro: {str(e)}"
 
+def get_datetime_info(query: str = "") -> str:
+    """
+    Fornece informações sobre a data e hora atual.
+    
+    Args:
+        query (str): Parâmetro opcional para compatibilidade com a interface Tool.
+        
+    Returns:
+        str: Informações de data e hora formatadas
+    """
+    try:
+        # Obter data e hora atual
+        now = datetime.now()
+        
+        # Formatar data e hora
+        data_formatada = now.strftime("%d de %B de %Y")
+        hora_formatada = now.strftime("%H:%M")
+        dia_semana = now.strftime("%A").capitalize()
+        
+        # Montar o contexto
+        context = f"""
+            Data e hora atual:
+            - Data: {data_formatada}
+            - Dia da semana: {dia_semana}
+            - Horário: {hora_formatada}
+        """
+        return context.strip()
+    
+    except Exception as e:
+        return f"Erro ao obter informações de data e hora: {str(e)}"
+
 def get_available_tools():
     """
     Retorna as ferramentas disponíveis para o agente.
@@ -93,6 +135,11 @@ def get_available_tools():
             name="similarity_calculator",
             func=lambda x: calculate_similarity(x.split(",")[0], x.split(",")[1]) if "," in x else 0.0,
             description="Calcula a similaridade entre duas strings. Entrada deve ser no formato 'string1,string2'."
+        ),
+        Tool(
+            name="datetime_info",
+            func=get_datetime_info,
+            description="Fornece informações sobre a data e hora atual. Use esta ferramenta quando precisar de informações temporais. Não precisa enviar parâmetros."
         )
     ]
     

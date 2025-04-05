@@ -95,6 +95,7 @@ export default function Home() {
   const [liveText, setLiveText] = useState('');
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const [isReconnecting, setIsReconnecting] = useState(false);
+  const [isStopping, setIsStopping] = useState(false);
   
   const socketRef = useRef<WebSocket | null>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
@@ -128,15 +129,11 @@ export default function Home() {
     };
     
     socketRef.current.onclose = () => {
-      setIsConnected(false);
-      if (!isReconnecting) {
-        setIsReconnecting(true);
-        setReconnectAttempts(1);
-        setStatus(`Desconectado do servidor. Tentativa de reconexão 1/${MAX_RECONNECT_ATTEMPTS}...`);
-        
-        reconnectTimerRef.current = setTimeout(() => {
-          attemptReconnect();
-        }, RECONNECT_INTERVAL);
+      if (isConnected) {  // Só tenta reconectar se estava conectado
+        setIsConnected(false);
+        if (!isReconnecting) {
+          startReconnectionProcess();
+        }
       }
     };
     
@@ -163,29 +160,65 @@ export default function Home() {
     };
   };
 
-  const attemptReconnect = () => {
-    const nextAttempt = reconnectAttempts + 1;
+  const startReconnectionProcess = () => {
+    setIsReconnecting(true);
+    setReconnectAttempts(1);
+    setStatus(`Desconectado do servidor. Tentativa de reconexão 1/${MAX_RECONNECT_ATTEMPTS}...`);
     
-    if (nextAttempt <= MAX_RECONNECT_ATTEMPTS) {
-      setStatus(`Tentativa de reconexão ${nextAttempt}/${MAX_RECONNECT_ATTEMPTS}...`);
-      setReconnectAttempts(nextAttempt);
+    const tryReconnect = (attempt: number) => {
+      if (attempt > MAX_RECONNECT_ATTEMPTS) {
+        setIsReconnecting(false);
+        setStatus('Não foi possível conectar ao servidor. Clique em "Tentar Novamente" para reconectar.');
+        return;
+      }
+
+      setReconnectAttempts(attempt);
+      setStatus(`Tentativa de reconexão ${attempt}/${MAX_RECONNECT_ATTEMPTS}...`);
       connectWebSocket();
-      
+
       reconnectTimerRef.current = setTimeout(() => {
         if (!isConnected) {
-          attemptReconnect();
+          tryReconnect(attempt + 1);
         }
       }, RECONNECT_INTERVAL);
-    } else {
-      setIsReconnecting(false);
-      setStatus('Não foi possível conectar ao servidor. Clique em "Tentar Novamente" para reconectar.');
-    }
+    };
+
+    tryReconnect(1);
   };
 
   const handleRetryConnection = () => {
-    setReconnectAttempts(0);
-    setIsReconnecting(true);
-    connectWebSocket();
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+    }
+    startReconnectionProcess();
+  };
+
+  // Função para alternar o reconhecimento de voz
+  const toggleListening = () => {
+    if (isListening) {
+      // Primeiro, parar o reconhecimento
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+        recognitionRef.current.abort(); // Força a parada imediata
+      }
+      
+      // Limpar o timer de silêncio
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
+      }
+      
+      // Atualizar estados
+      setIsListening(false);
+      setLiveText('');
+      setStatus('Reconhecimento de voz parado. Clique no microfone para começar.');
+    } else {
+      if (recognitionRef.current) {
+        recognitionRef.current.start();
+        setIsListening(true);
+        setStatus('Falando...');
+      }
+    }
   };
 
   // Inicializar WebSocket
@@ -215,6 +248,8 @@ export default function Home() {
         recognitionRef.current.interimResults = true;
         
         recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
+          if (isStopping) return; // Ignora resultados se estiver parando
+          
           let transcript = '';
           for (let i = event.resultIndex; i < event.results.length; i++) {
             transcript += event.results[i][0].transcript;
@@ -230,7 +265,7 @@ export default function Home() {
           
           // Configurar um novo timer para detectar silêncio
           silenceTimerRef.current = setTimeout(() => {
-            if (transcript.trim()) {
+            if (transcript.trim() && !isStopping) {
               // Adicionar a mensagem do usuário ao chat
               setMessages(prev => [...prev, { text: transcript, isUser: true }]);
               
@@ -253,7 +288,7 @@ export default function Home() {
         };
         
         recognitionRef.current.onend = () => {
-          if (isListening) {
+          if (isListening && !isStopping) {
             setStatus('Reiniciando reconhecimento...');
             recognitionRef.current?.start();
           }
@@ -266,30 +301,7 @@ export default function Home() {
         clearTimeout(silenceTimerRef.current);
       }
     };
-  }, [isListening]);
-
-  // Função para alternar o reconhecimento de voz
-  const toggleListening = () => {
-    if (isListening) {
-      recognitionRef.current?.stop();
-      
-      setIsListening(false);
-      setStatus('Reconhecimento de voz parado. Clique no microfone para começar.');
-      
-      // Limpar o timer de silêncio
-      if (silenceTimerRef.current) {
-        clearTimeout(silenceTimerRef.current);
-        silenceTimerRef.current = null;
-      }
-      
-      // Limpar o texto em tempo real
-      setLiveText('');
-    } else {
-      recognitionRef.current?.start();
-      setIsListening(true);
-      setStatus('Falando...');
-    }
-  };
+  }, [isListening, isStopping]);
 
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
