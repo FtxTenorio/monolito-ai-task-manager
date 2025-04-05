@@ -120,6 +120,8 @@ export default function Home() {
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [isStopping, setIsStopping] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState('pt-BR');
+  const [isTyping, setIsTyping] = useState(false);
+  const [typingDots, setTypingDots] = useState('');
   
   const socketRef = useRef<WebSocket | null>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
@@ -138,6 +140,26 @@ export default function Home() {
     }
   }, [messages]);
 
+  // Efeito para animação dos pontinhos
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    
+    if (isTyping) {
+      interval = setInterval(() => {
+        setTypingDots(prev => {
+          if (prev.length >= 2) return '';
+          return prev + '.';
+        });
+      }, 500);
+    }
+    
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [isTyping]);
+
   const connectWebSocket = () => {
     if (socketRef.current) {
       socketRef.current.close();
@@ -153,7 +175,7 @@ export default function Home() {
     };
     
     socketRef.current.onclose = () => {
-      if (isConnected) {  // Só tenta reconectar se estava conectado
+      if (isConnected) {
         setIsConnected(false);
         if (!isReconnecting) {
           startReconnectionProcess();
@@ -173,13 +195,16 @@ export default function Home() {
           setMessages(prev => [...prev, { text: data.response, isUser: false }]);
           setStatus('Resposta recebida. Clique no microfone para falar novamente.');
           setIsProcessing(false);
+          setIsTyping(false);
         } else if (data.error) {
           setStatus(`Erro: ${data.error}`);
           setIsProcessing(false);
+          setIsTyping(false);
         }
       } catch (e) {
         console.error('Erro ao processar mensagem:', e);
         setIsProcessing(false);
+        setIsTyping(false);
       }
     };
   };
@@ -272,35 +297,29 @@ export default function Home() {
         recognitionRef.current.interimResults = true;
         
         recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
-          if (isStopping) return; // Ignora resultados se estiver parando
+          if (isStopping) return;
           
           let transcript = '';
           for (let i = event.resultIndex; i < event.results.length; i++) {
             transcript += event.results[i][0].transcript;
           }
           
-          // Atualizar o texto em tempo real
           setLiveText(transcript);
           
-          // Resetar o timer de silêncio
           if (silenceTimerRef.current) {
             clearTimeout(silenceTimerRef.current);
           }
           
-          // Configurar um novo timer para detectar silêncio
           silenceTimerRef.current = setTimeout(() => {
             if (transcript.trim() && !isStopping) {
-              // Adicionar a mensagem do usuário ao chat
               setMessages(prev => [...prev, { text: transcript, isUser: true }]);
-              
-              // Limpar o texto em tempo real
               setLiveText('');
               
-              // Enviar o texto para o servidor
               if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
                 socketRef.current.send(JSON.stringify({ text: transcript }));
                 setStatus('Processando sua mensagem...');
                 setIsProcessing(true);
+                setIsTyping(true);
               }
             }
           }, SILENCE_THRESHOLD);
@@ -399,6 +418,11 @@ export default function Home() {
             <Typography>{message.text}</Typography>
           </MessageBubble>
         ))}
+        {isTyping && (
+          <MessageBubble isUser={false} elevation={1}>
+            <Typography>.{typingDots}</Typography>
+          </MessageBubble>
+        )}
       </ChatContainer>
       
       {isListening && (
