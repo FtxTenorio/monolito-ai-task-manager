@@ -485,7 +485,7 @@ export default function Home() {
   };
 
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
+    <Container maxWidth="md" sx={{ py: 4, height: '100vh', overflow: 'hidden' }}>
       <ConnectionIndicator>
         <Tooltip title={isConnected ? "Conectado ao servidor" : "Desconectado do servidor"}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -557,7 +557,7 @@ export default function Home() {
         Assistente de Voz
       </Typography>
       
-      <div className="flex h-screen">
+      <div className="flex h-[calc(100vh-200px)]">
         {/* Chat */}
         <Chat
           messages={messages}
