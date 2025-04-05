@@ -17,10 +17,36 @@ interface Message {
   isUser: boolean;
 }
 
+interface ToolInfo {
+  name: string;
+  description: string;
+  parameters: any;
+  input: string;
+  start_time: number;
+  status: string;
+}
+
+interface ToolResult {
+  tool_name: string;
+  execution_time: number;
+  output: string;
+  status: string;
+}
+
 interface ThinkingUpdate {
   type: string;
   update_type: string;
-  content: string;
+  content: {
+    tool?: ToolInfo;
+    result?: ToolResult;
+    active_tools?: string[];
+    message: string;
+    inputs?: any;
+    outputs?: any;
+    model?: string;
+    tokens_used?: any;
+    error?: string;
+  };
 }
 
 interface ChatProps {
@@ -586,6 +612,40 @@ const FeedbackCount = styled(Badge)`
   }
 `;
 
+const ToolDetailBox = styled(Box)`
+  background: #f8f9fa;
+  border-radius: 4px;
+  padding: 0.5rem;
+  margin: 0.25rem 0;
+  border-left: 3px solid #2196f3;
+`;
+
+const ToolDetailTitle = styled(Typography)`
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: #1976d2;
+  margin-bottom: 0.25rem;
+`;
+
+const ToolDetailText = styled(Typography)`
+  font-size: 0.75rem;
+  color: #666;
+  margin: 0.1rem 0;
+`;
+
+const ToolParameterBox = styled(Box)`
+  background: #fff;
+  border-radius: 4px;
+  padding: 0.25rem;
+  margin: 0.25rem 0;
+  border: 1px solid #e0e0e0;
+`;
+
+const ProcessingFeedbackContent = styled(DialogContent)`
+  max-height: 500px;
+  overflow-y: auto;
+`;
+
 const Chat: React.FC<ChatProps> = ({
   messages,
   isConnected,
@@ -616,13 +676,22 @@ const Chat: React.FC<ChatProps> = ({
   const activeToolResult = thinkingUpdates.find(update => update.update_type === 'tool_end');
   
   // Extrair informações da ferramenta ativa
-  const getToolInfo = (content: string) => {
-    const lines = content.split('\n');
-    const toolName = lines[0].replace('Usando ferramenta: ', '');
-    const toolDescription = lines[1]?.replace('Descrição: ', '') || '';
-    const toolInput = lines[2]?.replace('Entrada: ', '') || '';
-    
-    return { toolName, toolDescription, toolInput };
+  const getToolInfo = (content: any) => {
+    if (typeof content === 'string') {
+      const lines = content.split('\n');
+      const toolName = lines[0].replace('Usando ferramenta: ', '');
+      const toolDescription = lines[1]?.replace('Descrição: ', '') || '';
+      const toolInput = lines[2]?.replace('Entrada: ', '') || '';
+      
+      return { toolName, toolDescription, toolInput };
+    } else if (content && content.tool) {
+      return {
+        toolName: content.tool.name,
+        toolDescription: content.tool.description,
+        toolInput: content.tool.input
+      };
+    }
+    return { toolName: 'Desconhecida', toolDescription: '', toolInput: '' };
   };
   
   const toolInfo = activeTool ? getToolInfo(activeTool.content) : null;
@@ -631,8 +700,15 @@ const Chat: React.FC<ChatProps> = ({
   const getUsedTools = () => {
     const toolStarts = thinkingUpdates.filter(update => update.update_type === 'tool_start');
     return toolStarts.map(update => {
-      const lines = update.content.split('\n');
-      return lines[0].replace('Usando ferramenta: ', '');
+      // Usar type assertion para resolver o problema de tipo
+      const content = update.content as any;
+      if (typeof content === 'string') {
+        const lines = content.split('\n');
+        return lines[0].replace('Usando ferramenta: ', '');
+      } else if (content && content.tool) {
+        return content.tool.name;
+      }
+      return 'Ferramenta desconhecida';
     });
   };
   
@@ -738,6 +814,90 @@ const Chat: React.FC<ChatProps> = ({
   const handleAutoExpandToggle = (event: React.MouseEvent) => {
     event.stopPropagation();
     setAutoExpandFeedback(!autoExpandFeedback);
+  };
+
+  const renderToolDetails = (update: ThinkingUpdate) => {
+    if (update.update_type === "tool_start" && update.content.tool) {
+      const tool = update.content.tool;
+      return (
+        <ToolDetailBox>
+          <ToolDetailTitle>
+            {tool.name} - Iniciando
+          </ToolDetailTitle>
+          <ToolDetailText>
+            <strong>Descrição:</strong> {tool.description}
+          </ToolDetailText>
+          <ToolDetailText>
+            <strong>Input:</strong> {tool.input}
+          </ToolDetailText>
+          {Object.keys(tool.parameters).length > 0 && (
+            <ToolParameterBox>
+              <ToolDetailText>
+                <strong>Parâmetros:</strong>
+              </ToolDetailText>
+              <pre style={{ fontSize: '0.7rem', margin: '0.25rem 0' }}>
+                {JSON.stringify(tool.parameters, null, 2)}
+              </pre>
+            </ToolParameterBox>
+          )}
+        </ToolDetailBox>
+      );
+    }
+    
+    if (update.update_type === "tool_end" && update.content.result) {
+      const result = update.content.result;
+      return (
+        <ToolDetailBox>
+          <ToolDetailTitle>
+            {result.tool_name} - Concluído em {result.execution_time.toFixed(2)}s
+          </ToolDetailTitle>
+          <ToolDetailText>
+            <strong>Status:</strong> {result.status}
+          </ToolDetailText>
+          <ToolParameterBox>
+            <ToolDetailText>
+              <strong>Resultado:</strong>
+            </ToolDetailText>
+            <pre style={{ fontSize: '0.7rem', margin: '0.25rem 0' }}>
+              {typeof result.output === 'string' ? result.output : JSON.stringify(result.output, null, 2)}
+            </pre>
+          </ToolParameterBox>
+        </ToolDetailBox>
+      );
+    }
+
+    if (update.update_type === "llm_start") {
+      return (
+        <ToolDetailBox>
+          <ToolDetailTitle>
+            Modelo de Linguagem - Iniciando
+          </ToolDetailTitle>
+          <ToolDetailText>
+            <strong>Modelo:</strong> {update.content.model}
+          </ToolDetailText>
+        </ToolDetailBox>
+      );
+    }
+
+    if (update.update_type === "llm_end") {
+      return (
+        <ToolDetailBox>
+          <ToolDetailTitle>
+            Modelo de Linguagem - Concluído
+          </ToolDetailTitle>
+          {update.content.tokens_used && (
+            <ToolDetailText>
+              <strong>Tokens utilizados:</strong>
+              <pre style={{ fontSize: '0.7rem', margin: '0.25rem 0' }}>
+                {JSON.stringify(update.content.tokens_used, null, 2)}
+              </pre>
+            </ToolDetailText>
+          )}
+        </ToolDetailBox>
+      );
+    }
+
+    return null;
   };
 
   return (
@@ -846,13 +1006,13 @@ const Chat: React.FC<ChatProps> = ({
                               
                               {(update.update_type === 'tool_start' || update.update_type === 'tool_end') && (
                                 <ToolInfo>
-                                  {update.content}
+                                  {typeof update.content === 'string' ? update.content : (update.content as any).message || ''}
                                 </ToolInfo>
                               )}
                               
                               {update.update_type !== 'tool_start' && update.update_type !== 'tool_end' && (
                                 <Typography variant="body2" color="text.secondary">
-                                  {update.content}
+                                  {typeof update.content === 'string' ? update.content : (update.content as any).message || ''}
                                 </Typography>
                               )}
                             </ThinkingContent>
@@ -876,7 +1036,9 @@ const Chat: React.FC<ChatProps> = ({
                             </Typography>
                           </ToolResultHeader>
                           <ToolResultContent>
-                            {activeToolResult.content.replace('Resultado: ', '')}
+                            {typeof activeToolResult.content === 'string' 
+                              ? (activeToolResult.content as string).replace('Resultado: ', '') 
+                              : (activeToolResult.content as any).message || 'Sem resultado'}
                           </ToolResultContent>
                         </ToolResultContainer>
                       )}
@@ -974,87 +1136,46 @@ const Chat: React.FC<ChatProps> = ({
       {/* Dialog (popup) para o resumo do processamento */}
       <Dialog
         open={isSummaryOpen}
-        onClose={handleCloseSummaryWithAnimation}
-        maxWidth="sm"
+        onClose={handleCloseSummary}
+        maxWidth="md"
         fullWidth
-        TransitionComponent={Fade}
-        TransitionProps={{ timeout: 500 }}
-        PaperProps={{
-          sx: {
-            borderRadius: 2,
-            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.1)',
-            transform: 'scale(0.95)',
-            transition: 'all 0.2s ease-in-out',
-            '&.MuiDialog-paper': {
-              transform: 'scale(1)',
-              opacity: 1
-            },
-            '&.closing': {
-              transform: 'scale(0.95)',
-              opacity: 0
-            },
-            '&.opening': {
-              transform: 'scale(1)',
-              opacity: 1
-            }
-          }
-        }}
       >
-        <DialogTitle sx={{ borderBottom: '1px solid #e0e0e0', pb: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <ProcessingSummaryIcon>
-              ⏱️
-            </ProcessingSummaryIcon>
-            <Typography variant="h6" color="#757575">
-              Resumo do processamento
+        <DialogTitle>
+          Feedback do Processamento
+        </DialogTitle>
+        <ProcessingFeedbackContent>
+          <Box mb={2}>
+            <Typography variant="subtitle1" gutterBottom>
+              Tempo de Processamento: {getProcessingTime()}
             </Typography>
           </Box>
-        </DialogTitle>
-        <DialogContent sx={{ pt: 3 }}>
-          {/* Informações gerais */}
-          <SummarySection>
-            <SummarySectionTitle>
-              <SummarySectionIcon>
-                <InfoIcon fontSize="small" />
-              </SummarySectionIcon>
-              Informações gerais
-            </SummarySectionTitle>
-            <SummaryItem>
-              <SummaryItemLabel>Tempo de processamento:</SummaryItemLabel>
-              <SummaryItemValue>{processingTime} segundos</SummaryItemValue>
-            </SummaryItem>
-            <SummaryItem>
-              <SummaryItemLabel>Status:</SummaryItemLabel>
-              <SummaryItemValue sx={{ color: '#4caf50' }}>Concluído</SummaryItemValue>
-            </SummaryItem>
-          </SummarySection>
           
-          {/* Ferramentas utilizadas */}
+          <Box mb={2}>
+            <Typography variant="subtitle1" gutterBottom>
+              Detalhes da Execução:
+            </Typography>
+            {thinkingUpdates.map((update, index) => (
+              <Box key={index} mb={1}>
+                {renderToolDetails(update)}
+              </Box>
+            ))}
+          </Box>
+          
           {usedTools.length > 0 && (
-            <SummarySection>
-              <SummarySectionTitle>
-                <SummarySectionIcon>
-                  🔧
-                </SummarySectionIcon>
-                Ferramentas utilizadas ({usedTools.length})
-              </SummarySectionTitle>
-              <ToolList>
-                {usedTools.map((tool, index) => (
-                  <ToolItem key={index}>
-                    {tool}
-                  </ToolItem>
-                ))}
-              </ToolList>
-            </SummarySection>
+            <Box mb={2}>
+              <Typography variant="subtitle1" gutterBottom>
+                Ferramentas Utilizadas:
+              </Typography>
+              {usedTools.map((tool, index) => (
+                <ToolSummaryItem key={index}>
+                  {tool}
+                </ToolSummaryItem>
+              ))}
+            </Box>
           )}
-        </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid #e0e0e0' }}>
-          <Button 
-            onClick={handleCloseSummaryWithAnimation} 
-            variant="contained" 
-            color="primary"
-            sx={{ borderRadius: 2 }}
-          >
+        </ProcessingFeedbackContent>
+        <DialogActions>
+          <Button onClick={handleCloseSummary} color="primary">
             Fechar
           </Button>
         </DialogActions>
