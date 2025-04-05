@@ -1,0 +1,63 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Description: Lambda function for routines management with DynamoDB integration
+
+Parameters:
+  ApiGatewayId:
+    Type: String
+    Description: ID of the existing API Gateway
+  ApiGatewayStage:
+    Type: String
+    Description: Stage name of the existing API Gateway
+    Default: dev
+
+Resources:
+  RoutinesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Routines
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  RoutinesManagerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Architectures:
+        - x86_64
+      MemorySize: 128
+      Timeout: 30
+      Environment:
+        Variables:
+          ROUTINES_TABLE: !Ref RoutinesTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RoutinesTable
+      Events:
+        ListRoutines:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGatewayId
+            Path: /routines
+            Method: get
+            Stage: !Ref ApiGatewayStage
+        GetRoutine:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGatewayId
+            Path: /routines/{id}
+            Method: get
+            Stage: !Ref ApiGatewayStage
+
+Outputs:
+  ApiEndpoint:
+    Description: API Gateway endpoint URL
+    Value: !Sub https://${ApiGatewayId}.execute-api.${AWS::Region}.amazonaws.com/${ApiGatewayStage}/routines 
