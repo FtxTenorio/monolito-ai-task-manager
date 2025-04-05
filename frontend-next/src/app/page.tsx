@@ -10,12 +10,18 @@ import {
   CircularProgress,
   Fade,
   TextField,
-  Tooltip
+  Tooltip,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  SelectChangeEvent
 } from '@mui/material';
 import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
 import WifiIcon from '@mui/icons-material/Wifi';
 import WifiOffIcon from '@mui/icons-material/WifiOff';
+import LanguageIcon from '@mui/icons-material/Language';
 import { styled } from '@mui/material/styles';
 
 // Componentes estilizados
@@ -78,6 +84,23 @@ const ConnectionIndicator = styled(Box)(({ theme }) => ({
   top: theme.spacing(2),
   right: theme.spacing(2),
   zIndex: 1000,
+  display: 'flex',
+  alignItems: 'center',
+  gap: theme.spacing(2),
+}));
+
+const LanguageSelector = styled(FormControl)(({ theme }) => ({
+  minWidth: 120,
+  backgroundColor: 'rgba(255, 255, 255, 0.9)',
+  borderRadius: theme.shape.borderRadius,
+  '& .MuiOutlinedInput-root': {
+    '& fieldset': {
+      borderColor: theme.palette.primary.main,
+    },
+    '&:hover fieldset': {
+      borderColor: theme.palette.primary.dark,
+    },
+  },
 }));
 
 // Interface para mensagens
@@ -96,6 +119,7 @@ export default function Home() {
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [isStopping, setIsStopping] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState('pt-BR');
   
   const socketRef = useRef<WebSocket | null>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
@@ -243,7 +267,7 @@ export default function Home() {
       if (SpeechRecognitionAPI) {
         recognitionRef.current = new SpeechRecognitionAPI();
         
-        recognitionRef.current.lang = 'pt-BR';
+        recognitionRef.current.lang = selectedLanguage;
         recognitionRef.current.continuous = true;
         recognitionRef.current.interimResults = true;
         
@@ -301,7 +325,19 @@ export default function Home() {
         clearTimeout(silenceTimerRef.current);
       }
     };
-  }, [isListening, isStopping]);
+  }, [isListening, isStopping, selectedLanguage]);
+
+  const handleLanguageChange = (event: SelectChangeEvent<string>) => {
+    const newLanguage = event.target.value;
+    setSelectedLanguage(newLanguage);
+    
+    // Se estiver ouvindo, reinicia o reconhecimento com o novo idioma
+    if (isListening && recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current.lang = newLanguage;
+      recognitionRef.current.start();
+    }
+  };
 
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
@@ -326,6 +362,31 @@ export default function Home() {
             )}
           </Box>
         </Tooltip>
+        
+        <LanguageSelector size="small">
+          <InputLabel id="language-select-label">
+            <LanguageIcon fontSize="small" sx={{ mr: 1 }} />
+            Idioma
+          </InputLabel>
+          <Select
+            labelId="language-select-label"
+            value={selectedLanguage}
+            label="Idioma"
+            onChange={handleLanguageChange}
+            disabled={isListening}
+          >
+            <MenuItem value="pt-BR">Português (BR)</MenuItem>
+            <MenuItem value="en-US">English (US)</MenuItem>
+            <MenuItem value="es-ES">Español</MenuItem>
+            <MenuItem value="fr-FR">Français</MenuItem>
+            <MenuItem value="de-DE">Deutsch</MenuItem>
+            <MenuItem value="it-IT">Italiano</MenuItem>
+            <MenuItem value="ja-JP">日本語</MenuItem>
+            <MenuItem value="ko-KR">한국어</MenuItem>
+            <MenuItem value="zh-CN">中文</MenuItem>
+            <MenuItem value="ru-RU">Русский</MenuItem>
+          </Select>
+        </LanguageSelector>
       </ConnectionIndicator>
 
       <Typography variant="h1" component="h1" align="center" gutterBottom>
