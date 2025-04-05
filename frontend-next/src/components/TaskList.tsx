@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { 
   Box, 
   Typography, 
@@ -22,12 +22,14 @@ import {
   IconButton,
   Tooltip,
   Stack,
-  SelectChangeEvent
+  SelectChangeEvent,
+  Chip
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import FilterListIcon from '@mui/icons-material/FilterList';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import axios from 'axios';
 
 // Tipos
@@ -52,7 +54,7 @@ const prioridades = ['Alta', 'Média', 'Baixa'];
 const categorias = ['Compasso', 'Geral', 'Continuar', 'Desenvolvimento', 'Backup'];
 const status = ['Pendente', 'Concluído'];
 
-const TaskList: React.FC = () => {
+const TaskList = forwardRef<{ fetchTasks: () => void }>((props, ref) => {
   // Estados
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,22 +78,22 @@ const TaskList: React.FC = () => {
     status: 'Pendente'
   });
 
-  // Carregar tarefas
+  // Função para buscar tarefas
   const fetchTasks = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('https://api.itenorio.com/lambda/tasks');
-      setTasks(response.data.body.Items || []);
+      const response = await axios.get('http://localhost:8000/tasks');
+      setTasks(response.data);
       setError(null);
-    } catch (err) {
-      console.error('Erro ao carregar tarefas:', err);
+    } catch (error) {
+      console.error('Erro ao buscar tarefas:', error);
       setError('Não foi possível carregar as tarefas. Tente novamente mais tarde.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Carregar tarefas ao montar o componente
+  // Buscar tarefas ao montar o componente
   useEffect(() => {
     fetchTasks();
   }, []);
@@ -212,20 +214,31 @@ const TaskList: React.FC = () => {
     });
   };
 
+  // Expor a função fetchTasks através da ref
+  useImperativeHandle(ref, () => ({
+    fetchTasks
+  }));
+
   return (
     <Paper elevation={3} sx={{ p: 2, height: '100%', overflow: 'auto' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h6" component="h2">
           Minhas Tarefas
         </Typography>
-        <Button 
-          variant="contained" 
-          color="primary" 
-          startIcon={<AddIcon />}
-          onClick={handleOpenAddDialog}
-        >
-          Nova Tarefa
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Tooltip title="Atualizar tarefas">
+            <IconButton onClick={fetchTasks} color="primary">
+              <RefreshIcon />
+            </IconButton>
+          </Tooltip>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleOpenAddDialog}
+          >
+            Nova Tarefa
+          </Button>
+        </Box>
       </Box>
 
       {/* Filtros */}
@@ -495,6 +508,6 @@ const TaskList: React.FC = () => {
       </Dialog>
     </Paper>
   );
-};
+});
 
 export default TaskList; 

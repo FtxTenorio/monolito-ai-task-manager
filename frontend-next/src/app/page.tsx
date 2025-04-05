@@ -247,6 +247,7 @@ export default function Home() {
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const taskListRef = useRef<{ fetchTasks: () => void }>(null);
   
   const SILENCE_THRESHOLD = 1500; // 1.5 segundos de silêncio
   const MAX_RECONNECT_ATTEMPTS = 3;
@@ -484,6 +485,14 @@ export default function Home() {
     setResponseFormat(event.target.value);
   };
 
+  const handleTaskListOpen = () => {
+    setIsTaskListExpanded(true);
+    // Pequeno delay para garantir que o componente está montado
+    setTimeout(() => {
+      taskListRef.current?.fetchTasks();
+    }, 100);
+  };
+
   return (
     <Container maxWidth="md" sx={{ py: 4, height: '100vh', overflow: 'hidden' }}>
       <ConnectionIndicator>
@@ -577,7 +586,7 @@ export default function Home() {
         <Tooltip title="Ver todas as tarefas">
           <Fab 
             color="primary" 
-            onClick={() => setIsTaskListExpanded(true)}
+            onClick={handleTaskListOpen}
             sx={{ bgcolor: 'primary.main' }}
           >
             <ListAltIcon />
@@ -605,7 +614,7 @@ export default function Home() {
           </Box>
         </DialogTitle>
         <DialogContent>
-          <TaskList />
+          <TaskList ref={taskListRef} />
         </DialogContent>
       </Dialog>
     </Container>
