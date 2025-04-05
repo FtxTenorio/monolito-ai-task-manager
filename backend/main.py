@@ -54,7 +54,7 @@ class ConnectionManager:
             
             try:
                 # Obter resposta do agente com o formato especificado
-                response_text = self.agents[client_id].process_message(
+                response_text = await self.agents[client_id].process_message_async(
                     current_text, 
                     response_format,
                     self.active_connections[client_id]

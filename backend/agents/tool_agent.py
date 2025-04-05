@@ -4,6 +4,8 @@ from langchain_core.messages import HumanMessage, AIMessage
 from .base_agent import BaseAgent
 from .tools import get_available_tools, format_response
 import json
+import asyncio
+from langchain.callbacks.base import BaseCallbackHandler
 
 class ToolAgent(BaseAgent):
     def __init__(self, system_prompt="Você é um assistente útil e amigável com acesso a ferramentas. Use as ferramentas disponíveis quando necessário para fornecer respostas mais precisas e atualizadas."):
@@ -34,9 +36,9 @@ class ToolAgent(BaseAgent):
             verbose=True
         )
     
-    def process_message(self, message, response_format="markdown", websocket=None):
+    async def process_message_async(self, message, response_format="markdown", websocket=None):
         """
-        Processa uma mensagem do usuário usando o agente com ferramentas.
+        Versão assíncrona do processamento de mensagens.
         
         Args:
             message (str): A mensagem do usuário
@@ -50,10 +52,10 @@ class ToolAgent(BaseAgent):
         self.conversation_history.append(HumanMessage(content=message))
         
         # Função para enviar atualizações
-        def send_update(update_type, content):
+        async def send_update(update_type, content):
             if websocket:
                 try:
-                    websocket.send_text(json.dumps({
+                    await websocket.send_text(json.dumps({
                         "type": "thinking",
                         "update_type": update_type,
                         "content": content
@@ -64,34 +66,42 @@ class ToolAgent(BaseAgent):
         # Obter resposta do agente
         try:
             # Enviar atualização de início do processamento
-            send_update("start", "Iniciando processamento da sua solicitação...")
+            if websocket:
+                await send_update("start", "Iniciando processamento da sua solicitação...")
             
-            # Configurar callback para atualizações
-            def on_tool_start(tool_name):
-                send_update("tool_start", f"Usando ferramenta: {tool_name}")
+            # Criar um callback handler personalizado
+            class WebSocketCallbackHandler(BaseCallbackHandler):
+                def __init__(self, websocket, send_update_func):
+                    self.websocket = websocket
+                    self.send_update_func = send_update_func
+                
+                async def on_tool_start(self, serialized, input_str, **kwargs):
+                    if self.websocket:
+                        await self.send_update_func("tool_start", f"Usando ferramenta: {serialized.get('name', 'desconhecida')}")
+                
+                async def on_tool_end(self, output, **kwargs):
+                    if self.websocket:
+                        await self.send_update_func("tool_end", f"Resultado: {output}")
+                
+                async def on_chain_start(self, serialized, inputs, **kwargs):
+                    if self.websocket:
+                        await self.send_update_func("chain_start", f"Iniciando cadeia de processamento")
+                
+                async def on_chain_end(self, outputs, **kwargs):
+                    if self.websocket:
+                        await self.send_update_func("chain_end", f"Concluído")
             
-            def on_tool_end(tool_name, output):
-                send_update("tool_end", f"Resultado da ferramenta {tool_name}: {output}")
-            
-            def on_chain_start(chain_name):
-                send_update("chain_start", f"Iniciando cadeia de processamento: {chain_name}")
-            
-            def on_chain_end(chain_name, output):
-                send_update("chain_end", f"Concluído: {chain_name}")
-            
-            # Configurar callbacks no executor
-            self.agent_executor.callbacks = {
-                "on_tool_start": on_tool_start,
-                "on_tool_end": on_tool_end,
-                "on_chain_start": on_chain_start,
-                "on_chain_end": on_chain_end
-            }
+            # Configurar o callback handler
+            callback_handler = WebSocketCallbackHandler(websocket, send_update) if websocket else None
             
             # Obter resposta
-            response = self.agent_executor.invoke({
-                "input": message,
-                "chat_history": self.conversation_history[:-1]  # Excluir a mensagem atual
-            })
+            response = self.agent_executor.invoke(
+                {
+                    "input": message,
+                    "chat_history": self.conversation_history[:-1]  # Excluir a mensagem atual
+                },
+                callbacks=[callback_handler] if callback_handler else None
+            )
             
             response_text = response["output"]
             
@@ -102,11 +112,63 @@ class ToolAgent(BaseAgent):
             self.conversation_history.append(AIMessage(content=response_text))
             
             # Enviar atualização de conclusão
-            send_update("complete", "Processamento concluído!")
+            if websocket:
+                await send_update("complete", "Processamento concluído!")
             
             return formatted_response
             
         except Exception as e:
             error_message = f"Erro ao processar mensagem: {str(e)}"
-            send_update("error", error_message)
-            raise Exception(error_message) 
+            if websocket:
+                await send_update("error", error_message)
+            raise Exception(error_message)
+    
+    def process_message(self, message, response_format="markdown", websocket=None):
+        """
+        Versão síncrona do processamento de mensagens.
+        Redireciona para a versão assíncrona se um websocket for fornecido.
+        
+        Args:
+            message (str): A mensagem do usuário
+            response_format (str): Formato da resposta (markdown, text, html)
+            websocket: WebSocket para enviar atualizações em tempo real
+            
+        Returns:
+            str: A resposta do agente formatada
+        """
+        # Se um websocket for fornecido, use a versão assíncrona
+        if websocket:
+            # Criar um novo loop de eventos para executar a função assíncrona
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                return loop.run_until_complete(
+                    self.process_message_async(message, response_format, websocket)
+                )
+            finally:
+                loop.close()
+        else:
+            # Caso contrário, use o processamento síncrono padrão
+            # Adicionar a mensagem do usuário ao histórico
+            self.conversation_history.append(HumanMessage(content=message))
+            
+            # Obter resposta do agente
+            try:
+                response = self.agent_executor.invoke({
+                    "input": message,
+                    "chat_history": self.conversation_history[:-1]  # Excluir a mensagem atual
+                })
+                
+                response_text = response["output"]
+                
+                # Formatar a resposta de acordo com o formato solicitado
+                formatted_response = format_response(response_text, response_format)
+                
+                # Adicionar a resposta ao histórico
+                self.conversation_history.append(AIMessage(content=response_text))
+                
+                return formatted_response
+                
+            except Exception as e:
+                error_message = f"Erro ao processar mensagem: {str(e)}"
+                raise Exception(error_message) 
