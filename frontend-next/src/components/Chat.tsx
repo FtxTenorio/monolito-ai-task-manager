@@ -53,6 +53,7 @@ interface Message {
   thinkingUpdates?: ThinkingUpdate[];
   processingStartTime?: Date;
   processingEndTime?: Date;
+  isFeedbackExpanded?: boolean;
 }
 
 // Definir o tipo para o estado de expansão do feedback
@@ -686,7 +687,6 @@ const Chat: React.FC<ChatProps> = ({
   const [toolProgress, setToolProgress] = useState(0);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const [selectedMessageIndex, setSelectedMessageIndex] = useState<number | null>(null);
-  const [isFeedbackExpanded, setIsFeedbackExpanded] = useState<FeedbackExpandedState>({});
   const [autoExpandFeedback, setAutoExpandFeedback] = useState(true);
   const [localMessages, setLocalMessages] = useState<Message[]>(propMessages);
   
@@ -749,7 +749,9 @@ const Chat: React.FC<ChatProps> = ({
           ...updatedMessages[actualIndex],
           thinkingUpdates: combinedUpdates,
           processingStartTime: updatedMessages[actualIndex].processingStartTime || new Date(),
-          processingEndTime: isProcessing ? undefined : new Date()
+          processingEndTime: isProcessing ? undefined : new Date(),
+          // Expandir automaticamente o feedback se estiver habilitado
+          isFeedbackExpanded: autoExpandFeedback ? true : updatedMessages[actualIndex].isFeedbackExpanded
         };
         
         console.log("Atualizando mensagem com feedback:", {
@@ -760,18 +762,9 @@ const Chat: React.FC<ChatProps> = ({
         
         // Atualizar o estado local das mensagens
         setLocalMessages(updatedMessages);
-        
-        // Expandir automaticamente o feedback se estiver habilitado
-        if (autoExpandFeedback && !isFeedbackExpanded[actualIndex]) {
-          console.log("Expandindo feedback automaticamente para mensagem:", actualIndex);
-          setIsFeedbackExpanded(prev => ({
-            ...prev,
-            [actualIndex]: true
-          }));
-        }
       }
     }
-  }, [thinkingUpdates, localMessages, isProcessing, autoExpandFeedback, isFeedbackExpanded]);
+  }, [thinkingUpdates, localMessages, isProcessing, autoExpandFeedback]);
   
   // Encontrar a ferramenta ativa na mensagem selecionada
   const getActiveTool = (messageIndex: number): ThinkingUpdate | null => {
@@ -857,10 +850,12 @@ const Chat: React.FC<ChatProps> = ({
   
   // Função para alternar a expansão do feedback para uma mensagem específica
   const handleFeedbackToggle = (messageIndex: number) => (event: React.SyntheticEvent, expanded: boolean) => {
-    setIsFeedbackExpanded(prev => ({
-      ...prev,
-      [messageIndex]: expanded
-    }));
+    const updatedMessages = [...localMessages];
+    updatedMessages[messageIndex] = {
+      ...updatedMessages[messageIndex],
+      isFeedbackExpanded: expanded
+    };
+    setLocalMessages(updatedMessages);
   };
   
   // Função para alternar a expansão automática
@@ -1005,7 +1000,7 @@ const Chat: React.FC<ChatProps> = ({
               isUser: message.isUser,
               thinkingUpdatesLength: message.thinkingUpdates?.length || 0,
               thinkingUpdates: message.thinkingUpdates,
-              isFeedbackExpanded: isFeedbackExpanded[index]
+              isFeedbackExpanded: message.isFeedbackExpanded
             });
             
             // Verificar se a mensagem tem atualizações de processamento
@@ -1052,7 +1047,7 @@ const Chat: React.FC<ChatProps> = ({
                         <Fade in={true} timeout={500}>
                           <Box sx={{ mt: 2, borderTop: '1px solid #e0e0e0', pt: 1 }}>
                             <FeedbackAccordion 
-                              expanded={isFeedbackExpanded[index] || false} 
+                              expanded={message.isFeedbackExpanded || false} 
                               onChange={handleFeedbackToggle(index)}
                               TransitionProps={{ timeout: 300 }}
                               className={getActiveTool(index) && !getActiveToolResult(index) ? 'active-tool' : ''}
@@ -1065,7 +1060,7 @@ const Chat: React.FC<ChatProps> = ({
                                 id="feedback-header"
                                 className={getActiveTool(index) && !getActiveToolResult(index) ? 'active-tool-summary' : ''}
                                 sx={{ 
-                                  backgroundColor: isFeedbackExpanded[index] ? '#e3f2fd' : '#f0f7ff',
+                                  backgroundColor: message.isFeedbackExpanded ? '#e3f2fd' : '#f0f7ff',
                                   borderLeft: getActiveTool(index) && !getActiveToolResult(index) ? '3px solid #2196f3' : 'none'
                                 }}
                               >
