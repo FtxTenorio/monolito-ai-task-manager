@@ -513,23 +513,22 @@ export default function Home() {
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   components={{
-                    code({ node, inline, className, children, ...props }) {
+                    code({ className, children }) {
                       const match = /language-(\w+)/.exec(className || '');
                       const language = match ? match[1] : '';
-                      return !inline && match ? (
+                      return match ? (
                         <CodeBlock>
                           <div className="language-label">{language}</div>
                           <SyntaxHighlighter
-                            style={vscDarkPlus}
+                            style={vscDarkPlus as any}
                             language={language}
                             PreTag="div"
-                            {...props}
                           >
                             {String(children).replace(/\n$/, '')}
                           </SyntaxHighlighter>
                         </CodeBlock>
                       ) : (
-                        <code className={className} {...props}>
+                        <code className={className}>
                           {children}
                         </code>
                       );
