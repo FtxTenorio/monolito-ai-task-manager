@@ -481,9 +481,20 @@ export default function Home() {
   const addUserMessage = (text: string) => {
     // Adicionar a mensagem do usuário
     setMessages(prevMessages => [...prevMessages, { text, isUser: true }]);
+    setLiveText('');
     
     // Limpar as atualizações antes de enviar uma nova mensagem
     setThinkingUpdates([]);
+    
+    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({ 
+        text: text,
+        format: responseFormat
+      }));
+      setStatus('Processando sua mensagem...');
+      setIsProcessing(true);
+      setIsTyping(true);
+    }
   };
 
   // Função para adicionar uma mensagem da IA
@@ -502,6 +513,8 @@ export default function Home() {
     // Limpar as atualizações após adicionar a mensagem
     setThinkingUpdates([]);
     setIsProcessing(false);
+    setIsTyping(false);
+    setStatus('Resposta recebida. Clique no microfone para falar novamente.');
   };
 
   // Função para adicionar uma mensagem de erro
@@ -516,38 +529,39 @@ export default function Home() {
   useEffect(() => {
     if (socketRef.current) {
       const handleMessage = (event: MessageEvent) => {
-        const data = JSON.parse(event.data);
-        console.log("Mensagem recebida:", data);
+        try {
+          const data = JSON.parse(event.data);
+          console.log("Recebido do WebSocket:", data);
 
-        if (data.type === 'thinking_update') {
-          // Criar uma cópia das atualizações atuais
-          const currentUpdates = [...thinkingUpdates];
-          
-          // Adicionar a nova atualização
-          const newUpdate = data.content;
-          
-          // Se for uma atualização de início de processamento, limpar as atualizações anteriores
-          if (newUpdate.update_type === 'start') {
-            setThinkingUpdates([newUpdate]);
-          } else {
-            // Caso contrário, adicionar à lista existente
-            setThinkingUpdates([...currentUpdates, newUpdate]);
+          if (data.type === 'thinking_update') {
+            // Criar uma cópia das atualizações atuais
+            const currentUpdates = [...thinkingUpdates];
+            
+            // Adicionar a nova atualização
+            const newUpdate = data.content;
+            
+            // Se for uma atualização de início de processamento, limpar as atualizações anteriores
+            if (newUpdate.update_type === 'start') {
+              setThinkingUpdates([newUpdate]);
+            } else {
+              // Caso contrário, adicionar à lista existente
+              setThinkingUpdates([...currentUpdates, newUpdate]);
+            }
+            
+            // Se for uma atualização de conclusão, adicionar a mensagem
+            if (newUpdate.update_type === 'complete') {
+              const messageText = newUpdate.content.message || '';
+              addAIMessage(messageText, [...currentUpdates, newUpdate]);
+            }
+          } else if (data.type === 'message') {
+            console.log("Adicionando mensagem ao chat:", data.content);
+            addAIMessage(data.content);
+          } else if (data.type === 'error') {
+            console.error("Erro recebido do servidor:", data.content);
+            addErrorMessage(data.content);
           }
-          
-          // Se for uma atualização de conclusão, adicionar a mensagem
-          if (newUpdate.update_type === 'complete') {
-            const messageText = newUpdate.content.message || '';
-            addAIMessage(messageText, [...currentUpdates, newUpdate]);
-            // Limpar as atualizações após adicionar a mensagem
-            setThinkingUpdates([]);
-          }
-        } else if (data.type === 'message') {
-          addAIMessage(data.content);
-        } else if (data.type === 'status') {
-          setStatus(data.content);
-        } else if (data.type === 'error') {
-          console.error("Erro recebido:", data.content);
-          setStatus(`Erro: ${data.content}`);
+        } catch (e) {
+          console.error('Erro ao processar mensagem do WebSocket:', e);
         }
       };
       
