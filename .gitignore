@@ -21,10 +21,16 @@ wheels/
 *.egg
 
 # Virtual Environment
+.env
+.venv/
 venv/
 ENV/
 env/
-.env
+
+# AWS SAM
+.aws-sam/
+samconfig.toml
+build/
 
 # IDE
 .idea/
@@ -32,6 +38,27 @@ env/
 *.swp
 *.swo
 
+# Testes
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Logs e Ambiente Local
+*.log
+.env.local
+events/event-local.json
+
+# Node.js
+node_modules/
+.next/
+out/
+.DS_Store
+*.pem
+.env*.local
+.vercel
+*.tsbuildinfo
+next-env.d.ts
+
 # OS
 .DS_Store
-Thumbs.db 
+Thumbs.db

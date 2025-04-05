@@ -3,14 +3,10 @@ Transform: AWS::Serverless-2016-10-31
 
 Description: Lambda function for routines management with DynamoDB integration
 
-Parameters:
-  ApiGatewayId:
-    Type: String
-    Description: ID of the existing API Gateway
-  ApiGatewayStage:
-    Type: String
-    Description: Stage name of the existing API Gateway
-    Default: dev
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 128
 
 Resources:
   RoutinesTable:
@@ -28,36 +24,22 @@ Resources:
   RoutinesManagerFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/
-      Handler: app.lambda_handler
-      Runtime: python3.9
-      Architectures:
-        - x86_64
-      MemorySize: 128
-      Timeout: 30
+      FunctionName: RoutinesManager
+      PackageType: Image
+      ImageConfig:
+        Command: ["src.handlers.routine_handler.lambda_handler"]
       Environment:
         Variables:
           ROUTINES_TABLE: !Ref RoutinesTable
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref RoutinesTable
-      Events:
-        ListRoutines:
-          Type: Api
-          Properties:
-            RestApiId: !Ref ApiGatewayId
-            Path: /routines
-            Method: get
-            Stage: !Ref ApiGatewayStage
-        GetRoutine:
-          Type: Api
-          Properties:
-            RestApiId: !Ref ApiGatewayId
-            Path: /routines/{id}
-            Method: get
-            Stage: !Ref ApiGatewayStage
+    Metadata:
+      Dockerfile: Dockerfile
+      DockerContext: .
+      DockerTag: python3.11-v1
 
 Outputs:
-  ApiEndpoint:
-    Description: API Gateway endpoint URL
-    Value: !Sub https://${ApiGatewayId}.execute-api.${AWS::Region}.amazonaws.com/${ApiGatewayStage}/routines 
+  RoutinesFunction:
+    Description: Routines Lambda Function ARN
+    Value: !GetAtt RoutinesManagerFunction.Arn 

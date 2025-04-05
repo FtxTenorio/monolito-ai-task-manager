@@ -1,0 +1,4 @@
+{
+  "httpMethod": "POST",
+  "body": "{\"name\": \"Rotina Diária de Exercícios\", \"description\": \"30 minutos de exercícios pela manhã\", \"status\": \"pending\", \"schedule\": \"08:00\", \"frequency\": \"daily\", \"priority\": \"high\", \"tags\": [\"saúde\", \"exercício\"], \"estimated_duration\": 30}"
+} 
