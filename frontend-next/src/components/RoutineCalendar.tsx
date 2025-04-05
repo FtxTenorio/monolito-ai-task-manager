@@ -76,6 +76,7 @@ export interface Routine {
   estimated_duration: number;
   start_date: string | null;
   end_date: string | null;
+  custom_days?: number[];
   created_at: string;
   updated_at: string;
 }
