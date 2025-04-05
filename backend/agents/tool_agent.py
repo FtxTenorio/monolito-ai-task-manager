@@ -75,21 +75,21 @@ class ToolAgent(BaseAgent):
                     self.websocket = websocket
                     self.send_update_func = send_update_func
                 
-                async def on_tool_start(self, serialized, input_str, **kwargs):
+                def on_tool_start(self, serialized, input_str, **kwargs):
                     if self.websocket:
-                        await self.send_update_func("tool_start", f"Usando ferramenta: {serialized.get('name', 'desconhecida')}")
+                        asyncio.create_task(self.send_update_func("tool_start", f"Usando ferramenta: {serialized.get('name', 'desconhecida')}"))
                 
-                async def on_tool_end(self, output, **kwargs):
+                def on_tool_end(self, output, **kwargs):
                     if self.websocket:
-                        await self.send_update_func("tool_end", f"Resultado: {output}")
+                        asyncio.create_task(self.send_update_func("tool_end", f"Resultado: {output}"))
                 
-                async def on_chain_start(self, serialized, inputs, **kwargs):
+                def on_chain_start(self, serialized, inputs, **kwargs):
                     if self.websocket:
-                        await self.send_update_func("chain_start", f"Iniciando cadeia de processamento")
+                        asyncio.create_task(self.send_update_func("chain_start", f"Iniciando cadeia de processamento"))
                 
-                async def on_chain_end(self, outputs, **kwargs):
+                def on_chain_end(self, outputs, **kwargs):
                     if self.websocket:
-                        await self.send_update_func("chain_end", f"Concluído")
+                        asyncio.create_task(self.send_update_func("chain_end", f"Concluído"))
             
             # Configurar o callback handler
             callback_handler = WebSocketCallbackHandler(websocket, send_update) if websocket else None
