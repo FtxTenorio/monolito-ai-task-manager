@@ -25,6 +25,8 @@ import LanguageIcon from '@mui/icons-material/Language';
 import { styled } from '@mui/material/styles';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 // Componentes estilizados
 const ChatContainer = styled(Box)(({ theme }) => ({
@@ -105,6 +107,21 @@ const LanguageSelector = styled(FormControl)(({ theme }) => ({
   },
 }));
 
+const CodeBlock = styled(Box)(({ theme }) => ({
+  position: 'relative',
+  margin: theme.spacing(1, 0),
+  '& .language-label': {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    padding: theme.spacing(0.5, 1),
+    backgroundColor: theme.palette.grey[800],
+    color: theme.palette.grey[300],
+    fontSize: '0.75rem',
+    borderBottomLeftRadius: theme.shape.borderRadius,
+  },
+}));
+
 const MessageContent = styled(Box)(({ theme }) => ({
   '& p': {
     margin: theme.spacing(1, 0),
@@ -125,11 +142,9 @@ const MessageContent = styled(Box)(({ theme }) => ({
     fontSize: '1.1rem',
   },
   '& pre': {
-    backgroundColor: theme.palette.grey[100],
-    padding: theme.spacing(1),
-    borderRadius: theme.shape.borderRadius,
-    overflowX: 'auto',
-    margin: theme.spacing(1, 0),
+    margin: 0,
+    padding: 0,
+    backgroundColor: 'transparent',
   },
   '& code': {
     backgroundColor: theme.palette.grey[100],
@@ -495,7 +510,32 @@ export default function Home() {
               <Typography>{message.text}</Typography>
             ) : (
               <MessageContent>
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    code({ node, inline, className, children, ...props }) {
+                      const match = /language-(\w+)/.exec(className || '');
+                      const language = match ? match[1] : '';
+                      return !inline && match ? (
+                        <CodeBlock>
+                          <div className="language-label">{language}</div>
+                          <SyntaxHighlighter
+                            style={vscDarkPlus}
+                            language={language}
+                            PreTag="div"
+                            {...props}
+                          >
+                            {String(children).replace(/\n$/, '')}
+                          </SyntaxHighlighter>
+                        </CodeBlock>
+                      ) : (
+                        <code className={className} {...props}>
+                          {children}
+                        </code>
+                      );
+                    },
+                  }}
+                >
                   {message.text}
                 </ReactMarkdown>
               </MessageContent>
