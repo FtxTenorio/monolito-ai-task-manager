@@ -1048,7 +1048,7 @@ const Chat: React.FC<ChatProps> = ({
                       </ReactMarkdown>
                       
                       {/* Mostrar feedback dentro da mensagem da IA */}
-                      {!message.isUser && hasThinkingUpdates && (
+                      {!message.isUser && (
                         <Fade in={true} timeout={500}>
                           <Box sx={{ mt: 2, borderTop: '1px solid #e0e0e0', pt: 1 }}>
                             <FeedbackAccordion 
@@ -1099,31 +1099,12 @@ const Chat: React.FC<ChatProps> = ({
                                       🔧
                                     </ActiveToolIcon>
                                     <ActiveToolContent>
-                                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                        <ActiveToolName variant="body2">
-                                          {getToolInfo(getActiveTool(index)?.content).toolName}
-                                        </ActiveToolName>
-                                        {!getActiveToolResult(index) && (
-                                          <ToolLoadingIcon>
-                                            <CircularProgress size={16} color="primary" />
-                                          </ToolLoadingIcon>
-                                        )}
-                                      </Box>
-                                      <ActiveToolDescription variant="body2">
+                                      <ActiveToolName>
+                                        {getToolInfo(getActiveTool(index)?.content).toolName}
+                                      </ActiveToolName>
+                                      <ActiveToolDescription>
                                         {getToolInfo(getActiveTool(index)?.content).toolDescription}
                                       </ActiveToolDescription>
-                                      
-                                      {/* Indicador de progresso */}
-                                      {!getActiveToolResult(index) && (
-                                        <ToolProgressIndicator>
-                                          <ToolProgressBar>
-                                            <ToolProgressFill progress={toolProgress} />
-                                          </ToolProgressBar>
-                                          <ToolProgressText variant="body2">
-                                            {toolProgress}%
-                                          </ToolProgressText>
-                                        </ToolProgressIndicator>
-                                      )}
                                     </ActiveToolContent>
                                   </ActiveToolIndicator>
                                 )}
@@ -1171,9 +1152,11 @@ const Chat: React.FC<ChatProps> = ({
                                     </ThinkingStep>
                                   ))
                                 ) : (
-                                  <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>
-                                    Nenhuma atualização de processamento disponível.
-                                  </Typography>
+                                  <Box sx={{ p: 2, textAlign: 'center' }}>
+                                    <Typography variant="body2" color="text.secondary">
+                                      Nenhuma atualização de processamento disponível.
+                                    </Typography>
+                                  </Box>
                                 )}
                                 
                                 {/* Resultado da ferramenta */}

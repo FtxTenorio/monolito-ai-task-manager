@@ -508,8 +508,9 @@ export default function Home() {
       processingEndTime: new Date()
     }]);
     
-    // Limpar as atualizações de processamento após adicionar a mensagem
-    setThinkingUpdates([]);
+    // Não limpar as atualizações de processamento após adicionar a mensagem
+    // para garantir que o feedback permaneça visível
+    // setThinkingUpdates([]);
     setIsTyping(false);
     setIsProcessing(false);
     setStatus('Resposta recebida. Clique no microfone para falar novamente.');
