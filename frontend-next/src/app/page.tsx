@@ -260,6 +260,13 @@ export default function Home() {
   const MAX_RECONNECT_ATTEMPTS = 5;
   const RECONNECT_INTERVAL = 3000; // 3 segundos
 
+  // Adicionar logs para depuração
+  console.log("Home renderizando com estado:", {
+    messagesLength: messages.length,
+    thinkingUpdatesLength: thinkingUpdates.length,
+    isProcessing
+  });
+
   // Efeito para rolar para baixo quando novas mensagens chegarem
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -326,16 +333,24 @@ export default function Home() {
     socketRef.current.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        console.log("Mensagem recebida do WebSocket:", data);
+        console.log("Recebido do WebSocket:", data);
         
         if (data.type === 'thinking') {
+          // Atualizar as atualizações de processamento em tempo real
+          console.log("Recebendo atualização de processamento:", data);
           setThinkingUpdates(prev => [...prev, data]);
         } else if (data.type === 'message') {
           console.log("Adicionando mensagem ao chat:", data.content);
-          setMessages(prev => [...prev, { text: data.content, isUser: false }]);
-          setIsProcessing(false);
+          setMessages(prev => [...prev, { 
+            text: data.content, 
+            isUser: false,
+            thinkingUpdates: thinkingUpdates,
+            processingStartTime: new Date(),
+            processingEndTime: new Date()
+          }]);
           setIsTyping(false);
-          setThinkingUpdates([]);
+          setIsProcessing(false);
+          setStatus('Resposta recebida. Clique no microfone para falar novamente.');
         } else if (data.type === 'error') {
           console.error("Erro recebido do servidor:", data.content);
           setMessages(prev => [...prev, { text: `Erro: ${data.content}`, isUser: false }]);
