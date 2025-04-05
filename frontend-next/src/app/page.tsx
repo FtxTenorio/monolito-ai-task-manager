@@ -23,6 +23,8 @@ import WifiIcon from '@mui/icons-material/Wifi';
 import WifiOffIcon from '@mui/icons-material/WifiOff';
 import LanguageIcon from '@mui/icons-material/Language';
 import { styled } from '@mui/material/styles';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 // Componentes estilizados
 const ChatContainer = styled(Box)(({ theme }) => ({
@@ -100,6 +102,47 @@ const LanguageSelector = styled(FormControl)(({ theme }) => ({
     '&:hover fieldset': {
       borderColor: theme.palette.primary.dark,
     },
+  },
+}));
+
+const MessageContent = styled(Box)(({ theme }) => ({
+  '& p': {
+    margin: 0,
+  },
+  '& pre': {
+    backgroundColor: theme.palette.grey[100],
+    padding: theme.spacing(1),
+    borderRadius: theme.shape.borderRadius,
+    overflowX: 'auto',
+  },
+  '& code': {
+    backgroundColor: theme.palette.grey[100],
+    padding: theme.spacing(0.5),
+    borderRadius: theme.shape.borderRadius,
+    fontFamily: 'monospace',
+  },
+  '& ul, & ol': {
+    margin: theme.spacing(1, 0),
+    paddingLeft: theme.spacing(2),
+  },
+  '& blockquote': {
+    borderLeft: `4px solid ${theme.palette.primary.main}`,
+    margin: theme.spacing(1, 0),
+    paddingLeft: theme.spacing(1),
+    color: theme.palette.text.secondary,
+  },
+  '& table': {
+    borderCollapse: 'collapse',
+    width: '100%',
+    margin: theme.spacing(1, 0),
+  },
+  '& th, & td': {
+    border: `1px solid ${theme.palette.divider}`,
+    padding: theme.spacing(0.5),
+    textAlign: 'left',
+  },
+  '& th': {
+    backgroundColor: theme.palette.grey[100],
   },
 }));
 
@@ -415,7 +458,15 @@ export default function Home() {
       <ChatContainer ref={chatContainerRef}>
         {messages.map((message, index) => (
           <MessageBubble key={index} isUser={message.isUser} elevation={1}>
-            <Typography>{message.text}</Typography>
+            {message.isUser ? (
+              <Typography>{message.text}</Typography>
+            ) : (
+              <MessageContent>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {message.text}
+                </ReactMarkdown>
+              </MessageContent>
+            )}
           </MessageBubble>
         ))}
         {isTyping && (
