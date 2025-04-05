@@ -154,47 +154,57 @@ const Chat: React.FC<ChatProps> = ({
   thinkingUpdates,
 }) => {
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Adicionar log para depuração
+  console.log("Chat renderizando com mensagens:", messages);
+  console.log("Número de mensagens:", messages.length);
 
   return (
     <Box className="flex-1 flex flex-col bg-white">
       <ChatContainer ref={chatContainerRef}>
-        {messages.map((message, index) => (
-          <MessageBubble key={index} isUser={message.isUser}>
-            {message.isUser ? (
-              <Typography>{message.text}</Typography>
-            ) : (
-              <MessageContent>
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    code({ className, children }) {
-                      const match = /language-(\w+)/.exec(className || '');
-                      const language = match ? match[1] : '';
-                      return match ? (
-                        <CodeBlock>
-                          <div className="language-label">{language}</div>
-                          <SyntaxHighlighter
-                            style={vscDarkPlus as any}
-                            language={language}
-                            PreTag="div"
-                          >
-                            {String(children).replace(/\n$/, '')}
-                          </SyntaxHighlighter>
-                        </CodeBlock>
-                      ) : (
-                        <code className={className}>
-                          {children}
-                        </code>
-                      );
-                    },
-                  }}
-                >
-                  {message.text}
-                </ReactMarkdown>
-              </MessageContent>
-            )}
-          </MessageBubble>
-        ))}
+        {messages && messages.length > 0 ? (
+          messages.map((message, index) => (
+            <MessageBubble key={index} isUser={message.isUser}>
+              {message.isUser ? (
+                <Typography>{message.text}</Typography>
+              ) : (
+                <MessageContent>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      code({ className, children }) {
+                        const match = /language-(\w+)/.exec(className || '');
+                        const language = match ? match[1] : '';
+                        return match ? (
+                          <CodeBlock>
+                            <div className="language-label">{language}</div>
+                            <SyntaxHighlighter
+                              style={vscDarkPlus as any}
+                              language={language}
+                              PreTag="div"
+                            >
+                              {String(children).replace(/\n$/, '')}
+                            </SyntaxHighlighter>
+                          </CodeBlock>
+                        ) : (
+                          <code className={className}>
+                            {children}
+                          </code>
+                        );
+                      },
+                    }}
+                  >
+                    {message.text}
+                  </ReactMarkdown>
+                </MessageContent>
+              )}
+            </MessageBubble>
+          ))
+        ) : (
+          <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', mt: 2 }}>
+            Nenhuma mensagem ainda. Clique no microfone para começar.
+          </Typography>
+        )}
         {isTyping && (
           <MessageBubble isUser={false}>
             <Typography>.{typingDots}</Typography>

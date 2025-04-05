@@ -326,10 +326,19 @@ export default function Home() {
     socketRef.current.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        console.log("Mensagem recebida do WebSocket:", data);
+        
         if (data.type === 'thinking') {
           setThinkingUpdates(prev => [...prev, data]);
         } else if (data.type === 'message') {
+          console.log("Adicionando mensagem ao chat:", data.content);
           setMessages(prev => [...prev, { text: data.content, isUser: false }]);
+          setIsProcessing(false);
+          setIsTyping(false);
+          setThinkingUpdates([]);
+        } else if (data.type === 'error') {
+          console.error("Erro recebido do servidor:", data.content);
+          setMessages(prev => [...prev, { text: `Erro: ${data.content}`, isUser: false }]);
           setIsProcessing(false);
           setIsTyping(false);
           setThinkingUpdates([]);

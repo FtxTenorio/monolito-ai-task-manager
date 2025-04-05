@@ -63,12 +63,14 @@ class ConnectionManager:
                 print(f"Resposta: {response_text}")
                 
                 # Enviar a resposta de volta para o frontend
+                message_data = {
+                    "type": "message",
+                    "content": response_text,
+                    "format": response_format
+                }
+                print(f"Enviando mensagem para o frontend: {json.dumps(message_data)}")
                 await self.active_connections[client_id].send_text(
-                    json.dumps({
-                        "type": "message",
-                        "content": response_text,
-                        "format": response_format
-                    })
+                    json.dumps(message_data)
                 )
                 
                 # Atualizar o último texto
