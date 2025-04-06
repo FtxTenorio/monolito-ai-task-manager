@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Box, IconButton, Typography, Paper, TextField, Button, Select, MenuItem, FormControl, InputLabel, Tooltip } from '@mui/material';
-import { Minimize, Maximize, Send, Refresh, CloseFullscreen, OpenInFull } from '@mui/icons-material';
+import { Minimize, Maximize, Send, Refresh, CloseFullscreen, OpenInFull, Close } from '@mui/icons-material';
 import { Message } from '@/types';
 import { styled } from '@mui/material/styles';
 import ReactMarkdown from 'react-markdown';
@@ -168,6 +168,15 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
   const [message, setMessage] = useState('');
   const [isMaximized, setIsMaximized] = useState(false);
   const recognitionRef = useRef<any>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isTyping]);
 
   useEffect(() => {
     console.log('FloatingChat - isMinimized mudou para:', isMinimized);
@@ -227,12 +236,12 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
               {isMaximized ? <CloseFullscreen /> : <OpenInFull />}
             </HeaderIconButton>
           </Tooltip>
-          <Tooltip title={isMinimized ? "Restaurar" : "Minimizar"}>
+          <Tooltip title={isMinimized ? "Restaurar" : "Fechar"}>
             <HeaderIconButton
               size="small" 
               onClick={isMinimized ? onMaximize : onMinimize}
             >
-              {isMinimized ? <Maximize /> : <Minimize />}
+              {isMinimized ? <Maximize /> : <Close />}
             </HeaderIconButton>
           </Tooltip>
         </Box>
@@ -300,6 +309,7 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
                 </Typography>
               </Box>
             )}
+            <div ref={messagesEndRef} />
           </ChatMessages>
 
           <ChatInput>
