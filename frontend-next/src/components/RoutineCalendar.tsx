@@ -613,7 +613,12 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
 
   const handleAddRoutine = async () => {
     try {
-      await axios.post('https://api.itenorio.com/lambda/routines', formData);
+      const jsonData = JSON.stringify(formData);
+      await axios.post('https://api.itenorio.com/lambda/routines', jsonData, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
       fetchRoutines();
       handleCloseDialogs();
     } catch (err) {
@@ -626,7 +631,12 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
     if (!selectedRoutine) return;
     
     try {
-      await axios.put(`https://api.itenorio.com/lambda/routines/${selectedRoutine.id}`, formData);
+      const jsonData = JSON.stringify(formData);
+      await axios.put(`https://api.itenorio.com/lambda/routines/${selectedRoutine.id}`, jsonData, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
       fetchRoutines();
       handleCloseDialogs();
     } catch (err) {
