@@ -1,7 +1,7 @@
 from ..base_agent import BaseAgent
 from langchain.agents import AgentExecutor, create_openai_functions_agent
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langchain.tools import Tool
 import requests
 import json
@@ -28,22 +28,27 @@ class TaskAgent(BaseAgent):
             Tool(
                 name="get_tasks",
                 func=self.get_tasks,
-                description="Obtém a lista de todas as tarefas. Retorna ID, Descrição, Prioridade, Categoria, Status e Data de Criação de cada tarefa."
+                description="Lista todas as tarefas disponíveis. Use esta ferramenta quando o usuário quiser ver todas as tarefas."
+            ),
+            Tool(
+                name="get_task",
+                func=self.get_task,
+                description="Obtém detalhes de uma tarefa específica pelo ID. Use esta ferramenta quando o usuário quiser ver detalhes de uma tarefa específica."
             ),
             Tool(
                 name="create_task",
                 func=self.create_task,
-                description="Cria uma nova tarefa. Use o formato: 'descrição|prioridade|categoria|status'. Exemplo: 'Fazer compras|Alta|Pessoal|Pendente'"
+                description="Cria uma nova tarefa. Use esta ferramenta quando o usuário quiser criar uma nova tarefa."
             ),
             Tool(
                 name="update_task",
                 func=self.update_task,
-                description="Atualiza uma tarefa existente. Use o formato: 'task_id|campo1=valor1|campo2=valor2|...'. Exemplo: '123|descrição=Nova descrição|status=Concluído'"
+                description="Atualiza uma tarefa existente. Use esta ferramenta quando o usuário quiser modificar uma tarefa existente."
             ),
             Tool(
                 name="delete_task",
                 func=self.delete_task,
-                description="Remove uma tarefa. Parâmetro: task_id (string)"
+                description="Remove uma tarefa pelo ID. Use esta ferramenta quando o usuário quiser excluir uma tarefa."
             )
         ]
         
@@ -157,6 +162,78 @@ class TaskAgent(BaseAgent):
         except Exception as e:
             elapsed_time = time.time() - start_time
             error_msg = f"Erro ao obter tarefas após {elapsed_time:.2f}s: {str(e)}"
+            logger.error(f"TaskAgent: {error_msg}")
+            logger.error(f"TaskAgent: Traceback: {traceback.format_exc()}")
+            return error_msg
+    
+    def get_task(self, task_id: str) -> str:
+        """Obtém detalhes de uma tarefa específica pelo ID."""
+        try:
+            start_time = time.time()
+            logger.info(f"TaskAgent: Obtendo detalhes da tarefa {task_id}")
+            
+            response = requests.get(f"https://api.itenorio.com/lambda/tasks/{task_id}")
+            response.raise_for_status()
+            
+            # Parse the response and handle different formats
+            data = response.json()
+            
+            # Check if the response has a specific structure
+            if isinstance(data, dict) and 'body' in data:
+                # Handle AWS Lambda response format
+                if isinstance(data['body'], str):
+                    # If body is a string, it might be JSON encoded
+                    try:
+                        task = json.loads(data['body'])
+                    except json.JSONDecodeError:
+                        task = {}
+                else:
+                    task = data['body']
+            else:
+                task = data
+                
+            elapsed_time = time.time() - start_time
+            
+            if not task:
+                logger.info(f"TaskAgent: Tarefa {task_id} não encontrada em {elapsed_time:.2f}s")
+                return f"Tarefa com ID {task_id} não encontrada."
+            
+            # Format the response
+            if isinstance(task, dict):
+                # Standard format
+                task_id = task.get('id', task.get('ID', 'N/A'))
+                description = task.get('description', task.get('Descrição', 'N/A'))
+                priority = task.get('priority', task.get('Prioridade', 'N/A'))
+                category = task.get('category', task.get('Categoria', 'N/A'))
+                status = task.get('status', task.get('Status', 'N/A'))
+                created_at = task.get('created_at', task.get('Data de Criação', 'N/A'))
+                
+                result = (
+                    f"**Detalhes da Tarefa**\n\n"
+                    f"**ID:** {task_id}\n"
+                    f"**Descrição:** {description}\n"
+                    f"**Prioridade:** {priority}\n"
+                    f"**Categoria:** {category}\n"
+                    f"**Status:** {status}\n"
+                    f"**Data de Criação:** {created_at}"
+                )
+            else:
+                # Fallback for unexpected format
+                logger.warning(f"TaskAgent: Formato de tarefa inesperado: {task}")
+                result = f"Detalhes da tarefa {task_id}: {task}"
+                
+            logger.info(f"TaskAgent: Detalhes da tarefa obtidos em {elapsed_time:.2f}s")
+            return result
+            
+        except requests.exceptions.RequestException as e:
+            elapsed_time = time.time() - start_time
+            error_msg = f"Erro ao obter detalhes da tarefa após {elapsed_time:.2f}s: {str(e)}"
+            logger.error(f"TaskAgent: {error_msg}")
+            logger.error(f"TaskAgent: Traceback: {traceback.format_exc()}")
+            return error_msg
+        except Exception as e:
+            elapsed_time = time.time() - start_time
+            error_msg = f"Erro ao obter detalhes da tarefa após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"TaskAgent: {error_msg}")
             logger.error(f"TaskAgent: Traceback: {traceback.format_exc()}")
             return error_msg
@@ -344,20 +421,35 @@ class TaskAgent(BaseAgent):
             logger.error(f"TaskAgent: Traceback: {traceback.format_exc()}")
             return error_msg
     
-    def process_message(self, message: str, response_format: str = "markdown", websocket=None, chat_history=None):
-        """Processa uma mensagem e retorna a resposta."""
+    def process_message(self, message: str, response_format: str = "markdown", websocket=None, chat_history=None) -> str:
+        """Processa uma mensagem de forma síncrona."""
         try:
             start_time = time.time()
             logger.info(f"TaskAgent: Processando mensagem: {message}")
             
-            # Use provided chat history or empty list if none provided
-            if chat_history is None:
-                chat_history = []
+            # Converter o histórico de chat para o formato do LangChain
+            langchain_history = []
+            if chat_history:
+                for msg in chat_history:
+                    # Verificar o tipo de mensagem
+                    if isinstance(msg, HumanMessage):
+                        langchain_history.append(msg)
+                    elif isinstance(msg, AIMessage):
+                        langchain_history.append(msg)
+                    elif isinstance(msg, SystemMessage):
+                        # Ignorar mensagens do sistema, pois já estão no prompt
+                        continue
+                    elif isinstance(msg, dict):
+                        # Se for um dicionário, converter para o formato apropriado
+                        if msg.get("role") == "user":
+                            langchain_history.append(HumanMessage(content=msg.get("content", "")))
+                        elif msg.get("role") == "assistant":
+                            langchain_history.append(AIMessage(content=msg.get("content", "")))
             
             # Processar a mensagem usando o executor do agente
             response = self.agent_executor.invoke({
                 "input": message,
-                "chat_history": chat_history
+                "chat_history": langchain_history
             })
             
             elapsed_time = time.time() - start_time
