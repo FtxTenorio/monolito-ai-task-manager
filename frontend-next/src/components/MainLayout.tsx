@@ -124,10 +124,16 @@ const MainLayout: React.FC<MainLayoutProps> = ({
 
   const handleMaximizeChat = () => {
     setIsChatMinimized(false);
+    setIsChatVisible(true);
   };
 
   const handleToggleChatVisibility = () => {
-    setIsChatVisible(!isChatVisible);
+    if (isChatVisible) {
+      setIsChatMinimized(true);
+    } else {
+      setIsChatVisible(true);
+      setIsChatMinimized(false);
+    }
   };
 
   return (
@@ -153,28 +159,26 @@ const MainLayout: React.FC<MainLayoutProps> = ({
           </MicButton>
           
           <MinimizeButton onClick={handleToggleChatVisibility}>
-            {isChatVisible ? <MinimizeIcon /> : <ChatIcon />}
+            {isChatVisible && !isChatMinimized ? <MinimizeIcon /> : <ChatIcon />}
           </MinimizeButton>
         </Box>
       </BottomBar>
 
-      {isChatVisible && (
-        <FloatingChat
-          messages={messages}
-          onSendMessage={onSendMessage}
-          isMinimized={isChatMinimized}
-          onMinimize={handleMinimizeChat}
-          onMaximize={handleMaximizeChat}
-          isProcessing={isProcessing}
-          isTyping={isTyping}
-          status={status}
-          error={error}
-          responseFormat={responseFormat}
-          onFormatChange={onFormatChange}
-          isConnected={isConnected}
-          onReconnect={onReconnect}
-        />
-      )}
+      <FloatingChat
+        messages={messages}
+        onSendMessage={onSendMessage}
+        isMinimized={isChatMinimized}
+        onMinimize={handleMinimizeChat}
+        onMaximize={handleMaximizeChat}
+        isProcessing={isProcessing}
+        isTyping={isTyping}
+        status={status}
+        error={error}
+        responseFormat={responseFormat}
+        onFormatChange={onFormatChange}
+        isConnected={isConnected}
+        onReconnect={onReconnect}
+      />
     </MainContainer>
   );
 };

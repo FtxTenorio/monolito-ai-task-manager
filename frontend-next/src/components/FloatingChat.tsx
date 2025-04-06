@@ -96,6 +96,8 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
     }
   };
 
+  console.log('FloatingChat renderizado, isMinimized:', isMinimized);
+
   return (
     <ChatContainer className={isMinimized ? 'minimized' : ''}>
       <ChatHeader>
