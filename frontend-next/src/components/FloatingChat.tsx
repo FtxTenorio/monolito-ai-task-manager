@@ -3,6 +3,10 @@ import { Box, IconButton, Typography, Paper, TextField, Button, Select, MenuItem
 import { Minimize, Maximize, Send, Refresh } from '@mui/icons-material';
 import { Message } from '@/types';
 import { styled } from '@mui/material/styles';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 const ChatContainer = styled(Paper)(({ theme }) => ({
   position: 'fixed',
@@ -45,6 +49,36 @@ const MessageBubble = styled(Paper)<{ isUser: boolean }>(({ theme, isUser }) => 
   alignSelf: isUser ? 'flex-end' : 'flex-start',
   backgroundColor: isUser ? theme.palette.primary.light : theme.palette.grey[100],
   color: isUser ? theme.palette.primary.contrastText : theme.palette.text.primary,
+}));
+
+const MessageContent = styled(Box)(({ theme }) => ({
+  '& p': {
+    margin: 0,
+  },
+  '& pre': {
+    margin: theme.spacing(1, 0),
+  },
+  '& code': {
+    backgroundColor: theme.palette.grey[200],
+    padding: theme.spacing(0.5),
+    borderRadius: theme.shape.borderRadius,
+    fontFamily: 'monospace',
+  },
+}));
+
+const CodeBlock = styled(Box)(({ theme }) => ({
+  position: 'relative',
+  margin: theme.spacing(1, 0),
+  '& .language-label': {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    padding: theme.spacing(0.5, 1),
+    fontSize: '0.75rem',
+    backgroundColor: theme.palette.grey[800],
+    color: theme.palette.grey[300],
+    borderBottomLeftRadius: theme.shape.borderRadius,
+  },
 }));
 
 const ChatInput = styled(Box)(({ theme }) => ({
@@ -137,7 +171,40 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
           <ChatMessages>
             {messages.map((msg, index) => (
               <MessageBubble key={index} isUser={msg.isUser}>
-                <Typography variant="body2">{msg.text}</Typography>
+                {msg.isUser ? (
+                  <Typography variant="body2">{msg.text}</Typography>
+                ) : (
+                  <MessageContent>
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        code({ className, children, ...props }: any) {
+                          const match = /language-(\w+)/.exec(className || '');
+                          const isInline = !match;
+                          return !isInline && match ? (
+                            <CodeBlock>
+                              <div className="language-label">{match[1]}</div>
+                              <SyntaxHighlighter
+                                language={match[1]}
+                                style={vscDarkPlus as any}
+                                PreTag="div"
+                                {...props}
+                              >
+                                {String(children).replace(/\n$/, '')}
+                              </SyntaxHighlighter>
+                            </CodeBlock>
+                          ) : (
+                            <code className={className} {...props}>
+                              {children}
+                            </code>
+                          );
+                        },
+                      }}
+                    >
+                      {msg.text}
+                    </ReactMarkdown>
+                  </MessageContent>
+                )}
               </MessageBubble>
             ))}
             {isTyping && (
