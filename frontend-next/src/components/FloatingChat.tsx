@@ -11,19 +11,19 @@ import CloseIcon from '@mui/icons-material/Close';
 import MinimizeIcon from '@mui/icons-material/Minimize';
 import MaximizeIcon from '@mui/icons-material/Maximize';
 
-const ChatContainer = styled(Paper)<{ isMinimized: boolean; isMaximized: boolean }>(({ theme, isMinimized, isMaximized }) => ({
+const ChatContainer = styled(Paper)<{ $isMinimized: boolean; $isMaximized: boolean }>(({ theme, $isMinimized, $isMaximized }) => ({
   position: 'fixed',
-  bottom: isMinimized ? 'auto' : '100px',
+  bottom: $isMinimized ? 'auto' : '100px',
   right: theme.spacing(2),
-  width: isMaximized ? '90vw' : '400px',
-  height: isMaximized ? '80vh' : '500px',
+  width: $isMaximized ? '90vw' : '400px',
+  height: $isMaximized ? '80vh' : '500px',
   display: 'flex',
   flexDirection: 'column',
   zIndex: 1000,
   transition: 'all 0.3s ease',
   boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
   backgroundColor: theme.palette.background.paper,
-  ...(isMinimized && {
+  ...($isMinimized && {
     transform: 'translateY(100%)',
     opacity: 0,
   }),
@@ -217,7 +217,11 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
   };
 
   return (
-    <ChatContainer className={`${isMinimized ? 'minimized' : ''} ${isMaximized ? 'maximized' : ''}`}>
+    <ChatContainer 
+      $isMinimized={isMinimized}
+      $isMaximized={isMaximized}
+      className={`${isMinimized ? 'minimized' : ''} ${isMaximized ? 'maximized' : ''}`}
+    >
       <ChatHeader>
         <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>Chat</Typography>
         <Box sx={{ 
