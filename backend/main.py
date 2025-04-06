@@ -7,7 +7,7 @@ import sys
 import asyncio
 from typing import Dict, Set
 from dotenv import load_dotenv
-from agents import ToolAgent, calculate_similarity
+from agents.orchestrator_agent import OrchestratorAgent
 
 # Carregar variáveis de ambiente
 load_dotenv()
@@ -18,14 +18,14 @@ app = FastAPI()
 class ConnectionManager:
     def __init__(self):
         self.active_connections: Dict[int, WebSocket] = {}
-        self.agents: Dict[int, ToolAgent] = {}
+        self.agents: Dict[int, OrchestratorAgent] = {}
         self.last_texts: Dict[int, str] = {}
     
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         client_id = id(websocket)
         self.active_connections[client_id] = websocket
-        self.agents[client_id] = ToolAgent()
+        self.agents[client_id] = OrchestratorAgent()
         self.last_texts[client_id] = ""
         print(f"Cliente conectado: {client_id}")
     
@@ -52,7 +52,7 @@ class ConnectionManager:
         # print(f"Recebido: {message} (Similaridade: {similarity:.2f})")
         
         try:
-            # Obter resposta do agente com o formato especificado
+            # Obter resposta do agente orquestrador com o formato especificado
             response_text = await self.agents[client_id].process_message_async(
                 current_text, 
                 response_format,
