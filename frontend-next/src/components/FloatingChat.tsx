@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Box, IconButton, Typography, Paper, TextField, Button, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
 import { Minimize, Maximize, Send, Refresh } from '@mui/icons-material';
 import { Message } from '@/types';
@@ -88,6 +88,10 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
 }) => {
   const [message, setMessage] = React.useState('');
 
+  useEffect(() => {
+    console.log('FloatingChat - isMinimized mudou para:', isMinimized);
+  }, [isMinimized]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (message.trim()) {
@@ -97,6 +101,16 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
   };
 
   console.log('FloatingChat renderizado, isMinimized:', isMinimized);
+
+  const handleMinimizeClick = () => {
+    console.log('Botão de minimizar clicado');
+    onMinimize();
+  };
+
+  const handleMaximizeClick = () => {
+    console.log('Botão de maximizar clicado');
+    onMaximize();
+  };
 
   return (
     <ChatContainer className={isMinimized ? 'minimized' : ''}>
@@ -108,7 +122,11 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
               <Refresh />
             </IconButton>
           )}
-          <IconButton size="small" onClick={isMinimized ? onMaximize : onMinimize} color="inherit">
+          <IconButton 
+            size="small" 
+            onClick={isMinimized ? handleMaximizeClick : handleMinimizeClick} 
+            color="inherit"
+          >
             {isMinimized ? <Maximize /> : <Minimize />}
           </IconButton>
         </Box>

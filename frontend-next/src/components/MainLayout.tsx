@@ -119,20 +119,24 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   const routineCalendarRef = useRef<any>(null);
 
   const handleMinimizeChat = () => {
+    console.log('Minimizando chat');
     setIsChatMinimized(true);
   };
 
   const handleMaximizeChat = () => {
+    console.log('Maximizando chat');
     setIsChatMinimized(false);
     setIsChatVisible(true);
   };
 
   const handleToggleChatVisibility = () => {
-    if (isChatVisible) {
-      setIsChatMinimized(true);
-    } else {
-      setIsChatVisible(true);
+    console.log('Toggle chat visibility, isChatVisible:', isChatVisible, 'isChatMinimized:', isChatMinimized);
+    
+    if (isChatMinimized) {
       setIsChatMinimized(false);
+      setIsChatVisible(true);
+    } else {
+      setIsChatMinimized(true);
     }
   };
 
@@ -159,7 +163,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
           </MicButton>
           
           <MinimizeButton onClick={handleToggleChatVisibility}>
-            {isChatVisible && !isChatMinimized ? <MinimizeIcon /> : <ChatIcon />}
+            {isChatMinimized ? <ChatIcon /> : <MinimizeIcon />}
           </MinimizeButton>
         </Box>
       </BottomBar>
