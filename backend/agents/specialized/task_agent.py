@@ -247,23 +247,26 @@ class TaskAgent(BaseAgent):
             # Parse input string
             parts = input_str.split('|')
             if len(parts) != 4:
-                return "Formato inválido. Use: 'descrição|prioridade|categoria|status'"
+                return "Formato inválido. Use: 'description|priority|category|status'"
             
             description, priority, category, status = parts
             
             # Prepare request data
             data = {
-                "description": description.strip(),
-                "priority": priority.strip(),
-                "category": category.strip(),
+                "descricao": description.strip(),
+                "prioridade": priority.strip(),
+                "categoria": category.strip(),
                 "status": status.strip()
             }
             
+            logger.info(f"TaskAgent: Dados da tarefa: {data}")
+
             # Make request
             response = requests.post(
                 "https://api.itenorio.com/lambda/tasks",
                 json=data
             )
+
             response.raise_for_status()
             
             # Parse the response and handle different formats
@@ -460,6 +463,34 @@ class TaskAgent(BaseAgent):
             logger.error(f"TaskAgent: Traceback: {traceback.format_exc()}")
             return error_msg
     
+    def _load_tasks_into_history(self) -> str:
+        """
+        Carrega todas as tarefas no histórico de chat.
+        
+        Returns:
+            str: Mensagem formatada com todas as tarefas ou None se não houver tarefas
+        """
+        try:
+            logger.info("TaskAgent: Carregando todas as tarefas no histórico")
+            
+            # Buscar todas as tarefas
+            tasks = self.get_tasks("")
+            if tasks == "Nenhuma tarefa encontrada.":
+                logger.info("TaskAgent: Nenhuma tarefa encontrada para carregar no histórico")
+                return None
+            
+            # Formatar a mensagem
+            result = "Aqui estão todas as suas tarefas:\n\n"
+            result += tasks
+            
+            logger.info("TaskAgent: Tarefas carregadas no histórico com sucesso")
+            return result
+            
+        except Exception as e:
+            logger.error(f"TaskAgent: Erro ao carregar tarefas no histórico: {str(e)}")
+            logger.error(f"TaskAgent: Traceback: {traceback.format_exc()}")
+            return None
+
     def process_message(self, message: str, response_format: str = "markdown", websocket=None, chat_history=None) -> str:
         """Processa uma mensagem de forma síncrona."""
         try:
@@ -484,6 +515,21 @@ class TaskAgent(BaseAgent):
                             langchain_history.append(HumanMessage(content=msg.get("content", "")))
                         elif msg.get("role") == "assistant":
                             langchain_history.append(AIMessage(content=msg.get("content", "")))
+            
+            # Verificar se já carregamos as tarefas no histórico
+            tasks_loaded = False
+            for msg in langchain_history:
+                if isinstance(msg, AIMessage) and "Aqui estão todas as suas tarefas:" in msg.content:
+                    tasks_loaded = True
+                    break
+            
+            # Se não carregamos as tarefas ainda, carregar agora
+            if not tasks_loaded:
+                logger.info("TaskAgent: Carregando tarefas no histórico")
+                tasks_message = self._load_tasks_into_history()
+                if tasks_message:
+                    logger.info(f"TaskAgent: Tarefas carregadas no histórico: {tasks_message}")
+                    langchain_history.append(AIMessage(content=tasks_message))
             
             # Processar a mensagem usando o executor do agente
             response = self.agent_executor.invoke({
