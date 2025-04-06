@@ -138,7 +138,6 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [frequencyFilter, setFrequencyFilter] = useState<string>('all');
-  const [yearFilter, setYearFilter] = useState<number>(new Date().getFullYear());
   const [isVisible, setIsVisible] = useState(true);
   const [showAllRoutines, setShowAllRoutines] = useState(false);
   const [page, setPage] = useState(0);
@@ -457,7 +456,6 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
     setStatusFilter('all');
     setPriorityFilter('all');
     setFrequencyFilter('all');
-    setYearFilter(new Date().getFullYear());
   };
 
   const getFilteredRoutinesCount = () => {
@@ -489,20 +487,9 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
       if (priorityFilter !== 'all' && routine.priority !== priorityFilter) return false;
       // Filtra por frequência
       if (frequencyFilter !== 'all' && routine.frequency !== frequencyFilter) return false;
-      // Filtra por ano
-      if (yearFilter !== new Date().getFullYear() && new Date(routine.start_date || '').getFullYear() !== yearFilter) return false;
 
       return true;
     });
-  };
-
-  const getAvailableYears = () => {
-    const years = new Set<number>();
-    routines.forEach(routine => {
-      const year = new Date(routine.start_date || '').getFullYear();
-      years.add(year);
-    });
-    return Array.from(years).sort((a, b) => a - b);
   };
 
   const renderRoutineItem = (routine: Routine, date: Date) => {
@@ -770,7 +757,7 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h6">
           Rotinas
-          {(statusFilter !== 'all' || priorityFilter !== 'all' || frequencyFilter !== 'all' || yearFilter !== new Date().getFullYear()) && (
+          {(statusFilter !== 'all' || priorityFilter !== 'all' || frequencyFilter !== 'all') && (
             <Typography component="span" variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>
               ({getFilteredRoutines().length} de {routines.length})
             </Typography>
@@ -833,23 +820,11 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
             <Button 
               size="small" 
               onClick={clearFilters}
-              disabled={statusFilter === 'all' && priorityFilter === 'all' && frequencyFilter === 'all' && yearFilter === new Date().getFullYear()}
+              disabled={statusFilter === 'all' && priorityFilter === 'all' && frequencyFilter === 'all'}
             >
               Limpar filtros
             </Button>
             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-              <FormControl size="small" sx={{ minWidth: 120 }}>
-                <Select
-                  value={yearFilter.toString()}
-                  onChange={(e: SelectChangeEvent) => setYearFilter(Number(e.target.value))}
-                  size="small"
-                >
-                  <MenuItem value={0}>Todos os anos</MenuItem>
-                  {getAvailableYears().map((year) => (
-                    <MenuItem key={year} value={year}>{year}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
               <FormControl size="small" sx={{ minWidth: 150 }}>
                 <Select
                   value={statusFilter}
@@ -911,18 +886,6 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
             {filteredRoutines.length} rotinas encontradas
           </Typography>
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-            <FormControl size="small" sx={{ minWidth: 120 }}>
-              <Select
-                value={yearFilter.toString()}
-                onChange={(e: SelectChangeEvent) => setYearFilter(Number(e.target.value))}
-                size="small"
-              >
-                <MenuItem value={0}>Todos os anos</MenuItem>
-                {getAvailableYears().map((year) => (
-                  <MenuItem key={year} value={year}>{year}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
             <FormControl size="small" sx={{ minWidth: 150 }}>
               <Select
                 value={statusFilter}
@@ -965,7 +928,7 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
             <Button 
               size="small" 
               onClick={clearFilters}
-              disabled={statusFilter === 'all' && priorityFilter === 'all' && frequencyFilter === 'all' && yearFilter === new Date().getFullYear()}
+              disabled={statusFilter === 'all' && priorityFilter === 'all' && frequencyFilter === 'all'}
             >
               Limpar filtros
             </Button>
