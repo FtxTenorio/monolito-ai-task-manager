@@ -251,14 +251,19 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   const handleMicButtonClick = () => {
     // Verificar se o navegador suporta a API de reconhecimento de voz
     if (typeof window === 'undefined') {
-      console.error('Window is not defined');
+      console.log('Window is not defined');
       return;
     }
 
     // Verificar se a API está disponível
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      console.error('Speech recognition not supported in this browser');
+      console.log('Speech recognition not supported in this browser');
       return;
+    }
+
+    // Se o chat estiver minimizado, abrir ele
+    if (isChatMinimized) {
+      handleMaximizeChat();
     }
 
     // Primeiro, alternar o estado de escuta

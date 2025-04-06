@@ -19,16 +19,17 @@ const ChatContainer = styled(Paper)(({ theme }) => ({
   zIndex: 1000,
   transition: 'all 0.3s ease',
   boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+  backgroundColor: theme.palette.background.paper,
   '&.minimized': {
     display: 'none',
   },
   '&.maximized': {
     width: '90vw',
-    height: '85vh',
-    bottom: '10vh',
+    height: '75vh',
+    bottom: '12vh',
     right: '5vw',
     maxWidth: '1400px',
-    maxHeight: '900px',
+    maxHeight: '800px',
     margin: 'auto',
   },
 }));
@@ -199,15 +200,6 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
   const handleMaximizeToggle = () => {
     setIsMaximized(!isMaximized);
   };
-
-  // Limpar o texto reconhecido quando a mensagem for enviada
-  useEffect(() => {
-    if (message === '') {
-      // Se a mensagem for limpa, significa que foi enviada
-      // Não precisamos fazer nada aqui, pois o texto reconhecido já será limpo
-      // quando o usuário enviar a mensagem
-    }
-  }, [message]);
 
   return (
     <ChatContainer className={`${isMinimized ? 'minimized' : ''} ${isMaximized ? 'maximized' : ''}`}>
