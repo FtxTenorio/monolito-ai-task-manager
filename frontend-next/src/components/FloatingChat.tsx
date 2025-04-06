@@ -7,18 +7,25 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import CloseIcon from '@mui/icons-material/Close';
+import MinimizeIcon from '@mui/icons-material/Minimize';
+import MaximizeIcon from '@mui/icons-material/Maximize';
 
-const ChatContainer = styled(Paper)(({ theme }) => ({
+const ChatContainer = styled(Paper)<{ isMinimized: boolean; isMaximized: boolean }>(({ theme, isMinimized, isMaximized }) => ({
   position: 'fixed',
-  bottom: 120,
-  right: 16,
-  width: 400,
-  height: 500,
+  bottom: isMinimized ? 'auto' : '100px',
+  right: theme.spacing(2),
+  width: isMaximized ? '90vw' : '400px',
+  height: isMaximized ? '90vh' : '500px',
   display: 'flex',
   flexDirection: 'column',
   zIndex: 1000,
   transition: 'all 0.3s ease',
   boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+  ...(isMinimized && {
+    transform: 'translateY(100%)',
+    opacity: 0,
+  }),
   '&.minimized': {
     display: 'none',
   },
@@ -52,15 +59,11 @@ const HeaderIconButton = styled(IconButton)(({ theme }) => ({
 
 const ChatHeader = styled(Box)(({ theme }) => ({
   display: 'flex',
-  alignItems: 'center',
   justifyContent: 'space-between',
-  padding: theme.spacing(1, 1.5),
+  alignItems: 'center',
+  padding: theme.spacing(1, 2),
   borderBottom: `1px solid ${theme.palette.divider}`,
-  backgroundColor: theme.palette.primary.main,
-  color: theme.palette.primary.contrastText,
-  '.maximized &': {
-    padding: theme.spacing(1.5, 2),
-  },
+  backgroundColor: theme.palette.background.default,
 }));
 
 const ChatMessages = styled(Box)(({ theme }) => ({
@@ -121,14 +124,23 @@ const CodeBlock = styled(Box)(({ theme }) => ({
 }));
 
 const ChatInput = styled(Box)(({ theme }) => ({
+  padding: theme.spacing(2),
+  borderTop: `1px solid ${theme.palette.divider}`,
+  backgroundColor: theme.palette.background.default,
+}));
+
+const HeaderButtons = styled(Box)(({ theme }) => ({
   display: 'flex',
   gap: theme.spacing(1),
-  padding: theme.spacing(1),
-  borderTop: `1px solid ${theme.palette.divider}`,
-  backgroundColor: theme.palette.background.paper,
-  '.maximized &': {
-    padding: theme.spacing(2),
-    gap: theme.spacing(2),
+  alignItems: 'center',
+}));
+
+const HeaderButton = styled(IconButton)(({ theme }) => ({
+  color: theme.palette.text.secondary,
+  padding: theme.spacing(0.5),
+  '&:hover': {
+    color: theme.palette.text.primary,
+    backgroundColor: theme.palette.action.hover,
   },
 }));
 
@@ -165,77 +177,67 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
   onReconnect,
   recognizedText,
 }) => {
-  const [message, setMessage] = useState('');
   const [isMaximized, setIsMaximized] = useState(false);
-  const recognitionRef = useRef<any>(null);
+  const [inputValue, setInputValue] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const handleMaximize = () => {
+    setIsMaximized(true);
+  };
+
+  const handleMinimize = () => {
+    setIsMaximized(false);
+  };
+
+  const handleClose = () => {
+    onMinimize();
+  };
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   useEffect(() => {
-    console.log('FloatingChat - isMinimized mudou para:', isMinimized);
-  }, [isMinimized]);
+    scrollToBottom();
+  }, [messages]);
 
-  useEffect(() => {
-    if (recognizedText) {
-      setMessage(recognizedText);
-    }
-  }, [recognizedText]);
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (message.trim()) {
-      onSendMessage(message);
-      setMessage('');
+    if (inputValue.trim()) {
+      onSendMessage(inputValue);
+      setInputValue('');
     }
   };
 
-  const handleMaximizeToggle = () => {
-    setIsMaximized(!isMaximized);
-  };
-
-  // Limpar o texto reconhecido quando a mensagem for enviada
-  useEffect(() => {
-    if (message === '') {
-      // Se a mensagem for limpa, significa que foi enviada
-      // Não precisamos fazer nada aqui, pois o texto reconhecido já será limpo
-      // quando o usuário enviar a mensagem
+  const handleKeyPress = (event: React.KeyboardEvent) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      handleSendMessage(event as any);
     }
-  }, [message]);
+  };
 
   return (
-    <ChatContainer className={`${isMinimized ? 'minimized' : ''} ${isMaximized ? 'maximized' : ''}`}>
+    <ChatContainer isMinimized={isMinimized} isMaximized={isMaximized}>
       <ChatHeader>
-        <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>Chat</Typography>
-        <Box sx={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: 0.5,
-          '& > button': {
-            transition: 'all 0.2s ease',
-          }
-        }}>
-          {!isConnected && (
-            <Tooltip title="Reconectar">
-              <HeaderIconButton size="small" onClick={onReconnect}>
-                <Refresh />
-              </HeaderIconButton>
-            </Tooltip>
+        <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+          Chat
+        </Typography>
+        <HeaderButtons>
+          {!isMinimized && (
+            <>
+              <Tooltip title={isMaximized ? "Minimizar" : "Maximizar"}>
+                <HeaderButton onClick={isMaximized ? handleMinimize : handleMaximize}>
+                  {isMaximized ? <MinimizeIcon /> : <MaximizeIcon />}
+                </HeaderButton>
+              </Tooltip>
+              <Tooltip title="Fechar">
+                <HeaderButton onClick={handleClose}>
+                  <CloseIcon />
+                </HeaderButton>
+              </Tooltip>
+            </>
           )}
-          <Tooltip title={isMaximized ? "Restaurar" : "Maximizar"}>
-            <HeaderIconButton
-              size="small" 
-              onClick={handleMaximizeToggle}
-            >
-              {isMaximized ? <CloseFullscreen /> : <OpenInFull />}
-            </HeaderIconButton>
-          </Tooltip>
-          <Tooltip title={isMinimized ? "Restaurar" : "Minimizar"}>
-            <HeaderIconButton
-              size="small" 
-              onClick={isMinimized ? onMaximize : onMinimize}
-            >
-              {isMinimized ? <Maximize /> : <Minimize />}
-            </HeaderIconButton>
-          </Tooltip>
-        </Box>
+        </HeaderButtons>
       </ChatHeader>
 
       {!isMinimized && (
@@ -314,30 +316,24 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
                 <MenuItem value="code">Código</MenuItem>
               </Select>
             </FormControl>
-            <form onSubmit={handleSubmit} style={{ flex: 1, display: 'flex', gap: 8 }}>
+            <form onSubmit={handleSendMessage} style={{ flex: 1, display: 'flex', gap: 8 }}>
               <TextField
                 fullWidth
                 size={isMaximized ? "medium" : "small"}
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyPress={handleKeyPress}
                 placeholder="Digite sua mensagem..."
                 disabled={isProcessing}
-                multiline={isMaximized}
-                maxRows={isMaximized ? 5 : 1}
-                sx={{
-                  '& .MuiInputBase-root': {
-                    backgroundColor: 'background.paper',
-                  },
-                }}
               />
               <Button
                 type="submit"
                 variant="contained"
                 color="primary"
-                disabled={isProcessing || !message.trim()}
+                disabled={isProcessing || !inputValue.trim()}
                 size={isMaximized ? "large" : "medium"}
               >
-                <Send />
+                Enviar
               </Button>
             </form>
           </ChatInput>
