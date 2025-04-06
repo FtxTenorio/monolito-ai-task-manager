@@ -9,6 +9,8 @@ import CheckIcon from '@mui/icons-material/Check';
 import ListAltIcon from '@mui/icons-material/ListAlt';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
+import CloseIcon from '@mui/icons-material/Close';
+import RemoveIcon from '@mui/icons-material/Remove';
 import styled from '@emotion/styled';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -149,7 +151,8 @@ const Chat: React.FC<ChatProps> = ({
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedMessageIndex, setSelectedMessageIndex] = useState<number | null>(null);
-  const [showRoutineCalendar, setShowRoutineCalendar] = useState(true);
+  const [showRoutineCalendar, setShowRoutineCalendar] = useState(false);
+  const [isRoutineCalendarMinimized, setIsRoutineCalendarMinimized] = useState(false);
   const [isTaskListExpanded, setIsTaskListExpanded] = useState(false);
   
   // Efeito para sincronizar as mensagens locais com as props
@@ -215,6 +218,11 @@ const Chat: React.FC<ChatProps> = ({
 
   const handleRoutineCalendarClose = () => {
     setShowRoutineCalendar(false);
+    setIsRoutineCalendarMinimized(false);
+  };
+
+  const handleRoutineCalendarMinimize = () => {
+    setIsRoutineCalendarMinimized(!isRoutineCalendarMinimized);
   };
 
   const handleTaskListOpen = () => {
@@ -405,21 +413,36 @@ const Chat: React.FC<ChatProps> = ({
         fullWidth
         PaperProps={{
           sx: {
-            height: '90vh',
-            maxHeight: '90vh',
+            height: isRoutineCalendarMinimized ? 'auto' : '90vh',
+            maxHeight: isRoutineCalendarMinimized ? 'auto' : '90vh',
+            width: isRoutineCalendarMinimized ? '350px' : '100%',
+            position: isRoutineCalendarMinimized ? 'fixed' : 'relative',
+            right: isRoutineCalendarMinimized ? '20px' : 'auto',
+            top: isRoutineCalendarMinimized ? '50%' : 'auto',
+            transform: isRoutineCalendarMinimized ? 'translateY(-50%)' : 'none',
+            transition: 'all 0.3s ease',
           }
         }}
       >
         <DialogTitle>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Typography variant="h6">Minhas Rotinas</Typography>
-            <MuiIconButton 
-              onClick={handleRoutineCalendarClose}
-              color="primary"
-              size="small"
-            >
-              <FullscreenExitIcon />
-            </MuiIconButton>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <MuiIconButton 
+                onClick={handleRoutineCalendarMinimize}
+                color="primary"
+                size="small"
+              >
+                {isRoutineCalendarMinimized ? <FullscreenExitIcon /> : <RemoveIcon />}
+              </MuiIconButton>
+              <MuiIconButton 
+                onClick={handleRoutineCalendarClose}
+                color="primary"
+                size="small"
+              >
+                <CloseIcon />
+              </MuiIconButton>
+            </Box>
           </Box>
         </DialogTitle>
         <DialogContent>
