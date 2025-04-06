@@ -39,17 +39,17 @@ export interface Routine {
   id: string;
   name: string;
   description: string;
-  status: 'active' | 'completed' | 'cancelled';
+  status: 'pending' | 'completed' | 'cancelled';
   schedule: string;
   frequency: 'daily' | 'weekly' | 'monthly' | 'weekdays' | 'weekends' | 'custom';
-  priority: 'high' | 'medium' | 'low';
+  priority: 'low' | 'medium' | 'high';
   tags: string[];
   estimated_duration: number;
-  start_date?: string;
-  end_date?: string;
-  custom_days?: number[];
+  start_date: string;
+  end_date: string;
   created_at: string;
   updated_at: string;
+  custom_days?: number[];
 }
 
 export interface RoutineCalendarRef {
