@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Box, IconButton, Typography, Paper, TextField, Button, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
-import { Minimize, Maximize, Send, Refresh } from '@mui/icons-material';
+import { Minimize, Maximize, Send, Refresh, Mic } from '@mui/icons-material';
 import { Message } from '@/types';
 import { styled } from '@mui/material/styles';
 import ReactMarkdown from 'react-markdown';
@@ -120,11 +120,59 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
   isConnected,
   onReconnect,
 }) => {
-  const [message, setMessage] = React.useState('');
+  const [message, setMessage] = useState('');
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
     console.log('FloatingChat - isMinimized mudou para:', isMinimized);
   }, [isMinimized]);
+
+  useEffect(() => {
+    // Initialize speech recognition
+    if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
+      const SpeechRecognition = window.webkitSpeechRecognition;
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.lang = 'pt-BR';
+
+      recognitionRef.current.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setMessage(transcript);
+        setIsListening(false);
+      };
+
+      recognitionRef.current.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+      };
+
+      recognitionRef.current.onend = () => {
+        setIsListening(false);
+      };
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, []);
+
+  const toggleListening = () => {
+    if (!recognitionRef.current) {
+      console.error('Speech recognition not supported');
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current.stop();
+    } else {
+      recognitionRef.current.start();
+      setIsListening(true);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,18 +180,6 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
       onSendMessage(message);
       setMessage('');
     }
-  };
-
-  console.log('FloatingChat renderizado, isMinimized:', isMinimized);
-
-  const handleMinimizeClick = () => {
-    console.log('Botão de minimizar clicado');
-    onMinimize();
-  };
-
-  const handleMaximizeClick = () => {
-    console.log('Botão de maximizar clicado');
-    onMaximize();
   };
 
   return (
@@ -158,7 +194,7 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
           )}
           <IconButton 
             size="small" 
-            onClick={isMinimized ? handleMaximizeClick : handleMinimizeClick} 
+            onClick={isMinimized ? onMaximize : onMinimize} 
             color="inherit"
           >
             {isMinimized ? <Maximize /> : <Minimize />}
@@ -251,6 +287,13 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
                 placeholder="Digite sua mensagem..."
                 disabled={isProcessing}
               />
+              <IconButton
+                onClick={toggleListening}
+                color={isListening ? 'error' : 'primary'}
+                disabled={isProcessing}
+              >
+                <Mic />
+              </IconButton>
               <Button
                 type="submit"
                 variant="contained"
