@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Box, Paper, Fab, IconButton, Typography, Tooltip, Switch, FormControlLabel, Drawer, List, ListItem, ListItemIcon, ListItemText, ListItemButton, Divider, AppBar, Toolbar, Button, Avatar } from '@mui/material';
+import { Box, Paper, Fab, IconButton, Typography, Tooltip, Switch, FormControlLabel, Drawer, List, ListItem, ListItemIcon, ListItemText, ListItemButton, Divider, AppBar, Toolbar, Button, Avatar, Collapse } from '@mui/material';
 import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
 import MinimizeIcon from '@mui/icons-material/Minimize';
@@ -7,10 +7,14 @@ import MaximizeIcon from '@mui/icons-material/Maximize';
 import ChatIcon from '@mui/icons-material/Chat';
 import ListAltIcon from '@mui/icons-material/ListAlt';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import ExpandLess from '@mui/icons-material/ExpandLess';
+import ExpandMore from '@mui/icons-material/ExpandMore';
+import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import { styled } from '@mui/material/styles';
 import TaskList from './TaskList';
 import RoutineCalendar from './RoutineCalendar';
 import FloatingChat from './FloatingChat';
+import SpotifyConnect from './SpotifyConnect';
 import { Message } from '@/types';
 
 // Declaração de tipos para a API de reconhecimento de voz
@@ -149,7 +153,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   const [isChatMinimized, setIsChatMinimized] = useState(false);
   const [continuousListening, setContinuousListening] = useState(true);
   const [recognizedText, setRecognizedText] = useState('');
-  const [currentView, setCurrentView] = useState<'tasks' | 'calendar'>('tasks');
+  const [currentView, setCurrentView] = useState<'tasks' | 'calendar' | 'spotify'>('tasks');
+  const [integrationsOpen, setIntegrationsOpen] = useState(true);
   const taskListRef = useRef<any>(null);
   const routineCalendarRef = useRef<any>(null);
   const recognitionRef = useRef<any>(null);
@@ -354,8 +359,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     }
   };
 
-  const handleViewChange = (view: 'tasks' | 'calendar') => {
+  const handleViewChange = (view: 'tasks' | 'calendar' | 'spotify') => {
     setCurrentView(view);
+  };
+
+  const handleIntegrationsToggle = () => {
+    setIntegrationsOpen(!integrationsOpen);
   };
 
   return (
@@ -381,7 +390,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       </StyledAppBar>
 
       <SideDrawer variant="permanent">
-        <Box sx={{ overflow: 'auto' }}>
+        <Box sx={{ overflow: 'auto', display: 'flex', flexDirection: 'column', height: '100%' }}>
           <List>
             <ListItem disablePadding>
               <ListItemButton
@@ -406,14 +415,43 @@ const MainLayout: React.FC<MainLayoutProps> = ({
               </ListItemButton>
             </ListItem>
           </List>
+          
+          <Divider sx={{ my: 1 }} />
+          
+          <List>
+            <ListItem disablePadding>
+              <ListItemButton onClick={handleIntegrationsToggle}>
+                <ListItemText primary="Integrações" />
+                {integrationsOpen ? <ExpandLess /> : <ExpandMore />}
+              </ListItemButton>
+            </ListItem>
+            <Collapse in={integrationsOpen} timeout="auto" unmountOnExit>
+              <List component="div" disablePadding>
+                <ListItemButton 
+                  sx={{ pl: 4 }} 
+                  onClick={() => handleViewChange('spotify')}
+                  selected={currentView === 'spotify'}
+                >
+                  <ListItemIcon>
+                    <MusicNoteIcon />
+                  </ListItemIcon>
+                  <ListItemText primary="Spotify" />
+                </ListItemButton>
+              </List>
+            </Collapse>
+          </List>
+          
+          <Box sx={{ flexGrow: 1 }} />
         </Box>
       </SideDrawer>
 
       <ContentArea>
         {currentView === 'tasks' ? (
           <TaskList ref={taskListRef} />
-        ) : (
+        ) : currentView === 'calendar' ? (
           <RoutineCalendar ref={routineCalendarRef} />
+        ) : (
+          <SpotifyConnect onConnect={() => console.log('Conectando ao Spotify...')} />
         )}
       </ContentArea>
 
