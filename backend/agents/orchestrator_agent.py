@@ -7,6 +7,7 @@ from langchain.tools import Tool
 from typing import Dict, List, Any, Optional
 import asyncio
 import logging
+import traceback
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -14,46 +15,29 @@ logger = logging.getLogger(__name__)
 
 class OrchestratorAgent(BaseAgent):
     def __init__(self):
-        system_prompt = """Você é um agente orquestrador responsável por analisar as solicitações dos usuários
-        e direcioná-las para o agente especializado mais adequado.
-        
-        Você tem acesso aos seguintes agentes especializados:
-        - TaskAgent: Para operações relacionadas a tarefas (criar, listar, atualizar, remover tarefas): o nome da ferramenta é route_to_task_agent
-        
-        Analise cuidadosamente a solicitação do usuário e determine qual agente especializado deve lidar com ela.
-        Se a solicitação envolver múltiplas operações ou não estiver clara, você pode dividir em subtarefas e
-        coordenar a execução entre os agentes especializados.
-        
-        Você deve responder com instruções para o agente de tarefas, para que ele possa processar a solicitação da melhor forma possível.
-
-        Exemplo de instruções:
-            Tool: route_to_task_agent
-            - List all tasks → "Listar todas as tarefas"
-            - Create a new task: :Buy groceries|High|Personal|Pending" → "Criar uma nova tarefa: Comprar mantimentos|Alta|Pessoal|Pendente"
-            - Update task uuid: status=Completed → "Atualizar tarefa uuid: status=Concluído"
-            - Delete task uuid → "Remover tarefa uuid"
-        """
+        system_prompt = """Você é um agente orquestrador que coordena outros agentes especializados.
+        Sua função é analisar as mensagens dos usuários e direcioná-las para o agente apropriado.
+        Você tem acesso a ferramentas para rotear mensagens para diferentes agentes especializados.
+        Sempre forneça respostas claras e organizadas."""
         
         super().__init__(system_prompt)
         
         # Inicializar agentes especializados
         logger.info("OrchestratorAgent: Inicializando agentes especializados")
-        self.specialized_agents = {
-            "task": TaskAgent()
-        }
+        self.task_agent = TaskAgent()
         
-        # Definir as ferramentas do orquestrador
-        logger.info("OrchestratorAgent: Configurando ferramentas")
+        # Definir as ferramentas de roteamento
+        logger.info("OrchestratorAgent: Configurando ferramentas de roteamento")
         self.tools = [
             Tool(
                 name="route_to_task_agent",
                 func=self.route_to_task_agent_sync,
-                description="Roteia a solicitação para o agente de tarefas. Use quando a solicitação envolver operações com tarefas."
+                description="Roteia uma mensagem para o agente de tarefas. Use esta ferramenta quando a mensagem estiver relacionada a tarefas, como criar, listar, atualizar ou remover tarefas."
             )
         ]
         
         # Criar o prompt para o agente
-        logger.info("OrchestratorAgent: Configurando prompt")
+        logger.info("OrchestratorAgent: Configurando prompt do agente")
         self.prompt = ChatPromptTemplate.from_messages([
             ("system", system_prompt),
             MessagesPlaceholder(variable_name="chat_history"),
@@ -62,7 +46,7 @@ class OrchestratorAgent(BaseAgent):
         ])
         
         # Criar o agente
-        logger.info("OrchestratorAgent: Criando agente")
+        logger.info("OrchestratorAgent: Criando agente com OpenAI Functions")
         self.agent = create_openai_functions_agent(
             llm=self.llm,
             tools=self.tools,
@@ -70,7 +54,7 @@ class OrchestratorAgent(BaseAgent):
         )
         
         # Criar o executor do agente
-        logger.info("OrchestratorAgent: Criando executor do agente")
+        logger.info("OrchestratorAgent: Configurando executor do agente")
         self.agent_executor = AgentExecutor(
             agent=self.agent,
             tools=self.tools,
@@ -78,7 +62,7 @@ class OrchestratorAgent(BaseAgent):
         )
     
     def route_to_task_agent_sync(self, message: str) -> str:
-        """Versão síncrona que roteia a solicitação para o agente de tarefas."""
+        """Versão síncrona que roteia uma mensagem para o agente de tarefas."""
         try:
             logger.info(f"OrchestratorAgent: Iniciando route_to_task_agent_sync com mensagem: {message}")
             # Usar o loop de eventos existente
@@ -90,27 +74,43 @@ class OrchestratorAgent(BaseAgent):
                     self.route_to_task_agent_async(message), 
                     loop
                 )
-                return future.result(timeout=10)  # Timeout de 10 segundos
+                try:
+                    result = future.result(timeout=10)  # Timeout de 10 segundos
+                    logger.info(f"OrchestratorAgent: Resultado obtido de route_to_task_agent: {result}")
+                    return result
+                except asyncio.TimeoutError:
+                    error_msg = "Timeout ao rotear mensagem para o agente de tarefas"
+                    logger.error(f"OrchestratorAgent: {error_msg}")
+                    return error_msg
             else:
                 logger.info("OrchestratorAgent: Criando novo loop de eventos para route_to_task_agent")
                 # Se não houver loop em execução, crie um novo
                 return loop.run_until_complete(self.route_to_task_agent_async(message))
-        except Exception as e:
-            error_msg = f"Erro ao rotear para o agente de tarefas: {str(e)}"
+        except asyncio.TimeoutError as e:
+            error_msg = f"Timeout ao rotear mensagem para o agente de tarefas: {str(e)}"
             logger.error(f"OrchestratorAgent: {error_msg}")
+            return error_msg
+        except asyncio.CancelledError as e:
+            error_msg = f"Operação cancelada: {str(e)}"
+            logger.error(f"OrchestratorAgent: {error_msg}")
+            return error_msg
+        except Exception as e:
+            error_msg = f"Erro ao rotear mensagem para o agente de tarefas: {str(e)}"
+            logger.error(f"OrchestratorAgent: {error_msg}")
+            logger.error(f"OrchestratorAgent: Traceback: {traceback.format_exc()}")
             return error_msg
     
     async def route_to_task_agent_async(self, message: str) -> str:
-        """Versão assíncrona que roteia a solicitação para o agente de tarefas."""
+        """Roteia uma mensagem para o agente de tarefas."""
         try:
-            logger.info(f"OrchestratorAgent: Roteando mensagem para TaskAgent: {message}")
-            # Usar o método assíncrono do TaskAgent
-            response = await self.specialized_agents["task"].process_message_async(message)
-            logger.info(f"OrchestratorAgent: Resposta recebida do TaskAgent: {response}")
+            logger.info(f"OrchestratorAgent: Roteando mensagem para o agente de tarefas: {message}")
+            response = await self.task_agent.process_message_async(message)
+            logger.info(f"OrchestratorAgent: Resposta recebida do agente de tarefas: {response}")
             return response
         except Exception as e:
-            error_msg = f"Erro ao rotear para o agente de tarefas: {str(e)}"
+            error_msg = f"Erro ao rotear mensagem para o agente de tarefas: {str(e)}"
             logger.error(f"OrchestratorAgent: {error_msg}")
+            logger.error(f"OrchestratorAgent: Traceback: {traceback.format_exc()}")
             return error_msg
     
     async def process_message_async(self, message: str, response_format: str = "markdown", websocket=None):
@@ -138,4 +138,5 @@ class OrchestratorAgent(BaseAgent):
         except Exception as e:
             error_message = f"Erro ao processar mensagem: {str(e)}"
             logger.error(f"OrchestratorAgent: {error_message}")
+            logger.error(f"OrchestratorAgent: Traceback: {traceback.format_exc()}")
             raise Exception(error_message) 
