@@ -11,6 +11,14 @@ import RoutineCalendar from './RoutineCalendar';
 import FloatingChat from './FloatingChat';
 import { Message } from '@/types';
 
+// Declaração de tipos para a API de reconhecimento de voz
+declare global {
+  interface Window {
+    webkitSpeechRecognition: any;
+    SpeechRecognition: any;
+  }
+}
+
 // Styled components
 const MainContainer = styled(Box)(({ theme }) => ({
   display: 'flex',
@@ -128,10 +136,23 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     setRecognizedText('');
   };
 
-  // Initialize speech recognition
-  useEffect(() => {
-    if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
-      const SpeechRecognition = window.webkitSpeechRecognition;
+  // Função utilitária para inicializar o reconhecimento de voz
+  const initializeSpeechRecognition = (continuous: boolean) => {
+    // Verificar se o navegador suporta a API de reconhecimento de voz
+    if (typeof window === 'undefined') {
+      console.error('Window is not defined');
+      return false;
+    }
+
+    // Verificar se a API está disponível
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      console.error('Speech recognition not supported in this browser');
+      return false;
+    }
+
+    try {
+      // Usar a API apropriada dependendo do navegador
+      const SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
       recognitionRef.current = new SpeechRecognition();
       recognitionRef.current.continuous = true; // Sempre mantém como true para permitir reconhecimento contínuo
       recognitionRef.current.interimResults = false;
@@ -142,9 +163,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         // Process all results
         for (let i = 0; i < event.results.length; i++) {
           const transcript = event.results[i][0].transcript;
-          console.log('Transcript:', transcript, 'Continuous:', continuousListening);
+          console.log('Transcript:', transcript, 'Continuous:', continuous);
           
-          if (continuousListening) {
+          if (continuous) {
             // Se escuta contínua estiver ativada, envia a mensagem diretamente
             onSendMessage(transcript);
           } else {
@@ -169,10 +190,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       };
 
       recognitionRef.current.onend = () => {
-        console.log('Recognition ended, continuous:', continuousListening, 'isListening:', isListening);
-        // Se estiver ouvindo e não estiver em modo contínuo, reinicia o reconhecimento
-        if (isListening && !continuousListening) {
-          console.log('Restarting recognition in non-continuous mode');
+        console.log('Recognition ended, continuous:', continuous, 'isListening:', isListening);
+        
+        // Sempre reinicia o reconhecimento se estiver no modo de escuta
+        if (isListening) {
+          console.log('Restarting recognition');
           setTimeout(() => {
             if (recognitionRef.current && isListening) {
               recognitionRef.current.start();
@@ -180,6 +202,21 @@ const MainLayout: React.FC<MainLayoutProps> = ({
           }, 300);
         }
       };
+
+      return true;
+    } catch (error) {
+      console.error('Error initializing speech recognition:', error);
+      return false;
+    }
+  };
+
+  // Initialize speech recognition
+  useEffect(() => {
+    if (isListening) {
+      const initialized = initializeSpeechRecognition(continuousListening);
+      if (initialized && recognitionRef.current) {
+        recognitionRef.current.start();
+      }
     }
 
     return () => {
@@ -212,63 +249,60 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   };
 
   const handleMicButtonClick = () => {
-    if (!recognitionRef.current) {
-      console.error('Speech recognition not supported');
+    // Verificar se o navegador suporta a API de reconhecimento de voz
+    if (typeof window === 'undefined') {
+      console.error('Window is not defined');
       return;
     }
 
+    // Verificar se a API está disponível
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      console.error('Speech recognition not supported in this browser');
+      return;
+    }
+
+    // Primeiro, alternar o estado de escuta
+    onToggleListening();
+
+    // Se estiver desligando o microfone
     if (isListening) {
-      recognitionRef.current.stop();
+      console.log('Desligando microfone...');
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (error) {
+          console.error('Error stopping recognition:', error);
+        }
+        recognitionRef.current = null; // Limpar a referência para forçar reinicialização
+      }
     } else {
-      // Reinitialize recognition with current settings
-      if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
-        const SpeechRecognition = window.webkitSpeechRecognition;
-        recognitionRef.current = new SpeechRecognition();
-        recognitionRef.current.continuous = true; // Sempre mantém como true para permitir reconhecimento contínuo
-        recognitionRef.current.interimResults = false;
-        recognitionRef.current.lang = 'pt-BR';
-
-        recognitionRef.current.onresult = (event: any) => {
-          console.log('Recognition result:', event.results);
-          // Process all results
-          for (let i = 0; i < event.results.length; i++) {
-            const transcript = event.results[i][0].transcript;
-            console.log('Transcript:', transcript, 'Continuous:', continuousListening);
-            
-            if (continuousListening) {
-              // Se escuta contínua estiver ativada, envia a mensagem diretamente
-              onSendMessage(transcript);
-            } else {
-              // Se escuta contínua estiver desativada, coloca o texto na caixa de mensagens
-              setRecognizedText(transcript);
-              // Para o reconhecimento após capturar o texto
-              recognitionRef.current.stop();
-            }
-          }
-        };
-
-        recognitionRef.current.onerror = (event: any) => {
-          console.error('Speech recognition error:', event.error);
-        };
-
-        recognitionRef.current.onend = () => {
-          console.log('Recognition ended, continuous:', continuousListening, 'isListening:', isListening);
-          // Se estiver ouvindo e não estiver em modo contínuo, reinicia o reconhecimento
-          if (isListening && !continuousListening) {
-            console.log('Restarting recognition in non-continuous mode');
-            setTimeout(() => {
-              if (recognitionRef.current && isListening) {
-                recognitionRef.current.start();
-              }
-            }, 300);
-          }
-        };
+      // Se estiver ligando o microfone
+      console.log('Ligando microfone...');
+      
+      // Sempre reinicializar o reconhecimento para evitar problemas
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (error) {
+          console.error('Error stopping existing recognition:', error);
+        }
+        recognitionRef.current = null;
       }
       
-      recognitionRef.current.start();
+      const initialized = initializeSpeechRecognition(continuousListening);
+      if (!initialized) {
+        console.error('Failed to initialize speech recognition');
+        return;
+      }
+      
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.start();
+        } catch (error) {
+          console.error('Error starting recognition:', error);
+        }
+      }
     }
-    
-    onToggleListening();
   };
 
   const handleContinuousListeningChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -279,54 +313,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     // If already listening, restart recognition with new settings
     if (isListening && recognitionRef.current) {
       console.log('Restarting recognition with new continuous setting');
-      recognitionRef.current.stop();
+
       setTimeout(() => {
         if (recognitionRef.current && isListening) {
           // Reinitialize with new settings
-          if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
-            const SpeechRecognition = window.webkitSpeechRecognition;
-            recognitionRef.current = new SpeechRecognition();
-            recognitionRef.current.continuous = true; // Sempre mantém como true para permitir reconhecimento contínuo
-            recognitionRef.current.interimResults = false;
-            recognitionRef.current.lang = 'pt-BR';
-
-            recognitionRef.current.onresult = (event: any) => {
-              console.log('Recognition result:', event.results);
-              // Process all results
-              for (let i = 0; i < event.results.length; i++) {
-                const transcript = event.results[i][0].transcript;
-                console.log('Transcript:', transcript, 'Continuous:', newValue);
-                
-                if (newValue) {
-                  // Se escuta contínua estiver ativada, envia a mensagem diretamente
-                  onSendMessage(transcript);
-                } else {
-                  // Se escuta contínua estiver desativada, coloca o texto na caixa de mensagens
-                  setRecognizedText(transcript);
-                  // Para o reconhecimento após capturar o texto
-                  recognitionRef.current.stop();
-                }
-              }
-            };
-
-            recognitionRef.current.onerror = (event: any) => {
-              console.error('Speech recognition error:', event.error);
-            };
-
-            recognitionRef.current.onend = () => {
-              console.log('Recognition ended, continuous:', newValue, 'isListening:', isListening);
-              // Se estiver ouvindo e não estiver em modo contínuo, reinicia o reconhecimento
-              if (isListening && !newValue) {
-                console.log('Restarting recognition in non-continuous mode');
-                setTimeout(() => {
-                  if (recognitionRef.current && isListening) {
-                    recognitionRef.current.start();
-                  }
-                }, 300);
-              }
-            };
-          }
-          
+          initializeSpeechRecognition(newValue);
           recognitionRef.current.start();
         }
       }, 300);

@@ -43,7 +43,9 @@ const ChatMessages = styled(Box)(({ theme }) => ({
   gap: theme.spacing(2),
 }));
 
-const MessageBubble = styled(Paper)<{ isUser: boolean }>(({ theme, isUser }) => ({
+const MessageBubble = styled(Paper, {
+  shouldForwardProp: (prop) => prop !== 'isUser',
+})<{ isUser: boolean }>(({ theme, isUser }) => ({
   padding: theme.spacing(1),
   maxWidth: '80%',
   alignSelf: isUser ? 'flex-end' : 'flex-start',
