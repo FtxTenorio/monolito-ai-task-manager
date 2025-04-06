@@ -157,6 +157,9 @@ class RoutineAgent(BaseAgent):
             'estimated_duration': 0
         }
         
+        # Flag para indicar se as rotinas foram atualizadas
+        self._routines_updated = False
+        
         # Definir as ferramentas específicas para rotinas
         self.tools = [
             Tool(
@@ -312,18 +315,23 @@ class RoutineAgent(BaseAgent):
                         elif msg.get("role") == "assistant":
                             langchain_history.append(AIMessage(content=msg.get("content", "")))
             
-            # Verificar se já carregamos as rotinas no histórico
+            # Verificar se já carregamos as rotinas no histórico ou se as rotinas foram atualizadas
             routines_loaded = False
             for msg in langchain_history:
                 if isinstance(msg, AIMessage) and "Here are all your routines:" in msg.content:
                     routines_loaded = True
                     break
             
-            # Se não carregamos as rotinas ainda, carregar agora
-            if not routines_loaded:
+            # Se não carregamos as rotinas ainda ou se as rotinas foram atualizadas, carregar agora
+            if not routines_loaded or self._routines_updated:
                 logger.info("RoutineAgent: Loading routines into chat history")
                 routines_message = self._load_routines_into_history()
                 if routines_message:
+                    # Se as rotinas foram atualizadas, remover a mensagem anterior de rotinas
+                    if self._routines_updated:
+                        langchain_history = [msg for msg in langchain_history if not (isinstance(msg, AIMessage) and "Here are all your routines:" in msg.content)]
+                        self._routines_updated = False  # Resetar a flag
+                    
                     langchain_history.append(AIMessage(content=routines_message))
             
             # Processar a mensagem usando o executor do agente
@@ -581,6 +589,9 @@ class RoutineAgent(BaseAgent):
             if not success:
                 return error_msg
             
+            # Marcar que as rotinas foram atualizadas
+            self._routines_updated = True
+                
             elapsed_time = time.time() - start_time
             success_msg = f"Routine created successfully!\nID: {result.get('id', 'N/A')}"
             
@@ -730,6 +741,9 @@ class RoutineAgent(BaseAgent):
             if not success:
                 return error_msg
             
+            # Marcar que as rotinas foram atualizadas
+            self._routines_updated = True
+            
             elapsed_time = time.time() - start_time
             success_msg = f"Routine updated successfully!\nID: {result.get('id', 'N/A')}"
             
@@ -758,6 +772,9 @@ class RoutineAgent(BaseAgent):
             success, error_msg, data = self.api_client.delete_routine(routine_id)
             if not success:
                 return error_msg
+            
+            # Marcar que as rotinas foram atualizadas
+            self._routines_updated = True
             
             # Create success message
             success_msg = f"Routine {routine_id} deleted successfully!"
