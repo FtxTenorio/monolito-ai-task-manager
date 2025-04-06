@@ -570,4 +570,35 @@ class TaskAgent(BaseAgent):
                 "chat_history": self.conversation_history[:-1]
             })
         )
-        return response["output"] 
+        return response["output"]
+    
+    def process_message(self, message: str, response_format: str = "markdown", websocket=None):
+        """Processa uma mensagem de forma síncrona."""
+        try:
+            start_time = time.time()
+            logger.info(f"TaskAgent: Processando mensagem: {message}")
+            # Adicionar a mensagem do usuário ao histórico
+            self.conversation_history.append(HumanMessage(content=message))
+            
+            # Obter resposta do agente
+            logger.info("TaskAgent: Invocando agent_executor")
+            response = self.agent_executor.invoke({
+                "input": message,
+                "chat_history": self.conversation_history[:-1]
+            })
+            
+            response_text = response["output"]
+            elapsed_time = time.time() - start_time
+            logger.info(f"TaskAgent: Resposta obtida em {elapsed_time:.2f}s: {response_text}")
+            
+            # Adicionar a resposta ao histórico
+            self.conversation_history.append(AIMessage(content=response_text))
+            
+            return response_text
+            
+        except Exception as e:
+            elapsed_time = time.time() - start_time
+            error_message = f"Erro ao processar mensagem após {elapsed_time:.2f}s: {str(e)}"
+            logger.error(f"TaskAgent: {error_message}")
+            logger.error(f"TaskAgent: Traceback: {traceback.format_exc()}")
+            raise Exception(error_message) 

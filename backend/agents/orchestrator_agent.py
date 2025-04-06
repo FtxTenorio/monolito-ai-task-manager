@@ -5,9 +5,9 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain.tools import Tool
 from typing import Dict, List, Any, Optional
-import asyncio
 import logging
 import traceback
+import time
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -31,7 +31,7 @@ class OrchestratorAgent(BaseAgent):
         self.tools = [
             Tool(
                 name="route_to_task_agent",
-                func=self.route_to_task_agent_sync,
+                func=self.route_to_task_agent,
                 description="Roteia uma mensagem para o agente de tarefas. Use esta ferramenta quando a mensagem estiver relacionada a tarefas, como criar, listar, atualizar ou remover tarefas."
             )
         ]
@@ -61,61 +61,31 @@ class OrchestratorAgent(BaseAgent):
             verbose=True
         )
     
-    def route_to_task_agent_sync(self, message: str) -> str:
-        """Versão síncrona que roteia uma mensagem para o agente de tarefas."""
+    def route_to_task_agent(self, message: str) -> str:
+        """Roteia uma mensagem para o agente de tarefas de forma síncrona."""
         try:
-            logger.info(f"OrchestratorAgent: Iniciando route_to_task_agent_sync com mensagem: {message}")
-            # Usar o loop de eventos existente
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                logger.info("OrchestratorAgent: Loop de eventos já está em execução, usando run_coroutine_threadsafe")
-                # Se o loop já estiver em execução, use o método assíncrono diretamente
-                future = asyncio.run_coroutine_threadsafe(
-                    self.route_to_task_agent_async(message), 
-                    loop
-                )
-                try:
-                    result = future.result(timeout=10)  # Timeout de 10 segundos
-                    logger.info(f"OrchestratorAgent: Resultado obtido de route_to_task_agent: {result}")
-                    return result
-                except asyncio.TimeoutError:
-                    error_msg = "Timeout ao rotear mensagem para o agente de tarefas"
-                    logger.error(f"OrchestratorAgent: {error_msg}")
-                    return error_msg
-            else:
-                logger.info("OrchestratorAgent: Criando novo loop de eventos para route_to_task_agent")
-                # Se não houver loop em execução, crie um novo
-                return loop.run_until_complete(self.route_to_task_agent_async(message))
-        except asyncio.TimeoutError as e:
-            error_msg = f"Timeout ao rotear mensagem para o agente de tarefas: {str(e)}"
-            logger.error(f"OrchestratorAgent: {error_msg}")
-            return error_msg
-        except asyncio.CancelledError as e:
-            error_msg = f"Operação cancelada: {str(e)}"
-            logger.error(f"OrchestratorAgent: {error_msg}")
-            return error_msg
-        except Exception as e:
-            error_msg = f"Erro ao rotear mensagem para o agente de tarefas: {str(e)}"
-            logger.error(f"OrchestratorAgent: {error_msg}")
-            logger.error(f"OrchestratorAgent: Traceback: {traceback.format_exc()}")
-            return error_msg
-    
-    async def route_to_task_agent_async(self, message: str) -> str:
-        """Roteia uma mensagem para o agente de tarefas."""
-        try:
-            logger.info(f"OrchestratorAgent: Roteando mensagem para o agente de tarefas: {message}")
-            response = await self.task_agent.process_message_async(message)
-            logger.info(f"OrchestratorAgent: Resposta recebida do agente de tarefas: {response}")
+            start_time = time.time()
+            logger.info(f"OrchestratorAgent: Iniciando route_to_task_agent com mensagem: {message}")
+            
+            # Chamar diretamente o método síncrono do TaskAgent
+            logger.info("OrchestratorAgent: Chamando process_message do TaskAgent")
+            response = self.task_agent.process_message(message)
+            
+            elapsed_time = time.time() - start_time
+            logger.info(f"OrchestratorAgent: Resposta recebida do agente de tarefas em {elapsed_time:.2f}s: {response}")
             return response
+                
         except Exception as e:
-            error_msg = f"Erro ao rotear mensagem para o agente de tarefas: {str(e)}"
+            elapsed_time = time.time() - start_time
+            error_msg = f"Erro ao rotear mensagem para o agente de tarefas após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"OrchestratorAgent: {error_msg}")
             logger.error(f"OrchestratorAgent: Traceback: {traceback.format_exc()}")
             return error_msg
     
-    async def process_message_async(self, message: str, response_format: str = "markdown", websocket=None):
-        """Processa uma mensagem de forma assíncrona."""
+    def process_message(self, message: str, response_format: str = "markdown", websocket=None):
+        """Processa uma mensagem de forma síncrona."""
         try:
+            start_time = time.time()
             logger.info(f"OrchestratorAgent: Processando mensagem: {message}")
             # Adicionar a mensagem do usuário ao histórico
             self.conversation_history.append(HumanMessage(content=message))
@@ -128,7 +98,8 @@ class OrchestratorAgent(BaseAgent):
             })
             
             response_text = response["output"]
-            logger.info(f"OrchestratorAgent: Resposta obtida: {response_text}")
+            elapsed_time = time.time() - start_time
+            logger.info(f"OrchestratorAgent: Resposta obtida em {elapsed_time:.2f}s: {response_text}")
             
             # Adicionar a resposta ao histórico
             self.conversation_history.append(AIMessage(content=response_text))
@@ -136,7 +107,8 @@ class OrchestratorAgent(BaseAgent):
             return response_text
             
         except Exception as e:
-            error_message = f"Erro ao processar mensagem: {str(e)}"
+            elapsed_time = time.time() - start_time
+            error_message = f"Erro ao processar mensagem após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"OrchestratorAgent: {error_message}")
             logger.error(f"OrchestratorAgent: Traceback: {traceback.format_exc()}")
             raise Exception(error_message) 
