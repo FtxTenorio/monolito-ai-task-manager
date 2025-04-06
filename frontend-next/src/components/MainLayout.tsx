@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Box, Paper, Fab, IconButton, Typography, Tooltip, Switch, FormControlLabel, Drawer, List, ListItem, ListItemIcon, ListItemText, ListItemButton, Divider } from '@mui/material';
+import { Box, Paper, Fab, IconButton, Typography, Tooltip, Switch, FormControlLabel, Drawer, List, ListItem, ListItemIcon, ListItemText, ListItemButton, Divider, AppBar, Toolbar, Button, Avatar } from '@mui/material';
 import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
 import MinimizeIcon from '@mui/icons-material/Minimize';
@@ -42,15 +42,24 @@ const SideDrawer = styled(Drawer)(({ theme }) => ({
     borderRight: `1px solid ${theme.palette.divider}`,
     height: '100%',
     position: 'relative',
-    zIndex: 1,
+    zIndex: theme.zIndex.drawer,
+    marginTop: '64px', // AppBar height
   },
+}));
+
+const StyledAppBar = styled(AppBar)(({ theme }) => ({
+  zIndex: theme.zIndex.drawer + 1,
+  backgroundColor: theme.palette.background.paper,
+  color: theme.palette.text.primary,
+  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.12)',
 }));
 
 const ContentArea = styled(Box)(({ theme }) => ({
   flex: 1,
   overflow: 'auto',
   marginLeft: DRAWER_WIDTH,
-  height: 'calc(100vh - 80px)', // Subtract bottom bar height
+  height: 'calc(100vh - 144px)', // Subtract bottom bar height (80px) and AppBar height (64px)
+  marginTop: '64px', // AppBar height
   [theme.breakpoints.down('md')]: {
     marginLeft: 0,
   },
@@ -351,8 +360,28 @@ const MainLayout: React.FC<MainLayoutProps> = ({
 
   return (
     <MainContainer>
+      <StyledAppBar position="fixed">
+        <Toolbar>
+          <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+            <Typography variant="h6" component="div" sx={{ flexGrow: 0, mr: 4 }}>
+              Monolito AI
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <Button color="inherit">Dashboard</Button>
+              <Button color="inherit">Projetos</Button>
+              <Button color="inherit">Configurações</Button>
+            </Box>
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <IconButton size="small" sx={{ ml: 2 }}>
+              <Avatar sx={{ width: 32, height: 32 }}>U</Avatar>
+            </IconButton>
+          </Box>
+        </Toolbar>
+      </StyledAppBar>
+
       <SideDrawer variant="permanent">
-        <Box sx={{ overflow: 'auto', mt: 8 }}>
+        <Box sx={{ overflow: 'auto' }}>
           <List>
             <ListItem disablePadding>
               <ListItemButton
