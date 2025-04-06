@@ -361,17 +361,15 @@ const Chat: React.FC<ChatProps> = ({
       
       {/* Botões de atalho para tarefas e rotinas */}
       <Box sx={{ position: 'fixed', bottom: 24, right: 24, display: 'flex', gap: 2 }}>
-        {!showRoutineCalendar && (
-          <Tooltip title="Ver rotinas">
-            <Fab 
-              color="primary" 
-              onClick={handleShowRoutineCalendar}
-              sx={{ bgcolor: 'primary.main' }}
-            >
-              <CalendarMonthIcon />
-            </Fab>
-          </Tooltip>
-        )}
+        <Tooltip title="Ver rotinas">
+          <Fab 
+            color="primary" 
+            onClick={handleShowRoutineCalendar}
+            sx={{ bgcolor: 'primary.main' }}
+          >
+            <CalendarMonthIcon />
+          </Fab>
+        </Tooltip>
         <Tooltip title="Ver todas as tarefas">
           <Fab 
             color="primary" 
@@ -404,6 +402,30 @@ const Chat: React.FC<ChatProps> = ({
         </DialogTitle>
         <DialogContent>
           <TaskList ref={taskListRef} />
+        </DialogContent>
+      </Dialog>
+      
+      {/* Dialog para RoutineCalendar expandido */}
+      <Dialog
+        open={showRoutineCalendar}
+        onClose={handleRoutineCalendarClose}
+        maxWidth="lg"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h6">Minhas Rotinas</Typography>
+            <MuiIconButton 
+              onClick={handleRoutineCalendarClose}
+              color="primary"
+              size="small"
+            >
+              <FullscreenExitIcon />
+            </MuiIconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <RoutineCalendar ref={routineCalendarRef} onRoutineSelect={handleRoutineSelect} />
         </DialogContent>
       </Dialog>
       
