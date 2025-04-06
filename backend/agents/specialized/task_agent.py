@@ -8,6 +8,7 @@ import json
 import asyncio
 import logging
 import traceback
+import time
 from typing import Dict, List, Any, Optional
 
 # Configurar logging
@@ -72,6 +73,7 @@ class TaskAgent(BaseAgent):
     def get_tasks_sync(self, query: str = "") -> str:
         """Versão síncrona que obtém a lista de todas as tarefas."""
         try:
+            start_time = time.time()
             logger.info(f"TaskAgent: Iniciando get_tasks_sync com query: {query}")
             # Usar o loop de eventos existente
             loop = asyncio.get_event_loop()
@@ -83,27 +85,36 @@ class TaskAgent(BaseAgent):
                     loop
                 )
                 try:
-                    result = future.result(timeout=10)  # Timeout de 10 segundos
-                    logger.info(f"TaskAgent: Resultado obtido de get_tasks: {result}")
+                    logger.info("TaskAgent: Aguardando resultado do get_tasks (timeout: 30s)")
+                    result = future.result(timeout=30)  # Aumentado para 30 segundos
+                    elapsed_time = time.time() - start_time
+                    logger.info(f"TaskAgent: Resultado obtido de get_tasks em {elapsed_time:.2f}s: {result}")
                     return result
                 except asyncio.TimeoutError:
-                    error_msg = "Timeout ao obter tarefas"
+                    elapsed_time = time.time() - start_time
+                    error_msg = f"Timeout ao obter tarefas após {elapsed_time:.2f}s"
                     logger.error(f"TaskAgent: {error_msg}")
                     return error_msg
             else:
                 logger.info("TaskAgent: Criando novo loop de eventos para get_tasks")
                 # Se não houver loop em execução, crie um novo
-                return loop.run_until_complete(self.get_tasks(query))
+                result = loop.run_until_complete(self.get_tasks(query))
+                elapsed_time = time.time() - start_time
+                logger.info(f"TaskAgent: Resultado obtido de get_tasks em {elapsed_time:.2f}s: {result}")
+                return result
         except asyncio.TimeoutError as e:
-            error_msg = f"Timeout ao obter tarefas: {str(e)}"
+            elapsed_time = time.time() - start_time
+            error_msg = f"Timeout ao obter tarefas após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"TaskAgent: {error_msg}")
             return error_msg
         except asyncio.CancelledError as e:
-            error_msg = f"Operação cancelada: {str(e)}"
+            elapsed_time = time.time() - start_time
+            error_msg = f"Operação cancelada após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"TaskAgent: {error_msg}")
             return error_msg
         except Exception as e:
-            error_msg = f"Erro ao obter tarefas: {str(e)}"
+            elapsed_time = time.time() - start_time
+            error_msg = f"Erro ao obter tarefas após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"TaskAgent: {error_msg}")
             logger.error(f"TaskAgent: Traceback: {traceback.format_exc()}")
             return error_msg
@@ -111,6 +122,7 @@ class TaskAgent(BaseAgent):
     async def get_tasks(self, query: str = "") -> str:
         """Obtém a lista de todas as tarefas."""
         try:
+            start_time = time.time()
             logger.info(f"TaskAgent: Fazendo requisição GET para /lambda/tasks")
             response = requests.get('https://api.itenorio.com/lambda/tasks')
             logger.info(f"TaskAgent: Status code da resposta: {response.status_code}")
@@ -136,19 +148,24 @@ class TaskAgent(BaseAgent):
                 result += f"Data de Criação: {task.get('Data de Criação')}\n"
                 result += "---\n"
             
+            elapsed_time = time.time() - start_time
+            logger.info(f"TaskAgent: Operação get_tasks concluída em {elapsed_time:.2f}s")
             return result
         except requests.exceptions.RequestException as e:
-            error_msg = f"Erro na requisição HTTP: {str(e)}"
+            elapsed_time = time.time() - start_time
+            error_msg = f"Erro na requisição HTTP após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"TaskAgent: {error_msg}")
             logger.error(f"TaskAgent: Traceback: {traceback.format_exc()}")
             return error_msg
         except json.JSONDecodeError as e:
-            error_msg = f"Erro ao decodificar JSON da resposta: {str(e)}"
+            elapsed_time = time.time() - start_time
+            error_msg = f"Erro ao decodificar JSON da resposta após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"TaskAgent: {error_msg}")
             logger.error(f"TaskAgent: Traceback: {traceback.format_exc()}")
             return error_msg
         except Exception as e:
-            error_msg = f"Erro inesperado ao obter tarefas: {str(e)}"
+            elapsed_time = time.time() - start_time
+            error_msg = f"Erro inesperado ao obter tarefas após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"TaskAgent: {error_msg}")
             logger.error(f"TaskAgent: Traceback: {traceback.format_exc()}")
             return error_msg
@@ -156,6 +173,7 @@ class TaskAgent(BaseAgent):
     def create_task_sync(self, input_str: str) -> str:
         """Versão síncrona que cria uma nova tarefa."""
         try:
+            start_time = time.time()
             logger.info(f"TaskAgent: Iniciando create_task_sync com input: {input_str}")
             # Usar o loop de eventos existente
             loop = asyncio.get_event_loop()
@@ -167,27 +185,36 @@ class TaskAgent(BaseAgent):
                     loop
                 )
                 try:
-                    result = future.result(timeout=10)  # Timeout de 10 segundos
-                    logger.info(f"TaskAgent: Resultado obtido de create_task: {result}")
+                    logger.info("TaskAgent: Aguardando resultado do create_task (timeout: 30s)")
+                    result = future.result(timeout=30)  # Aumentado para 30 segundos
+                    elapsed_time = time.time() - start_time
+                    logger.info(f"TaskAgent: Resultado obtido de create_task em {elapsed_time:.2f}s: {result}")
                     return result
                 except asyncio.TimeoutError:
-                    error_msg = "Timeout ao criar tarefa"
+                    elapsed_time = time.time() - start_time
+                    error_msg = f"Timeout ao criar tarefa após {elapsed_time:.2f}s"
                     logger.error(f"TaskAgent: {error_msg}")
                     return error_msg
             else:
                 logger.info("TaskAgent: Criando novo loop de eventos para create_task")
                 # Se não houver loop em execução, crie um novo
-                return loop.run_until_complete(self.create_task(input_str))
+                result = loop.run_until_complete(self.create_task(input_str))
+                elapsed_time = time.time() - start_time
+                logger.info(f"TaskAgent: Resultado obtido de create_task em {elapsed_time:.2f}s: {result}")
+                return result
         except asyncio.TimeoutError as e:
-            error_msg = f"Timeout ao criar tarefa: {str(e)}"
+            elapsed_time = time.time() - start_time
+            error_msg = f"Timeout ao criar tarefa após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"TaskAgent: {error_msg}")
             return error_msg
         except asyncio.CancelledError as e:
-            error_msg = f"Operação cancelada: {str(e)}"
+            elapsed_time = time.time() - start_time
+            error_msg = f"Operação cancelada após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"TaskAgent: {error_msg}")
             return error_msg
         except Exception as e:
-            error_msg = f"Erro ao criar tarefa: {str(e)}"
+            elapsed_time = time.time() - start_time
+            error_msg = f"Erro ao criar tarefa após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"TaskAgent: {error_msg}")
             logger.error(f"TaskAgent: Traceback: {traceback.format_exc()}")
             return error_msg
@@ -195,6 +222,7 @@ class TaskAgent(BaseAgent):
     async def create_task(self, input_str: str) -> str:
         """Cria uma nova tarefa."""
         try:
+            start_time = time.time()
             logger.info(f"TaskAgent: Processando input para criar tarefa: {input_str}")
             parts = input_str.split("|")
             
@@ -233,18 +261,22 @@ class TaskAgent(BaseAgent):
             logger.info(f"TaskAgent: Status code da resposta: {response.status_code}")
             
             if response.status_code == 200:
+                elapsed_time = time.time() - start_time
+                logger.info(f"TaskAgent: Tarefa criada com sucesso em {elapsed_time:.2f}s")
                 return "Tarefa criada com sucesso!"
             else:
                 error_msg = f"Erro ao criar tarefa: {response.text}"
                 logger.error(f"TaskAgent: {error_msg}")
                 return error_msg
         except requests.exceptions.RequestException as e:
-            error_msg = f"Erro na requisição HTTP: {str(e)}"
+            elapsed_time = time.time() - start_time
+            error_msg = f"Erro na requisição HTTP após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"TaskAgent: {error_msg}")
             logger.error(f"TaskAgent: Traceback: {traceback.format_exc()}")
             return error_msg
         except Exception as e:
-            error_msg = f"Erro inesperado ao criar tarefa: {str(e)}"
+            elapsed_time = time.time() - start_time
+            error_msg = f"Erro inesperado ao criar tarefa após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"TaskAgent: {error_msg}")
             logger.error(f"TaskAgent: Traceback: {traceback.format_exc()}")
             return error_msg
@@ -252,6 +284,7 @@ class TaskAgent(BaseAgent):
     def update_task_sync(self, input_str: str) -> str:
         """Versão síncrona que atualiza uma tarefa existente."""
         try:
+            start_time = time.time()
             logger.info(f"TaskAgent: Iniciando update_task_sync com input: {input_str}")
             # Usar o loop de eventos existente
             loop = asyncio.get_event_loop()
@@ -263,27 +296,36 @@ class TaskAgent(BaseAgent):
                     loop
                 )
                 try:
-                    result = future.result(timeout=10)  # Timeout de 10 segundos
-                    logger.info(f"TaskAgent: Resultado obtido de update_task: {result}")
+                    logger.info("TaskAgent: Aguardando resultado do update_task (timeout: 30s)")
+                    result = future.result(timeout=30)  # Aumentado para 30 segundos
+                    elapsed_time = time.time() - start_time
+                    logger.info(f"TaskAgent: Resultado obtido de update_task em {elapsed_time:.2f}s: {result}")
                     return result
                 except asyncio.TimeoutError:
-                    error_msg = "Timeout ao atualizar tarefa"
+                    elapsed_time = time.time() - start_time
+                    error_msg = f"Timeout ao atualizar tarefa após {elapsed_time:.2f}s"
                     logger.error(f"TaskAgent: {error_msg}")
                     return error_msg
             else:
                 logger.info("TaskAgent: Criando novo loop de eventos para update_task")
                 # Se não houver loop em execução, crie um novo
-                return loop.run_until_complete(self.update_task(input_str))
+                result = loop.run_until_complete(self.update_task(input_str))
+                elapsed_time = time.time() - start_time
+                logger.info(f"TaskAgent: Resultado obtido de update_task em {elapsed_time:.2f}s: {result}")
+                return result
         except asyncio.TimeoutError as e:
-            error_msg = f"Timeout ao atualizar tarefa: {str(e)}"
+            elapsed_time = time.time() - start_time
+            error_msg = f"Timeout ao atualizar tarefa após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"TaskAgent: {error_msg}")
             return error_msg
         except asyncio.CancelledError as e:
-            error_msg = f"Operação cancelada: {str(e)}"
+            elapsed_time = time.time() - start_time
+            error_msg = f"Operação cancelada após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"TaskAgent: {error_msg}")
             return error_msg
         except Exception as e:
-            error_msg = f"Erro ao atualizar tarefa: {str(e)}"
+            elapsed_time = time.time() - start_time
+            error_msg = f"Erro ao atualizar tarefa após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"TaskAgent: {error_msg}")
             logger.error(f"TaskAgent: Traceback: {traceback.format_exc()}")
             return error_msg
@@ -291,6 +333,7 @@ class TaskAgent(BaseAgent):
     async def update_task(self, input_str: str) -> str:
         """Atualiza uma tarefa existente."""
         try:
+            start_time = time.time()
             logger.info(f"TaskAgent: Processando input para atualizar tarefa: {input_str}")
             parts = input_str.split("|")
             if len(parts) < 2:
@@ -334,18 +377,22 @@ class TaskAgent(BaseAgent):
             logger.info(f"TaskAgent: Status code da resposta: {response.status_code}")
             
             if response.status_code == 200:
+                elapsed_time = time.time() - start_time
+                logger.info(f"TaskAgent: Tarefa atualizada com sucesso em {elapsed_time:.2f}s")
                 return "Tarefa atualizada com sucesso!"
             else:
                 error_msg = f"Erro ao atualizar tarefa: {response.text}"
                 logger.error(f"TaskAgent: {error_msg}")
                 return error_msg
         except requests.exceptions.RequestException as e:
-            error_msg = f"Erro na requisição HTTP: {str(e)}"
+            elapsed_time = time.time() - start_time
+            error_msg = f"Erro na requisição HTTP após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"TaskAgent: {error_msg}")
             logger.error(f"TaskAgent: Traceback: {traceback.format_exc()}")
             return error_msg
         except Exception as e:
-            error_msg = f"Erro inesperado ao atualizar tarefa: {str(e)}"
+            elapsed_time = time.time() - start_time
+            error_msg = f"Erro inesperado ao atualizar tarefa após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"TaskAgent: {error_msg}")
             logger.error(f"TaskAgent: Traceback: {traceback.format_exc()}")
             return error_msg
@@ -353,6 +400,7 @@ class TaskAgent(BaseAgent):
     def delete_task_sync(self, task_id: str) -> str:
         """Versão síncrona que remove uma tarefa."""
         try:
+            start_time = time.time()
             logger.info(f"TaskAgent: Iniciando delete_task_sync para task_id: {task_id}")
             # Usar o loop de eventos existente
             loop = asyncio.get_event_loop()
@@ -364,27 +412,36 @@ class TaskAgent(BaseAgent):
                     loop
                 )
                 try:
-                    result = future.result(timeout=10)  # Timeout de 10 segundos
-                    logger.info(f"TaskAgent: Resultado obtido de delete_task: {result}")
+                    logger.info("TaskAgent: Aguardando resultado do delete_task (timeout: 30s)")
+                    result = future.result(timeout=30)  # Aumentado para 30 segundos
+                    elapsed_time = time.time() - start_time
+                    logger.info(f"TaskAgent: Resultado obtido de delete_task em {elapsed_time:.2f}s: {result}")
                     return result
                 except asyncio.TimeoutError:
-                    error_msg = "Timeout ao remover tarefa"
+                    elapsed_time = time.time() - start_time
+                    error_msg = f"Timeout ao remover tarefa após {elapsed_time:.2f}s"
                     logger.error(f"TaskAgent: {error_msg}")
                     return error_msg
             else:
                 logger.info("TaskAgent: Criando novo loop de eventos para delete_task")
                 # Se não houver loop em execução, crie um novo
-                return loop.run_until_complete(self.delete_task(task_id))
+                result = loop.run_until_complete(self.delete_task(task_id))
+                elapsed_time = time.time() - start_time
+                logger.info(f"TaskAgent: Resultado obtido de delete_task em {elapsed_time:.2f}s: {result}")
+                return result
         except asyncio.TimeoutError as e:
-            error_msg = f"Timeout ao remover tarefa: {str(e)}"
+            elapsed_time = time.time() - start_time
+            error_msg = f"Timeout ao remover tarefa após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"TaskAgent: {error_msg}")
             return error_msg
         except asyncio.CancelledError as e:
-            error_msg = f"Operação cancelada: {str(e)}"
+            elapsed_time = time.time() - start_time
+            error_msg = f"Operação cancelada após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"TaskAgent: {error_msg}")
             return error_msg
         except Exception as e:
-            error_msg = f"Erro ao remover tarefa: {str(e)}"
+            elapsed_time = time.time() - start_time
+            error_msg = f"Erro ao remover tarefa após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"TaskAgent: {error_msg}")
             logger.error(f"TaskAgent: Traceback: {traceback.format_exc()}")
             return error_msg
@@ -392,23 +449,28 @@ class TaskAgent(BaseAgent):
     async def delete_task(self, task_id: str) -> str:
         """Remove uma tarefa."""
         try:
+            start_time = time.time()
             logger.info(f"TaskAgent: Enviando requisição DELETE para remover tarefa {task_id}")
             response = requests.delete(f'https://api.itenorio.com/lambda/tasks/{task_id}')
             logger.info(f"TaskAgent: Status code da resposta: {response.status_code}")
             
             if response.status_code == 200:
+                elapsed_time = time.time() - start_time
+                logger.info(f"TaskAgent: Tarefa removida com sucesso em {elapsed_time:.2f}s")
                 return "Tarefa removida com sucesso!"
             else:
                 error_msg = f"Erro ao remover tarefa: {response.text}"
                 logger.error(f"TaskAgent: {error_msg}")
                 return error_msg
         except requests.exceptions.RequestException as e:
-            error_msg = f"Erro na requisição HTTP: {str(e)}"
+            elapsed_time = time.time() - start_time
+            error_msg = f"Erro na requisição HTTP após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"TaskAgent: {error_msg}")
             logger.error(f"TaskAgent: Traceback: {traceback.format_exc()}")
             return error_msg
         except Exception as e:
-            error_msg = f"Erro inesperado ao remover tarefa: {str(e)}"
+            elapsed_time = time.time() - start_time
+            error_msg = f"Erro inesperado ao remover tarefa após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"TaskAgent: {error_msg}")
             logger.error(f"TaskAgent: Traceback: {traceback.format_exc()}")
             return error_msg
@@ -416,6 +478,7 @@ class TaskAgent(BaseAgent):
     async def process_message_async(self, message: str, response_format: str = "markdown", websocket=None):
         """Processa uma mensagem de forma assíncrona."""
         try:
+            start_time = time.time()
             logger.info(f"TaskAgent: Processando mensagem: {message}")
             # Adicionar a mensagem do usuário ao histórico
             self.conversation_history.append(HumanMessage(content=message))
@@ -428,7 +491,8 @@ class TaskAgent(BaseAgent):
             })
             
             response_text = response["output"]
-            logger.info(f"TaskAgent: Resposta obtida: {response_text}")
+            elapsed_time = time.time() - start_time
+            logger.info(f"TaskAgent: Resposta obtida em {elapsed_time:.2f}s: {response_text}")
             
             # Adicionar a resposta ao histórico
             self.conversation_history.append(AIMessage(content=response_text))
@@ -436,7 +500,8 @@ class TaskAgent(BaseAgent):
             return response_text
             
         except Exception as e:
-            error_message = f"Erro ao processar mensagem: {str(e)}"
+            elapsed_time = time.time() - start_time
+            error_message = f"Erro ao processar mensagem após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"TaskAgent: {error_message}")
             logger.error(f"TaskAgent: Traceback: {traceback.format_exc()}")
             raise Exception(error_message) 
