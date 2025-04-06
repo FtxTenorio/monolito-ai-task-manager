@@ -23,7 +23,9 @@ import {
   Tooltip,
   Stack,
   SelectChangeEvent,
-  Chip
+  Chip,
+  Checkbox,
+  FormControlLabel
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -74,11 +76,13 @@ const TaskList = forwardRef<TaskListRef>((props, ref) => {
   const [openAddDialog, setOpenAddDialog] = useState(false);
   const [openEditDialog, setOpenEditDialog] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [openBulkDeleteDialog, setOpenBulkDeleteDialog] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
   const [formData, setFormData] = useState<TaskFormData>({
     descrição: '',
-    prioridade: 'Alta',
-    categoria: 'Geral',
+    prioridade: 'Média',
+    categoria: 'Trabalho',
     status: 'Pendente'
   });
 
@@ -119,8 +123,8 @@ const TaskList = forwardRef<TaskListRef>((props, ref) => {
   const handleOpenAddDialog = () => {
     setFormData({
       descrição: '',
-      prioridade: 'Alta',
-      categoria: 'Geral',
+      prioridade: 'Média',
+      categoria: 'Trabalho',
       status: 'Pendente'
     });
     setOpenAddDialog(true);
@@ -221,6 +225,60 @@ const TaskList = forwardRef<TaskListRef>((props, ref) => {
     });
   };
 
+  // Função para lidar com a seleção de uma tarefa
+  const handleSelectTask = (taskId: string) => {
+    setSelectedTasks(prev => {
+      if (prev.includes(taskId)) {
+        return prev.filter(id => id !== taskId);
+      } else {
+        return [...prev, taskId];
+      }
+    });
+  };
+
+  // Função para selecionar/deselecionar todas as tarefas
+  const handleSelectAllTasks = () => {
+    if (selectedTasks.length === filteredTasks.length) {
+      setSelectedTasks([]);
+    } else {
+      setSelectedTasks(filteredTasks.map(task => task.ID));
+    }
+  };
+
+  // Função para abrir o diálogo de exclusão em massa
+  const handleOpenBulkDeleteDialog = () => {
+    if (selectedTasks.length > 0) {
+      setOpenBulkDeleteDialog(true);
+    }
+  };
+
+  // Função para fechar o diálogo de exclusão em massa
+  const handleCloseBulkDeleteDialog = () => {
+    setOpenBulkDeleteDialog(false);
+  };
+
+  // Função para excluir as tarefas selecionadas
+  const handleBulkDeleteTasks = async () => {
+    if (selectedTasks.length === 0) return;
+    
+    try {
+      // Excluir cada tarefa selecionada
+      for (const taskId of selectedTasks) {
+        await axios.delete(`https://api.itenorio.com/lambda/tasks/${taskId}`);
+      }
+      
+      // Atualizar a lista de tarefas
+      fetchTasks();
+      
+      // Limpar a seleção e fechar o diálogo
+      setSelectedTasks([]);
+      handleCloseBulkDeleteDialog();
+    } catch (err) {
+      console.error('Erro ao excluir tarefas:', err);
+      setError('Não foi possível excluir as tarefas. Tente novamente mais tarde.');
+    }
+  };
+
   // Expor a função fetchTasks através da ref
   useImperativeHandle(ref, () => ({
     refresh: () => {
@@ -240,6 +298,16 @@ const TaskList = forwardRef<TaskListRef>((props, ref) => {
               <RefreshIcon />
             </IconButton>
           </Tooltip>
+          {selectedTasks.length > 0 && (
+            <Tooltip title={`Excluir ${selectedTasks.length} tarefa(s)`}>
+              <IconButton 
+                onClick={handleOpenBulkDeleteDialog} 
+                color="error"
+              >
+                <DeleteIcon />
+              </IconButton>
+            </Tooltip>
+          )}
           <Button
             variant="contained"
             startIcon={<AddIcon />}
@@ -320,6 +388,13 @@ const TaskList = forwardRef<TaskListRef>((props, ref) => {
           <Table size="small">
             <TableHead>
               <TableRow>
+                <TableCell padding="checkbox">
+                  <Checkbox
+                    indeterminate={selectedTasks.length > 0 && selectedTasks.length < filteredTasks.length}
+                    checked={selectedTasks.length === filteredTasks.length && filteredTasks.length > 0}
+                    onChange={handleSelectAllTasks}
+                  />
+                </TableCell>
                 <TableCell>Descrição</TableCell>
                 <TableCell>Prioridade</TableCell>
                 <TableCell>Categoria</TableCell>
@@ -331,6 +406,12 @@ const TaskList = forwardRef<TaskListRef>((props, ref) => {
             <TableBody>
               {filteredTasks.map((task) => (
                 <TableRow key={task.ID}>
+                  <TableCell padding="checkbox">
+                    <Checkbox
+                      checked={selectedTasks.includes(task.ID)}
+                      onChange={() => handleSelectTask(task.ID)}
+                    />
+                  </TableCell>
                   <TableCell>{task.Descrição}</TableCell>
                   <TableCell>
                     <Typography
@@ -511,6 +592,22 @@ const TaskList = forwardRef<TaskListRef>((props, ref) => {
         <DialogActions>
           <Button onClick={handleCloseDialogs}>Cancelar</Button>
           <Button onClick={handleDeleteTask} variant="contained" color="error">
+            Excluir
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Diálogo de Exclusão em Massa */}
+      <Dialog open={openBulkDeleteDialog} onClose={handleCloseBulkDeleteDialog}>
+        <DialogTitle>Confirmar Exclusão</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Tem certeza que deseja excluir {selectedTasks.length} tarefa(s) selecionada(s)?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseBulkDeleteDialog}>Cancelar</Button>
+          <Button onClick={handleBulkDeleteTasks} variant="contained" color="error">
             Excluir
           </Button>
         </DialogActions>
