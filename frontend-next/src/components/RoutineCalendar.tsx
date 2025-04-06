@@ -41,43 +41,6 @@ import { Calendar } from 'react-big-calendar';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 
 // Styled components
-const FloatingPanel = styled(Paper)(({ theme }) => ({
-  position: 'fixed',
-  right: '20px',
-  top: '50%',
-  transform: 'translateY(-50%)',
-  width: '350px',
-  maxHeight: '80vh',
-  overflow: 'auto',
-  zIndex: 1000,
-  backgroundColor: theme.palette.background.paper,
-  boxShadow: theme.shadows[4],
-  borderRadius: theme.shape.borderRadius,
-  transition: 'all 0.3s ease',
-  '&:hover': {
-    boxShadow: theme.shadows[8],
-  },
-}));
-
-const MaximizedPanel = styled(Paper)(({ theme }) => ({
-  position: 'fixed',
-  right: '20px',
-  top: '50%',
-  transform: 'translateY(-50%)',
-  width: '80%',
-  maxWidth: '1200px',
-  height: '80vh',
-  overflow: 'auto',
-  zIndex: 1000,
-  backgroundColor: theme.palette.background.paper,
-  boxShadow: theme.shadows[4],
-  borderRadius: theme.shape.borderRadius,
-  transition: 'all 0.3s ease',
-  '&:hover': {
-    boxShadow: theme.shadows[8],
-  },
-}));
-
 const DayColumn = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(1),
   minHeight: '120px',
@@ -154,7 +117,6 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [frequencyFilter, setFrequencyFilter] = useState<string>('all');
-  const [isMaximized, setIsMaximized] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
   const [openAddDialog, setOpenAddDialog] = useState(false);
   const [openEditDialog, setOpenEditDialog] = useState(false);
@@ -556,17 +518,6 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
     );
   };
 
-  const handleMaximize = () => {
-    setIsMaximized(!isMaximized);
-  };
-
-  const handleHide = () => {
-    setIsVisible(false);
-    if (props.onClose) {
-      props.onClose();
-    }
-  };
-
   const handleOpenAddDialog = () => {
     setFormData({
       name: '',
@@ -679,16 +630,14 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
               <MenuItem value="month">Mês</MenuItem>
             </Select>
           </FormControl>
-          <Tooltip title="Restaurar">
-            <IconButton onClick={handleMaximize} size="small">
-              <FullscreenExitIcon />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Fechar">
-            <IconButton onClick={handleHide} size="small">
-              <CloseIcon />
-            </IconButton>
-          </Tooltip>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleOpenAddDialog}
+            size="small"
+          >
+            Nova Rotina
+          </Button>
         </Box>
       </Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -855,6 +804,30 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
                                 ))}
                               </Box>
                             )}
+                            <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                              <Tooltip title="Editar">
+                                <IconButton
+                                  size="small"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenEditDialog(routine);
+                                  }}
+                                >
+                                  <EditIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Excluir">
+                                <IconButton
+                                  size="small"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenDeleteDialog(routine);
+                                  }}
+                                >
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            </Box>
                           </RoutineItem>
                         </Tooltip>
                       ))
@@ -877,174 +850,10 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
     </>
   );
 
-  const renderEvent = (event: any) => {
-    const routine = routines.find(r => r.id === event.id);
-    if (!routine) return null;
-
-    return (
-      <Box sx={{ p: 1 }}>
-        <Typography variant="subtitle2" noWrap>
-          {routine.name}
-        </Typography>
-        <Typography variant="caption" noWrap>
-          {routine.schedule}
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-          <Tooltip title="Editar">
-            <IconButton
-              size="small"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleOpenEditDialog(routine);
-              }}
-            >
-              <EditIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Excluir">
-            <IconButton
-              size="small"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleOpenDeleteDialog(routine);
-              }}
-            >
-              <DeleteIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        </Box>
-      </Box>
-    );
-  };
-
   return (
-    <>
-      {isVisible && (
-        isMaximized ? (
-          <Dialog
-            open={true}
-            onClose={handleHide}
-            maxWidth="xl"
-            fullWidth
-            PaperProps={{
-              sx: {
-                height: '90vh',
-                maxHeight: '90vh',
-              }
-            }}
-          >
-            <DialogTitle>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="h6">
-                  Rotinas
-                  {(statusFilter !== 'all' || priorityFilter !== 'all' || frequencyFilter !== 'all') && (
-                    <Typography component="span" variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>
-                      ({getFilteredRoutinesCount()} de {routines.length})
-                    </Typography>
-                  )}
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                  <FormControl size="small" sx={{ minWidth: 120 }}>
-                    <Select
-                      value={viewMode}
-                      onChange={(e: SelectChangeEvent) => setViewMode(e.target.value as 'week' | 'month')}
-                      size="small"
-                    >
-                      <MenuItem value="week">Semana</MenuItem>
-                      <MenuItem value="month">Mês</MenuItem>
-                    </Select>
-                  </FormControl>
-                  <Tooltip title="Restaurar">
-                    <IconButton onClick={handleMaximize} size="small">
-                      <FullscreenExitIcon />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Fechar">
-                    <IconButton onClick={handleHide} size="small">
-                      <CloseIcon />
-                    </IconButton>
-                  </Tooltip>
-                </Box>
-              </Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
-                <IconButton onClick={handlePreviousWeek} size="small">
-                  <ChevronLeftIcon />
-                </IconButton>
-                <Typography variant="subtitle1">
-                  {viewMode === 'week' 
-                    ? `${formatDate(getWeekDates()[0])} - ${formatDate(getWeekDates()[6])}`
-                    : formatMonthYear(currentWeek)
-                  }
-                </Typography>
-                <IconButton onClick={handleNextWeek} size="small">
-                  <ChevronRightIcon />
-                </IconButton>
-                <IconButton onClick={handleToday} size="small">
-                  <TodayIcon />
-                </IconButton>
-              </Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
-                <Button 
-                  size="small" 
-                  onClick={clearFilters}
-                  disabled={statusFilter === 'all' && priorityFilter === 'all' && frequencyFilter === 'all'}
-                >
-                  Limpar filtros
-                </Button>
-                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                  <FormControl size="small" sx={{ minWidth: 150 }}>
-                    <Select
-                      value={statusFilter}
-                      onChange={(e: SelectChangeEvent) => setStatusFilter(e.target.value)}
-                      size="small"
-                    >
-                      <MenuItem value="all">Todos os status</MenuItem>
-                      <MenuItem value="pending">Pendentes</MenuItem>
-                      <MenuItem value="completed">Concluídas</MenuItem>
-                      <MenuItem value="cancelled">Canceladas</MenuItem>
-                    </Select>
-                  </FormControl>
-                  <FormControl size="small" sx={{ minWidth: 150 }}>
-                    <Select
-                      value={priorityFilter}
-                      onChange={(e: SelectChangeEvent) => setPriorityFilter(e.target.value)}
-                      size="small"
-                    >
-                      <MenuItem value="all">Todas as prioridades</MenuItem>
-                      <MenuItem value="high">Alta</MenuItem>
-                      <MenuItem value="medium">Média</MenuItem>
-                      <MenuItem value="low">Baixa</MenuItem>
-                    </Select>
-                  </FormControl>
-                  <FormControl size="small" sx={{ minWidth: 150 }}>
-                    <Select
-                      value={frequencyFilter}
-                      onChange={(e: SelectChangeEvent) => setFrequencyFilter(e.target.value)}
-                      size="small"
-                    >
-                      <MenuItem value="all">Todas as frequências</MenuItem>
-                      <MenuItem value="daily">Diária</MenuItem>
-                      <MenuItem value="weekly">Semanal</MenuItem>
-                      <MenuItem value="monthly">Mensal</MenuItem>
-                      <MenuItem value="weekdays">Dias úteis</MenuItem>
-                      <MenuItem value="weekends">Finais de semana</MenuItem>
-                      <MenuItem value="custom">Personalizada</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Box>
-              </Box>
-            </DialogTitle>
-            <DialogContent>
-              {renderContent()}
-            </DialogContent>
-          </Dialog>
-        ) : (
-          <FloatingPanel elevation={3}>
-            {renderHeader()}
-            {renderContent()}
-          </FloatingPanel>
-        )
-      )}
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      {renderHeader()}
+      {renderContent()}
 
       {/* Diálogo de Adicionar Rotina */}
       <Dialog open={openAddDialog} onClose={handleCloseDialogs} maxWidth="sm" fullWidth>
@@ -1281,7 +1090,7 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
           </Button>
         </DialogActions>
       </Dialog>
-    </>
+    </Box>
   );
 });
 
