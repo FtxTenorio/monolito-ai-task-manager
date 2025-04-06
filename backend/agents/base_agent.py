@@ -11,7 +11,7 @@ class BaseAgent:
         # Inicializar o modelo de linguagem
         self.llm = ChatOpenAI(
             temperature=0.7,
-            model_name="gpt-3.5-turbo",
+            model_name="gpt-4o-mini",
             openai_api_key=os.getenv("OPENAI_API_KEY")
         )
         

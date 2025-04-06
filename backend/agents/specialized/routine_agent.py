@@ -117,10 +117,19 @@ class RoutineAgent(BaseAgent):
         logger.info("RoutineAgent: Inicializando agente de rotinas")
         start_time = time.time()
         
-        system_prompt = """You are an agent specialized in routine management.
-        Your function is to help create, list, update and remove routines.
-        You have access to a routines API and should use the available tools to perform these operations.
-        Always provide clear and organized responses."""
+        system_prompt = """Você é um agente especializado em gerenciamento de rotinas.
+        Sua função é ajudar a criar, listar, atualizar e remover rotinas.
+        Você tem acesso a uma API de rotinas e deve usar as ferramentas disponíveis para realizar essas operações.
+        
+        Ao criar ou atualizar rotinas, apenas o campo 'name' é obrigatório.
+        Os demais campos são opcionais e têm os seguintes valores padrão:
+        - status: 'pending'
+        - schedule: '09:00'
+        - frequency: 'daily'
+        - priority: 'low'
+        
+        Para ocultar os campos opcionais é só não enviar o campo, não é necessário enviar o campo com valor None.
+        """
         
         super().__init__(system_prompt)
         
@@ -129,16 +138,7 @@ class RoutineAgent(BaseAgent):
         
         # Definir campos obrigatórios e seus tipos
         self.required_fields = {
-            'name': str,
-            'description': str,
-            'status': str,
-            'schedule': str,
-            'frequency': str,
-            'priority': str,
-            'tags': list,
-            'estimated_duration': int,
-            'start_date': str,
-            'end_date': str
+            'name': str
         }
         
         # Definir valores válidos para campos específicos
@@ -152,13 +152,10 @@ class RoutineAgent(BaseAgent):
         self.default_values = {
             'status': 'pending',
             'frequency': 'daily',
-            'priority': 'medium',
+            'priority': 'low',
             'tags': [],
             'estimated_duration': 0
         }
-        
-        # Flag para indicar se as rotinas foram atualizadas
-        self._routines_updated = False
         
         # Definir as ferramentas específicas para rotinas
         self.tools = [
@@ -230,16 +227,27 @@ class RoutineAgent(BaseAgent):
         try:
             # Check required fields only on creation
             if not is_update:
-                missing_fields = []
-                for field, field_type in self.required_fields.items():
-                    if field not in data:
-                        missing_fields.append(field)
-                
-                if missing_fields:
-                    return f"Missing required fields: {', '.join(missing_fields)}"
+                # Apenas o nome é obrigatório
+                if 'name' not in data or not data['name'].strip():
+                    return "O campo 'name' é obrigatório"
+            
+            # Aplicar valores padrão para campos não fornecidos
+            default_values = {
+                'status': 'pending',
+                'schedule': '09:00',
+                'frequency': 'daily',
+                'priority': 'low',
+                'tags': [],
+                'estimated_duration': 0
+            }
+            
+            for field, default_value in default_values.items():
+                if field not in data or data[field] is None:
+                    data[field] = default_value
             
             # Validate types and values of present fields
             for field, value in data.items():
+                # Validar apenas campos que foram fornecidos
                 if field in self.required_fields:
                     # Validate type
                     expected_type = self.required_fields[field]
@@ -251,28 +259,28 @@ class RoutineAgent(BaseAgent):
                             elif expected_type == list and isinstance(value, str):
                                 data[field] = [item.strip() for item in value.split(',')]
                             else:
-                                return f"Field '{field}' must be of type {expected_type.__name__}"
+                                return f"Campo '{field}' deve ser do tipo {expected_type.__name__}"
                         except (ValueError, TypeError):
-                            return f"Field '{field}' must be of type {expected_type.__name__}"
+                            return f"Campo '{field}' deve ser do tipo {expected_type.__name__}"
                     
                     # Validate specific values
                     if field in self.valid_values:
                         if value not in self.valid_values[field]:
-                            return f"Invalid value for '{field}'. Allowed values: {', '.join(self.valid_values[field])}"
+                            return f"Valor inválido para '{field}'. Valores permitidos: {', '.join(self.valid_values[field])}"
                     
                     # Validate date format
                     if field in ['start_date', 'end_date'] and value:
                         try:
                             datetime.fromisoformat(value)
                         except ValueError:
-                            return f"Invalid date format for '{field}'. Use ISO format (YYYY-MM-DD)"
+                            return f"Formato de data inválido para '{field}'. Use formato ISO (YYYY-MM-DD)"
                     
                     # Validate time format
                     if field == 'schedule' and value:
                         try:
                             datetime.strptime(value, '%H:%M')
                         except ValueError:
-                            return "Invalid time format. Use HH:MM format"
+                            return "Formato de horário inválido. Use formato HH:MM"
                     
                     # Validate duration
                     if field == 'estimated_duration':
@@ -280,15 +288,15 @@ class RoutineAgent(BaseAgent):
                             try:
                                 data[field] = int(value)
                             except (ValueError, TypeError):
-                                return "Duration must be an integer"
+                                return "Duração deve ser um número inteiro"
                         if data[field] < 0:
-                            return "Duration must be greater than or equal to zero"
+                            return "Duração deve ser maior ou igual a zero"
             
             return "OK"
             
         except Exception as e:
-            logger.error(f"RoutineAgent: Error validating data: {str(e)}")
-            return f"Error validating data: {str(e)}"
+            logger.error(f"RoutineAgent: Erro ao validar dados: {str(e)}")
+            return f"Erro ao validar dados: {str(e)}"
 
     def process_message(self, message: str, response_format: str = "markdown", websocket=None, chat_history=None) -> str:
         """Processa uma mensagem de forma síncrona."""
@@ -315,23 +323,18 @@ class RoutineAgent(BaseAgent):
                         elif msg.get("role") == "assistant":
                             langchain_history.append(AIMessage(content=msg.get("content", "")))
             
-            # Verificar se já carregamos as rotinas no histórico ou se as rotinas foram atualizadas
+            # Verificar se já carregamos as rotinas no histórico
             routines_loaded = False
             for msg in langchain_history:
                 if isinstance(msg, AIMessage) and "Here are all your routines:" in msg.content:
                     routines_loaded = True
                     break
             
-            # Se não carregamos as rotinas ainda ou se as rotinas foram atualizadas, carregar agora
-            if not routines_loaded or self._routines_updated:
+            # Se não carregamos as rotinas ainda, carregar agora
+            if not routines_loaded:
                 logger.info("RoutineAgent: Loading routines into chat history")
                 routines_message = self._load_routines_into_history()
                 if routines_message:
-                    # Se as rotinas foram atualizadas, remover a mensagem anterior de rotinas
-                    if self._routines_updated:
-                        langchain_history = [msg for msg in langchain_history if not (isinstance(msg, AIMessage) and "Here are all your routines:" in msg.content)]
-                        self._routines_updated = False  # Resetar a flag
-                    
                     langchain_history.append(AIMessage(content=routines_message))
             
             # Processar a mensagem usando o executor do agente
@@ -423,54 +426,58 @@ class RoutineAgent(BaseAgent):
             start_time = time.time()
             logger.info("RoutineAgent: Listing all routines")
             
-            success, error_msg, data = self.api_client.get_routines()
+            success, error_msg, result = self.api_client.get_routines()
+            
+            # Log detalhado da resposta da API
+            logger.info(f"RoutineAgent: API list response - Success: {success}, Error: {error_msg}, Result: {json.dumps(result, indent=2)}")
+            
+            # Verificar se há mensagem de erro no resultado
+            if result and isinstance(result, dict):
+                # Verificar se há mensagem de erro no resultado
+                if "message" in result and "Error" in result["message"]:
+                    error_msg = result["message"]
+                    logger.error(f"RoutineAgent: API returned error: {error_msg}")
+                    return error_msg
+                
+                # Verificar se há erro no corpo da resposta
+                if "body" in result and isinstance(result["body"], str):
+                    try:
+                        body_data = json.loads(result["body"])
+                        if "message" in body_data and "Error" in body_data["message"]:
+                            error_msg = body_data["message"]
+                            logger.error(f"RoutineAgent: API returned error in body: {error_msg}")
+                            return error_msg
+                    except json.JSONDecodeError:
+                        pass
+            
             if not success:
                 return error_msg
             
-            # Get the routines data from the response
-            routines = data.get('data', [])
-            if not routines:
-                logger.info("RoutineAgent: No routines found")
+            # Obter os dados das rotinas
+            routines_data = None
+            if result and isinstance(result, dict):
+                if "data" in result:
+                    routines_data = result["data"]
+                elif "body" in result and isinstance(result["body"], dict) and "data" in result["body"]:
+                    routines_data = result["body"]["data"]
+            
+            if not routines_data:
                 return "No routines found."
-                
-            # Format the response
-            logger.info(f"RoutineAgent: Formatting {len(routines)} routines found")
-            result = "Here are all your routines:\n\n"
             
-            field_labels = {
-                'name': 'Name',
-                'description': 'Description',
-                'status': 'Status',
-                'schedule': 'Schedule',
-                'frequency': 'Frequency',
-                'priority': 'Priority',
-                'tags': 'Tags',
-                'estimated_duration': 'Duration',
-                'start_date': 'Start Date',
-                'end_date': 'End Date',
-                'id': 'ID'
-            }
-            
-            for routine in routines:
-                if isinstance(routine, dict):
-                    result += f"**{routine.get('name', 'No name')}**\n"
-                    for field, label in field_labels.items():
-                        if field in routine:
-                            value = routine[field]
-                            if field == 'tags' and isinstance(value, list):
-                                value = ', '.join(value)
-                            elif field == 'estimated_duration':
-                                value = f"{value} minutes"
-                            if field != 'name':  # Name already added as title
-                                result += f"- **{label}:** {value}\n"
-                    result += "\n"
-                else:
-                    # If routine is a string or other type, just display the value
-                    result += f"**Routine:** {routine}\n\n"
+            # Formatar a resposta
+            response = "Here are all your routines:\n\n"
+            for routine in routines_data:
+                response += f"**{routine.get('name', 'No name')}**\n"
+                for key, value in routine.items():
+                    if key != 'name':  # Name already added as title
+                        if isinstance(value, list):
+                            value = ", ".join(value)
+                        response += f"- **{key}:** {value}\n"
+                response += "\n"
             
             elapsed_time = time.time() - start_time
             logger.info(f"RoutineAgent: Routines listed in {elapsed_time:.2f}s")
-            return result
+            return response
             
         except Exception as e:
             elapsed_time = time.time() - start_time
@@ -491,51 +498,54 @@ class RoutineAgent(BaseAgent):
                 
             logger.info(f"RoutineAgent: Getting routine {routine_id}")
             
-            success, error_msg, data = self.api_client.get_routine(routine_id)
+            success, error_msg, result = self.api_client.get_routine(routine_id)
+            
+            # Log detalhado da resposta da API
+            logger.info(f"RoutineAgent: API get response - Success: {success}, Error: {error_msg}, Result: {json.dumps(result, indent=2)}")
+            
+            # Verificar se há mensagem de erro no resultado
+            if result and isinstance(result, dict):
+                # Verificar se há mensagem de erro no resultado
+                if "message" in result and "Error" in result["message"]:
+                    error_msg = result["message"]
+                    logger.error(f"RoutineAgent: API returned error: {error_msg}")
+                    return error_msg
+                
+                # Verificar se há erro no corpo da resposta
+                if "body" in result and isinstance(result["body"], str):
+                    try:
+                        body_data = json.loads(result["body"])
+                        if "message" in body_data and "Error" in body_data["message"]:
+                            error_msg = body_data["message"]
+                            logger.error(f"RoutineAgent: API returned error in body: {error_msg}")
+                            return error_msg
+                    except json.JSONDecodeError:
+                        pass
+            
             if not success:
                 return error_msg
             
-            # Get the routine data from the response
-            routine = data.get('data', {})
-            if not routine:
-                logger.info(f"RoutineAgent: Routine {routine_id} not found")
+            # Obter os dados da rotina
+            routine_data = None
+            if result and isinstance(result, dict):
+                if "data" in result:
+                    routine_data = result["data"]
+                elif "body" in result and isinstance(result["body"], dict) and "data" in result["body"]:
+                    routine_data = result["body"]["data"]
+            
+            if not routine_data:
                 return f"Routine with ID {routine_id} not found."
-                
-            # Format the response
-            logger.info("RoutineAgent: Formatting routine details")
             
-            field_labels = {
-                'name': 'Name',
-                'description': 'Description',
-                'status': 'Status',
-                'schedule': 'Schedule',
-                'frequency': 'Frequency',
-                'priority': 'Priority',
-                'tags': 'Tags',
-                'estimated_duration': 'Duration',
-                'start_date': 'Start Date',
-                'end_date': 'End Date',
-                'id': 'ID'
-            }
-            
-            if isinstance(routine, dict):
-                result = f"**{routine.get('name', 'No name')}**\n"
-                for field, label in field_labels.items():
-                    if field in routine:
-                        value = routine[field]
-                        if field == 'tags' and isinstance(value, list):
-                            value = ', '.join(value)
-                        elif field == 'estimated_duration':
-                            value = f"{value} minutes"
-                        if field != 'name':  # Name already added as title
-                            result += f"- **{label}:** {value}\n"
-            else:
-                # If routine is a string or other type, just display the value
-                result = f"**Routine:** {routine}\n"
+            # Formatar a resposta
+            response = f"Routine details:\n\n"
+            for key, value in routine_data.items():
+                if isinstance(value, list):
+                    value = ", ".join(value)
+                response += f"{key}: {value}\n"
             
             elapsed_time = time.time() - start_time
-            logger.info(f"RoutineAgent: Routine obtained in {elapsed_time:.2f}s")
-            return result
+            logger.info(f"RoutineAgent: Routine retrieved in {elapsed_time:.2f}s")
+            return response
             
         except Exception as e:
             elapsed_time = time.time() - start_time
@@ -557,43 +567,101 @@ class RoutineAgent(BaseAgent):
             
             # Parse input string
             parts = input_str.split('|')
-            if len(parts) != 10:
-                return "Invalid format. Use: 'name|description|status|schedule|frequency|priority|tags|duration|start_date|end_date'"
+            if len(parts) < 1:
+                return "Invalid format. At least the name field is required."
             
-            name, description, status, schedule, frequency, priority, tags, duration, start_date, end_date = parts
+            # Extrair o nome (campo obrigatório)
+            name = parts[0].strip()
+            if not name:
+                return "The name field is required and cannot be empty."
             
-            # Prepare request data with proper types
+            # Inicializar dados com valores padrão
             data = {
-                "name": name.strip(),
-                "description": description.strip(),
-                "status": status.strip() or self.default_values['status'],
-                "schedule": schedule.strip() if schedule.strip() else None,
-                "frequency": frequency.strip() or self.default_values['frequency'],
-                "priority": priority.strip() or self.default_values['priority'],
-                "tags": [tag.strip() for tag in tags.split(',')] if tags.strip() else self.default_values['tags'],
-                "estimated_duration": int(duration.strip()) if duration.strip() else self.default_values['estimated_duration'],
-                "start_date": start_date.strip() if start_date.strip() else None,
-                "end_date": end_date.strip() if end_date.strip() else None
+                "name": name,
+                "status": "pending",
+                "schedule": "09:00",
+                "frequency": "daily",
+                "priority": "low",
+                "tags": [],
+                "estimated_duration": 0,
+                "description": ""  # Adicionar descrição vazia por padrão
             }
+            
+            # Adicionar campos opcionais se fornecidos
+            if len(parts) > 1 and parts[1].strip():
+                data["description"] = parts[1].strip()
+            if len(parts) > 2 and parts[2].strip():
+                data["status"] = parts[2].strip()
+            if len(parts) > 3 and parts[3].strip():
+                data["schedule"] = parts[3].strip()
+            if len(parts) > 4 and parts[4].strip():
+                data["frequency"] = parts[4].strip()
+            if len(parts) > 5 and parts[5].strip():
+                data["priority"] = parts[5].strip()
+            if len(parts) > 6 and parts[6].strip():
+                data["tags"] = [tag.strip() for tag in parts[6].split(',')]
+            if len(parts) > 7 and parts[7].strip():
+                try:
+                    data["estimated_duration"] = int(parts[7].strip())
+                except ValueError:
+                    return "Duration must be an integer"
+            if len(parts) > 8 and parts[8].strip():
+                data["start_date"] = parts[8].strip()
+            if len(parts) > 9 and parts[9].strip():
+                data["end_date"] = parts[9].strip()
             
             # Validate data
             validation_result = self._validate_routine_data(data)
             if validation_result != "OK":
                 return validation_result
             
+            # Log dos dados que serão enviados
+            logger.info(f"RoutineAgent: Sending data to API: {json.dumps(data, ensure_ascii=False)}")
+            
             # Make request
             success, error_msg, result = self.api_client.create_routine(
                 json.dumps(data),
                 {'Content-Type': 'application/json'}
             )
+            
+            # Log do resultado da API
+            logger.info(f"RoutineAgent: API response - Success: {success}, Error: {error_msg}, Result: {json.dumps(result, ensure_ascii=False)}")
+            
+            # Verificar se há mensagem de erro no resultado
+            if result and isinstance(result, dict):
+                # Verificar se há mensagem de erro no resultado
+                if "message" in result and "Error" in result["message"]:
+                    error_msg = result["message"]
+                    logger.error(f"RoutineAgent: API returned error: {error_msg}")
+                    return error_msg
+                
+                # Verificar se há erro no corpo da resposta
+                if "body" in result and isinstance(result["body"], str):
+                    try:
+                        body_data = json.loads(result["body"])
+                        if "message" in body_data and "Error" in body_data["message"]:
+                            error_msg = body_data["message"]
+                            logger.error(f"RoutineAgent: API returned error in body: {error_msg}")
+                            return error_msg
+                    except json.JSONDecodeError:
+                        pass
+            
             if not success:
                 return error_msg
             
-            # Marcar que as rotinas foram atualizadas
-            self._routines_updated = True
-                
+            # Verificar se o resultado contém um ID
+            routine_id = None
+            if result and isinstance(result, dict):
+                if "id" in result:
+                    routine_id = result["id"]
+                elif "body" in result and isinstance(result["body"], dict) and "id" in result["body"]:
+                    routine_id = result["body"]["id"]
+            
             elapsed_time = time.time() - start_time
-            success_msg = f"Routine created successfully!\nID: {result.get('id', 'N/A')}"
+            if routine_id:
+                success_msg = f"Routine created successfully!\nID: {routine_id}"
+            else:
+                success_msg = "Routine created successfully, but no ID was returned."
             
             logger.info(f"RoutineAgent: Routine created in {elapsed_time:.2f}s: {success_msg}")
             return success_msg
@@ -738,14 +806,41 @@ class RoutineAgent(BaseAgent):
             # Log detalhado da resposta da API
             logger.info(f"RoutineAgent: API update response - Success: {success}, Error: {error_msg}, Result: {json.dumps(result, indent=2)}")
             
+            # Verificar se há mensagem de erro no resultado
+            if result and isinstance(result, dict):
+                # Verificar se há mensagem de erro no resultado
+                if "message" in result and "Error" in result["message"]:
+                    error_msg = result["message"]
+                    logger.error(f"RoutineAgent: API returned error: {error_msg}")
+                    return error_msg
+                
+                # Verificar se há erro no corpo da resposta
+                if "body" in result and isinstance(result["body"], str):
+                    try:
+                        body_data = json.loads(result["body"])
+                        if "message" in body_data and "Error" in body_data["message"]:
+                            error_msg = body_data["message"]
+                            logger.error(f"RoutineAgent: API returned error in body: {error_msg}")
+                            return error_msg
+                    except json.JSONDecodeError:
+                        pass
+            
             if not success:
                 return error_msg
             
-            # Marcar que as rotinas foram atualizadas
-            self._routines_updated = True
+            # Verificar se o resultado contém um ID
+            routine_id = None
+            if result and isinstance(result, dict):
+                if "id" in result:
+                    routine_id = result["id"]
+                elif "body" in result and isinstance(result["body"], dict) and "id" in result["body"]:
+                    routine_id = result["body"]["id"]
             
             elapsed_time = time.time() - start_time
-            success_msg = f"Routine updated successfully!\nID: {result.get('id', 'N/A')}"
+            if routine_id:
+                success_msg = f"Routine updated successfully!\nID: {routine_id}"
+            else:
+                success_msg = "Routine updated successfully, but no ID was returned."
             
             logger.info(f"RoutineAgent: Routine updated in {elapsed_time:.2f}s: {success_msg}")
             return success_msg
@@ -769,19 +864,36 @@ class RoutineAgent(BaseAgent):
                 
             logger.info(f"RoutineAgent: Deleting routine {routine_id}")
             
-            success, error_msg, data = self.api_client.delete_routine(routine_id)
+            success, error_msg, result = self.api_client.delete_routine(routine_id)
+            
+            # Log detalhado da resposta da API
+            logger.info(f"RoutineAgent: API delete response - Success: {success}, Error: {error_msg}, Result: {json.dumps(result, indent=2)}")
+            
+            # Verificar se há mensagem de erro no resultado
+            if result and isinstance(result, dict):
+                # Verificar se há mensagem de erro no resultado
+                if "message" in result and "Error" in result["message"]:
+                    error_msg = result["message"]
+                    logger.error(f"RoutineAgent: API returned error: {error_msg}")
+                    return error_msg
+                
+                # Verificar se há erro no corpo da resposta
+                if "body" in result and isinstance(result["body"], str):
+                    try:
+                        body_data = json.loads(result["body"])
+                        if "message" in body_data and "Error" in body_data["message"]:
+                            error_msg = body_data["message"]
+                            logger.error(f"RoutineAgent: API returned error in body: {error_msg}")
+                            return error_msg
+                    except json.JSONDecodeError:
+                        pass
+            
             if not success:
                 return error_msg
             
-            # Marcar que as rotinas foram atualizadas
-            self._routines_updated = True
-            
-            # Create success message
-            success_msg = f"Routine {routine_id} deleted successfully!"
-            if data.get('message'):
-                success_msg = data['message']
-            
             elapsed_time = time.time() - start_time
+            success_msg = f"Routine {routine_id} deleted successfully!"
+            
             logger.info(f"RoutineAgent: Routine deleted in {elapsed_time:.2f}s")
             return success_msg
             

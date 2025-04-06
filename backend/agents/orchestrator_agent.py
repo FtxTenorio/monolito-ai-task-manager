@@ -9,6 +9,7 @@ from typing import Dict, List, Any, Optional
 import logging
 import traceback
 import time
+from datetime import datetime
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -16,7 +17,24 @@ logger = logging.getLogger(__name__)
 
 class OrchestratorAgent(BaseAgent):
     def __init__(self):
-        system_prompt = """Você é um agente orquestrador que coordena outros agentes especializados.
+        # Obter data atual
+        today = datetime.now()
+        date_str = today.strftime("%d/%m/%Y")
+        
+        # Mapeamento de dias da semana em português
+        weekdays = {
+            0: "Segunda-feira",
+            1: "Terça-feira",
+            2: "Quarta-feira",
+            3: "Quinta-feira",
+            4: "Sexta-feira",
+            5: "Sábado",
+            6: "Domingo"
+        }
+        weekday = weekdays[today.weekday()]
+        
+        system_prompt = f"""Você é um agente orquestrador que coordena outros agentes especializados.
+        Data atual: {date_str} ({weekday})
         Sua função é analisar as mensagens dos usuários e direcioná-las para o agente apropriado.
         Você tem acesso a ferramentas para rotear mensagens para diferentes agentes especializados.
         Sempre forneça respostas claras e organizadas."""
