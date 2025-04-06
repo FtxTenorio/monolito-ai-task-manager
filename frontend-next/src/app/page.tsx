@@ -316,18 +316,21 @@ export default function Home() {
   };
 
   const addUserMessage = (text: string): void => {
+    console.log("Enviando mensagem para o backend:", text);
     setMessages(prev => [...prev, { text, isUser: true }]);
     setIsTyping(true);
     setStatus('Processando...');
     
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      socketRef.current.send(JSON.stringify({
-        type: 'message',
-        content: text,
+      const messageData = {
+        text: text,
         format: responseFormat,
         language: language
-      }));
+      };
+      console.log("Enviando dados para o WebSocket:", messageData);
+      socketRef.current.send(JSON.stringify(messageData));
     } else {
+      console.error("WebSocket não está conectado. Estado:", socketRef.current?.readyState);
       setError('Não foi possível enviar a mensagem. Servidor desconectado.');
       setStatus('Erro na conexão. Tente novamente.');
     }
@@ -454,12 +457,15 @@ export default function Home() {
         recognitionRef.current.lang = language;
 
         recognitionRef.current.onstart = () => {
+          console.log("Reconhecimento de voz iniciado");
           setIsListening(true);
           setStatus('Ouvindo...');
         };
 
         recognitionRef.current.onend = () => {
+          console.log("Reconhecimento de voz encerrado");
           if (isListening) {
+            console.log("Reiniciando reconhecimento de voz");
             recognitionRef.current.start();
           }
         };
@@ -469,6 +475,7 @@ export default function Home() {
             .map((result: any) => result[0].transcript)
             .join('');
 
+          console.log("Texto transcrito:", transcript);
           setLiveText(transcript);
 
           if (silenceTimeoutRef.current) {
@@ -477,6 +484,7 @@ export default function Home() {
 
           silenceTimeoutRef.current = setTimeout(() => {
             if (isListening) {
+              console.log("Silêncio detectado, enviando mensagem:", transcript);
               stopListening();
               addUserMessage(transcript);
             }

@@ -118,7 +118,7 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
         <>
           <ChatMessages>
             {messages.map((msg, index) => (
-              <MessageBubble key={index} isUser={msg.isUser}>
+              <MessageBubble key={index} isUser={msg.isUser} component="div">
                 <Typography variant="body2">{msg.text}</Typography>
               </MessageBubble>
             ))}

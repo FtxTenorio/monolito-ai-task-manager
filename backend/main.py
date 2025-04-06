@@ -138,22 +138,34 @@ async def websocket_endpoint(websocket: WebSocket):
         while server_running:
             try:
                 data = await websocket.receive_text()
+                print(f"Recebido do WebSocket: {data}")
                 data_json = json.loads(data)
+                print(f"Dados JSON: {data_json}")
                 
                 if "text" in data_json:
                     # Extrair o formato da resposta, padrão é markdown
                     response_format = data_json.get("format", "markdown")
+                    print(f"Processando mensagem: {data_json['text']} com formato: {response_format}")
                     await manager.process_message(client_id, data_json["text"], response_format)
+                elif "content" in data_json:
+                    # Compatibilidade com o formato anterior
+                    response_format = data_json.get("format", "markdown")
+                    print(f"Processando mensagem (formato antigo): {data_json['content']} com formato: {response_format}")
+                    await manager.process_message(client_id, data_json["content"], response_format)
                 elif "idle" in data_json:
                     print(f"Recebido: {data_json} (Sinal de idle)")
+                else:
+                    print(f"Formato de mensagem desconhecido: {data_json}")
             except WebSocketDisconnect:
                 manager.disconnect(client_id)
                 break
             except Exception as e:
                 print(f"Erro ao processar mensagem: {e}")
+                print(f"Traceback: {traceback.format_exc()}")
                 break
     except Exception as e:
         print(f"Erro na conexão WebSocket: {e}")
+        print(f"Traceback: {traceback.format_exc()}")
     finally:
         if client_id in manager.active_connections:
             manager.disconnect(client_id)
