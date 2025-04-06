@@ -12,6 +12,10 @@ from agents.specialized.task_agent import TaskAgent
 from agents.specialized.routine_agent import RoutineAgent
 import logging
 import traceback
+import uvicorn
+# Configurar logging
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 # Carregar variáveis de ambiente
 load_dotenv()

@@ -271,11 +271,8 @@ export default function Home() {
   // Ref declarations with explicit types
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const recognitionRef = useRef<any>(null);
   const typingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
-  const SILENCE_THRESHOLD = 1500; // 1.5 segundos de silêncio
   const MAX_RECONNECT_ATTEMPTS = 5;
   const RECONNECT_INTERVAL = 3000; // 3 segundos
 
@@ -349,7 +346,7 @@ export default function Home() {
     
     setIsProcessing(false);
     setIsTyping(false);
-    setStatus('Resposta recebida. Clique no microfone para falar novamente.');
+    setStatus('Resposta recebida. Digite sua mensagem para continuar.');
   };
 
   const addErrorMessage = (text: string): void => {
@@ -400,7 +397,7 @@ export default function Home() {
       socket.onopen = () => {
         console.log('WebSocket conectado');
         setIsConnected(true);
-        setStatus('Conectado. Clique no microfone para começar.');
+        setStatus('Conectado. Digite sua mensagem para começar.');
         setError(null);
       };
       
@@ -442,110 +439,15 @@ export default function Home() {
     }
   };
 
-  const startListening = (): void => {
-    if (!recognitionRef.current) {
-      try {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-          setError('Seu navegador não suporta reconhecimento de voz');
-          return;
-        }
-
-        recognitionRef.current = new SpeechRecognition();
-        recognitionRef.current.continuous = true;
-        recognitionRef.current.interimResults = true;
-        recognitionRef.current.lang = language;
-
-        recognitionRef.current.onstart = () => {
-          console.log("Reconhecimento de voz iniciado");
-          setIsListening(true);
-          setStatus('Ouvindo...');
-        };
-
-        recognitionRef.current.onend = () => {
-          console.log("Reconhecimento de voz encerrado");
-          if (isListening) {
-            console.log("Reiniciando reconhecimento de voz");
-            recognitionRef.current.start();
-          }
-        };
-
-        recognitionRef.current.onresult = (event: any) => {
-          const transcript = Array.from(event.results)
-            .map((result: any) => result[0].transcript)
-            .join('');
-
-          console.log("Texto transcrito:", transcript);
-          setLiveText(transcript);
-
-          if (silenceTimeoutRef.current) {
-            clearTimeout(silenceTimeoutRef.current);
-          }
-
-          silenceTimeoutRef.current = setTimeout(() => {
-            if (isListening) {
-              console.log("Silêncio detectado, enviando mensagem:", transcript);
-              stopListening();
-              addUserMessage(transcript);
-            }
-          }, 2000);
-        };
-
-        recognitionRef.current.onerror = (event: any) => {
-          console.error('Erro no reconhecimento de voz:', event.error);
-          setError(`Erro no reconhecimento de voz: ${event.error}`);
-          stopListening();
-        };
-      } catch (error) {
-        console.error('Erro ao inicializar reconhecimento de voz:', error);
-        setError('Erro ao inicializar reconhecimento de voz');
-        return;
-      }
-    }
-
-    try {
-      recognitionRef.current.start();
-    } catch (error) {
-      console.error('Erro ao iniciar reconhecimento de voz:', error);
-      setError('Erro ao iniciar reconhecimento de voz');
-    }
-  };
-
-  const stopListening = (): void => {
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch (error) {
-        console.error('Erro ao parar reconhecimento de voz:', error);
-      }
-    }
-    setIsListening(false);
-    setStatus('Conectado. Clique no microfone para começar.');
-    
-    if (silenceTimeoutRef.current) {
-      clearTimeout(silenceTimeoutRef.current);
-      silenceTimeoutRef.current = null;
-    }
-  };
-
+  // Placeholder functions for audio-related functionality
   const toggleListening = (): void => {
-    if (isListening) {
-      stopListening();
-    } else {
-      startListening();
-    }
+    // This is now just a placeholder function
+    console.log("Audio functionality has been removed");
   };
 
   const handleLanguageChange = (event: SelectChangeEvent<string>) => {
     const newLanguage = event.target.value;
     setLanguage(newLanguage);
-    
-    // Se estiver ouvindo, reinicia o reconhecimento com o novo idioma
-    if (isListening && recognitionRef.current) {
-      recognitionRef.current.stop();
-      recognitionRef.current.lang = newLanguage;
-      recognitionRef.current.start();
-    }
   };
 
   return (
