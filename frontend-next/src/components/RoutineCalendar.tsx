@@ -283,28 +283,22 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
   };
   
   // Função para verificar se uma rotina está ativa no momento atual
-  const isRoutineActive = (routine: Routine, date: Date) => {
-    // Verifica se a rotina é para o dia atual
-    const today = new Date();
-    const isToday = date.getDate() === today.getDate() && 
-                    date.getMonth() === today.getMonth() && 
-                    date.getFullYear() === today.getFullYear();
-    
-    if (!isToday) return false;
-    
-    // Extrai a hora e minuto do schedule
+  const isRoutineActive = (routine: Routine) => {
+    if (!routine.schedule) return false;
+
+    const now = new Date();
     const [hours, minutes] = routine.schedule.split(':').map(Number);
     
-    // Cria uma data para o horário da rotina
-    const routineTime = new Date();
-    routineTime.setHours(hours, minutes, 0, 0);
+    // Criar data de início da rotina para hoje
+    const routineStartTime = new Date(now);
+    routineStartTime.setHours(hours, minutes, 0, 0);
     
-    // Calcula o tempo de término da rotina
-    const endTime = new Date(routineTime);
-    endTime.setMinutes(endTime.getMinutes() + routine.estimated_duration);
-    
-    // Verifica se o horário atual está dentro do período da rotina
-    return currentTime >= routineTime && currentTime <= endTime;
+    // Calcular data de término baseada na duração estimada
+    const routineEndTime = new Date(routineStartTime);
+    routineEndTime.setMinutes(routineEndTime.getMinutes() + routine.estimated_duration);
+
+    // Verificar se a rotina está dentro do período atual
+    return now >= routineStartTime && now <= routineEndTime;
   };
 
   const getRoutinesForDate = (date: Date) => {
@@ -512,7 +506,7 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
   };
 
   const renderRoutineItem = (routine: Routine, date: Date) => {
-    const isActive = isRoutineActive(routine, date);
+    const isActive = isRoutineActive(routine);
     const RoutineComponent = isActive ? ActiveRoutineItem : RoutineItem;
     
     return (
@@ -523,8 +517,8 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
             <Typography variant="subtitle2">{routine.name}</Typography>
             <Typography variant="body2">{routine.description}</Typography>
             {isActive && (
-              <Typography variant="body2" color="success.main" sx={{ mt: 1, fontWeight: 'bold' }}>
-                Em execução agora
+              <Typography variant="body2" color="success.main" sx={{ mt: 1 }}>
+                Em execução
               </Typography>
             )}
           </Box>
