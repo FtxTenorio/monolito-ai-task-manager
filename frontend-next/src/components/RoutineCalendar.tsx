@@ -686,6 +686,11 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
           )}
         </Typography>
         <Box sx={{ display: 'flex', gap: 1 }}>
+          <Tooltip title="Atualizar rotinas">
+            <IconButton onClick={fetchRoutines} color="primary">
+              <RefreshIcon />
+            </IconButton>
+          </Tooltip>
           <Button
             variant="outlined"
             onClick={toggleView}
@@ -744,7 +749,7 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
               <FormControl size="small" sx={{ minWidth: 120 }}>
                 <Select
-                  value={yearFilter}
+                  value={yearFilter.toString()}
                   onChange={(e: SelectChangeEvent) => setYearFilter(Number(e.target.value))}
                   size="small"
                 >
@@ -817,7 +822,7 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             <FormControl size="small" sx={{ minWidth: 120 }}>
               <Select
-                value={yearFilter}
+                value={yearFilter.toString()}
                 onChange={(e: SelectChangeEvent) => setYearFilter(Number(e.target.value))}
                 size="small"
               >
