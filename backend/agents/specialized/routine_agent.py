@@ -533,21 +533,70 @@ class RoutineAgent(BaseAgent):
                 return "Invalid format. Use: 'routine_id|field1=value1|field2=value2|...'"
             
             routine_id = parts[0]
+            
+            # Primeiro, buscar a rotina existente
+            success, error_msg, existing_data = self.api_client.get_routine(routine_id)
+            if not success:
+                return f"Error fetching existing routine: {error_msg}"
+            
+            # Obter os dados existentes da rotina
+            existing_routine = existing_data.get('data', {})
+            if not existing_routine:
+                return f"Routine with ID {routine_id} not found."
+            
+            # Log dos dados existentes
+            logger.info(f"RoutineAgent: Existing routine data: {json.dumps(existing_routine, indent=2)}")
+            
+            # Preparar os dados de atualização
             updates = {}
+            
+            # Mapeamento de nomes de campos alternativos para nomes padrão
+            field_mapping = {
+                'description': 'description',
+                'desc': 'description',
+                'name': 'name',
+                'title': 'name',
+                'status': 'status',
+                'schedule': 'schedule',
+                'time': 'schedule',
+                'frequency': 'frequency',
+                'freq': 'frequency',
+                'priority': 'priority',
+                'pri': 'priority',
+                'tags': 'tags',
+                'tag': 'tags',
+                'estimated_duration': 'estimated_duration',
+                'duration': 'estimated_duration',
+                'estimatedduration': 'estimated_duration',
+                'start_date': 'start_date',
+                'startdate': 'start_date',
+                'start': 'start_date',
+                'end_date': 'end_date',
+                'enddate': 'end_date',
+                'end': 'end_date'
+            }
             
             # Parse update fields
             for part in parts[1:]:
                 if '=' not in part:
                     continue
                 field, value = part.split('=', 1)
-                field = field.strip()
+                field = field.strip().lower()
                 value = value.strip()
+                
+                # Mapear o nome do campo para o nome padrão
+                if field in field_mapping:
+                    field = field_mapping[field]
                 
                 # Handle special fields with proper type conversion
                 if field == 'tags':
                     updates[field] = [tag.strip() for tag in value.split(',')] if value else []
                 elif field == 'estimated_duration':
-                    updates[field] = int(value) if value else 0
+                    try:
+                        updates[field] = int(value) if value else 0
+                    except (ValueError, TypeError):
+                        logger.warning(f"RoutineAgent: Invalid value for estimated_duration: {value}")
+                        return f"Invalid value for estimated_duration: {value}. Must be an integer."
                 elif field == 'status' and not value:
                     updates[field] = self.default_values['status']
                 elif field == 'frequency' and not value:
@@ -562,13 +611,44 @@ class RoutineAgent(BaseAgent):
             if not updates:
                 return "No fields to update were provided."
             
-            # Validate data
-            validation_result = self._validate_routine_data(updates, is_update=True)
+            # Log das atualizações
+            logger.info(f"RoutineAgent: Update fields: {json.dumps(updates, indent=2)}")
+            
+            # Mesclar os dados existentes com as atualizações
+            merged_data = existing_routine.copy()
+            merged_data.update(updates)
+            
+            # Garantir que campos de data sejam strings ou None
+            for date_field in ['start_date', 'end_date']:
+                if date_field in merged_data:
+                    if merged_data[date_field] is None:
+                        merged_data[date_field] = None
+                    else:
+                        merged_data[date_field] = str(merged_data[date_field])
+            
+            # Garantir que estimated_duration seja um inteiro
+            if 'estimated_duration' in merged_data:
+                try:
+                    merged_data['estimated_duration'] = int(merged_data['estimated_duration'])
+                except (ValueError, TypeError):
+                    logger.warning(f"RoutineAgent: Invalid value for estimated_duration: {merged_data['estimated_duration']}")
+                    return f"Invalid value for estimated_duration: {merged_data['estimated_duration']}. Must be an integer."
+            
+            # Log dos dados mesclados
+            logger.info(f"RoutineAgent: Merged data: {json.dumps(merged_data, indent=2)}")
+            
+            # Validar os dados mesclados
+            validation_result = self._validate_routine_data(merged_data, is_update=True)
             if validation_result != "OK":
+                logger.warning(f"RoutineAgent: Validation failed: {validation_result}")
                 return validation_result
             
-            # Make request
-            success, error_msg, result = self.api_client.update_routine(routine_id, updates)
+            # Fazer a requisição de atualização com os dados mesclados
+            success, error_msg, result = self.api_client.update_routine(routine_id, merged_data)
+            
+            # Log detalhado da resposta da API
+            logger.info(f"RoutineAgent: API update response - Success: {success}, Error: {error_msg}, Result: {json.dumps(result, indent=2)}")
+            
             if not success:
                 return error_msg
             
