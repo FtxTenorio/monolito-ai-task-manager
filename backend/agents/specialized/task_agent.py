@@ -266,17 +266,56 @@ class TaskAgent(BaseAgent):
             )
             response.raise_for_status()
             
-            result = response.json()
+            # Parse the response and handle different formats
+            data = response.json()
+            
+            # Check if the response has a specific structure
+            if isinstance(data, dict) and 'body' in data:
+                # Handle AWS Lambda response format
+                if isinstance(data['body'], str):
+                    # If body is a string, it might be JSON encoded
+                    try:
+                        result = json.loads(data['body'])
+                    except json.JSONDecodeError:
+                        result = {}
+                else:
+                    result = data['body']
+            else:
+                result = data
+                
             elapsed_time = time.time() - start_time
             
-            success_msg = (
-                f"Tarefa criada com sucesso!\n"
-                f"ID: {result['id']}\n"
-                f"Descrição: {result['description']}\n"
-                f"Prioridade: {result['priority']}\n"
-                f"Categoria: {result['category']}\n"
-                f"Status: {result['status']}"
-            )
+            # Create success message with available fields
+            success_msg = "Tarefa criada com sucesso!\n"
+            
+            # Add available fields to the message
+            if isinstance(result, dict):
+                if 'id' in result:
+                    success_msg += f"ID: {result['id']}\n"
+                elif 'ID' in result:
+                    success_msg += f"ID: {result['ID']}\n"
+                    
+                if 'description' in result:
+                    success_msg += f"Descrição: {result['description']}\n"
+                elif 'Descrição' in result:
+                    success_msg += f"Descrição: {result['Descrição']}\n"
+                    
+                if 'priority' in result:
+                    success_msg += f"Prioridade: {result['priority']}\n"
+                elif 'Prioridade' in result:
+                    success_msg += f"Prioridade: {result['Prioridade']}\n"
+                    
+                if 'category' in result:
+                    success_msg += f"Categoria: {result['category']}\n"
+                elif 'Categoria' in result:
+                    success_msg += f"Categoria: {result['Categoria']}\n"
+                    
+                if 'status' in result:
+                    success_msg += f"Status: {result['status']}\n"
+                elif 'Status' in result:
+                    success_msg += f"Status: {result['Status']}\n"
+            else:
+                success_msg += f"Resposta: {result}"
             
             logger.info(f"TaskAgent: Tarefa criada em {elapsed_time:.2f}s: {success_msg}")
             return success_msg

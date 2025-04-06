@@ -1,8 +1,9 @@
 from .base_agent import BaseAgent
 from .specialized.task_agent import TaskAgent
+from .specialized.routine_agent import RoutineAgent
 from langchain.agents import AgentExecutor, create_openai_functions_agent
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langchain.tools import Tool
 from typing import Dict, List, Any, Optional
 import logging
@@ -25,6 +26,7 @@ class OrchestratorAgent(BaseAgent):
         # Inicializar agentes especializados
         logger.info("OrchestratorAgent: Inicializando agentes especializados")
         self.task_agent = TaskAgent()
+        self.routine_agent = RoutineAgent()
         
         # Definir as ferramentas de roteamento
         logger.info("OrchestratorAgent: Configurando ferramentas de roteamento")
@@ -33,6 +35,11 @@ class OrchestratorAgent(BaseAgent):
                 name="route_to_task_agent",
                 func=self.route_to_task_agent,
                 description="Roteia uma mensagem para o agente de tarefas. Use esta ferramenta quando a mensagem estiver relacionada a tarefas, como criar, listar, atualizar ou remover tarefas."
+            ),
+            Tool(
+                name="route_to_routine_agent",
+                func=self.route_to_routine_agent,
+                description="Roteia uma mensagem para o agente de rotinas. Use esta ferramenta quando a mensagem estiver relacionada a rotinas, como criar, listar, atualizar ou remover rotinas."
             )
         ]
         
@@ -67,9 +74,12 @@ class OrchestratorAgent(BaseAgent):
             start_time = time.time()
             logger.info(f"OrchestratorAgent: Iniciando route_to_task_agent com mensagem: {message}")
             
+            # Filtrar mensagens do sistema do histórico de conversa
+            filtered_history = [msg for msg in self.conversation_history if not isinstance(msg, SystemMessage)]
+            
             # Chamar diretamente o método síncrono do TaskAgent
             logger.info("OrchestratorAgent: Chamando process_message do TaskAgent")
-            response = self.task_agent.process_message(message, chat_history=self.conversation_history)
+            response = self.task_agent.process_message(message, chat_history=filtered_history)
             
             elapsed_time = time.time() - start_time
             logger.info(f"OrchestratorAgent: Resposta recebida do agente de tarefas em {elapsed_time:.2f}s: {response}")
@@ -78,6 +88,30 @@ class OrchestratorAgent(BaseAgent):
         except Exception as e:
             elapsed_time = time.time() - start_time
             error_msg = f"Erro ao rotear mensagem para o agente de tarefas após {elapsed_time:.2f}s: {str(e)}"
+            logger.error(f"OrchestratorAgent: {error_msg}")
+            logger.error(f"OrchestratorAgent: Traceback: {traceback.format_exc()}")
+            return error_msg
+    
+    def route_to_routine_agent(self, message: str) -> str:
+        """Roteia uma mensagem para o agente de rotinas de forma síncrona."""
+        try:
+            start_time = time.time()
+            logger.info(f"OrchestratorAgent: Iniciando route_to_routine_agent com mensagem: {message}")
+            
+            # Filtrar mensagens do sistema do histórico de conversa
+            filtered_history = [msg for msg in self.conversation_history if not isinstance(msg, SystemMessage)]
+            
+            # Chamar diretamente o método síncrono do RoutineAgent
+            logger.info("OrchestratorAgent: Chamando process_message do RoutineAgent")
+            response = self.routine_agent.process_message(message, chat_history=filtered_history)
+            
+            elapsed_time = time.time() - start_time
+            logger.info(f"OrchestratorAgent: Resposta recebida do agente de rotinas em {elapsed_time:.2f}s: {response}")
+            return response
+                
+        except Exception as e:
+            elapsed_time = time.time() - start_time
+            error_msg = f"Erro ao rotear mensagem para o agente de rotinas após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"OrchestratorAgent: {error_msg}")
             logger.error(f"OrchestratorAgent: Traceback: {traceback.format_exc()}")
             return error_msg

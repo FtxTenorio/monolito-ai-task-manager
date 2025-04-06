@@ -48,6 +48,21 @@ class Routine:
         self.updated_at = updated_at or datetime.utcnow()
 
     def to_dict(self) -> dict:
+        # Função auxiliar para converter string para datetime se necessário
+        def ensure_datetime(value):
+            if isinstance(value, str):
+                try:
+                    return datetime.fromisoformat(value)
+                except ValueError:
+                    return value
+            return value
+
+        # Converter strings de data para datetime se necessário
+        start_date = ensure_datetime(self.start_date)
+        end_date = ensure_datetime(self.end_date)
+        created_at = ensure_datetime(self.created_at)
+        updated_at = ensure_datetime(self.updated_at)
+
         return {
             "id": self.id,
             "name": self.name,
@@ -58,10 +73,10 @@ class Routine:
             "priority": self.priority,
             "tags": self.tags,
             "estimated_duration": self.estimated_duration,
-            "start_date": self.start_date.isoformat() if self.start_date else None,
-            "end_date": self.end_date.isoformat() if self.end_date else None,
-            "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat()
+            "start_date": start_date.isoformat() if start_date else None,
+            "end_date": end_date.isoformat() if end_date else None,
+            "created_at": created_at.isoformat() if created_at else None,
+            "updated_at": updated_at.isoformat() if updated_at else None
         }
 
     @classmethod

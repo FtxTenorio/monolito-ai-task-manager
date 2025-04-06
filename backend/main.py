@@ -8,6 +8,10 @@ import asyncio
 from typing import Dict, Set
 from dotenv import load_dotenv
 from agents.orchestrator_agent import OrchestratorAgent
+from agents.specialized.task_agent import TaskAgent
+from agents.specialized.routine_agent import RoutineAgent
+import logging
+import traceback
 
 # Carregar variáveis de ambiente
 load_dotenv()
@@ -99,6 +103,32 @@ def signal_handler(sig, frame):
 # Registrar o manipulador de sinal
 signal.signal(signal.SIGINT, signal_handler)
 
+def initialize_agents():
+    """Inicializa os agentes necessários."""
+    try:
+        logger.info("Inicializando agentes...")
+        orchestrator = OrchestratorAgent()
+        task_agent = TaskAgent()
+        routine_agent = RoutineAgent()
+        logger.info("Agentes inicializados com sucesso!")
+        return orchestrator, task_agent, routine_agent
+    except Exception as e:
+        logger.error(f"Erro ao inicializar agentes: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
+
+def process_message(message: str, orchestrator: OrchestratorAgent) -> str:
+    """Processa uma mensagem usando o agente orquestrador."""
+    try:
+        logger.info(f"Processando mensagem: {message}")
+        response = orchestrator.process_message(message)
+        logger.info(f"Resposta: {response}")
+        return response
+    except Exception as e:
+        logger.error(f"Erro ao processar mensagem: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return f"Erro ao processar mensagem: {str(e)}"
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     client_id = id(websocket)
@@ -128,6 +158,40 @@ async def websocket_endpoint(websocket: WebSocket):
         if client_id in manager.active_connections:
             manager.disconnect(client_id)
 
+def main():
+    """Função principal."""
+    try:
+        # Inicializar agentes
+        orchestrator, task_agent, routine_agent = initialize_agents()
+        
+        # Configurar servidor WebSocket
+        app = FastAPI()
+        
+        @app.websocket("/ws")
+        async def websocket_endpoint(websocket: WebSocket):
+            await websocket.accept()
+            try:
+                while True:
+                    message = await websocket.receive_text()
+                    response = process_message(message, orchestrator)
+                    await websocket.send_text(json.dumps({
+                        "type": "message",
+                        "content": response,
+                        "format": "markdown"
+                    }))
+            except WebSocketDisconnect:
+                logger.info("Cliente WebSocket desconectado")
+            except Exception as e:
+                logger.error(f"Erro no WebSocket: {str(e)}")
+                logger.error(f"Traceback: {traceback.format_exc()}")
+                
+        # Iniciar servidor
+        uvicorn.run(app, host="0.0.0.0", port=8000)
+        
+    except Exception as e:
+        logger.error(f"Erro na função principal: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
+
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    main()
