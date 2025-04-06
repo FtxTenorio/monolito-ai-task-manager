@@ -312,6 +312,20 @@ class RoutineAgent(BaseAgent):
                         elif msg.get("role") == "assistant":
                             langchain_history.append(AIMessage(content=msg.get("content", "")))
             
+            # Verificar se já carregamos as rotinas no histórico
+            routines_loaded = False
+            for msg in langchain_history:
+                if isinstance(msg, AIMessage) and "Here are all your routines:" in msg.content:
+                    routines_loaded = True
+                    break
+            
+            # Se não carregamos as rotinas ainda, carregar agora
+            if not routines_loaded:
+                logger.info("RoutineAgent: Loading routines into chat history")
+                routines_message = self._load_routines_into_history()
+                if routines_message:
+                    langchain_history.append(AIMessage(content=routines_message))
+            
             # Processar a mensagem usando o executor do agente
             response = self.agent_executor.invoke({
                 "input": message,
@@ -330,6 +344,70 @@ class RoutineAgent(BaseAgent):
             logger.error(f"RoutineAgent: {error_msg}")
             logger.error(f"RoutineAgent: Traceback: {traceback.format_exc()}")
             return error_msg
+
+    def _load_routines_into_history(self) -> str:
+        """
+        Carrega todas as rotinas no histórico de chat.
+        
+        Returns:
+            str: Mensagem formatada com todas as rotinas ou None se não houver rotinas
+        """
+        try:
+            logger.info("RoutineAgent: Loading all routines into chat history")
+            
+            # Buscar todas as rotinas
+            success, error_msg, data = self.api_client.get_routines()
+            if not success:
+                logger.error(f"RoutineAgent: Error loading routines: {error_msg}")
+                return None
+            
+            # Obter os dados das rotinas
+            routines = data.get('data', [])
+            if not routines:
+                logger.info("RoutineAgent: No routines found to load into history")
+                return None
+            
+            # Formatar a mensagem
+            result = "Here are all your routines:\n\n"
+            
+            field_labels = {
+                'name': 'Name',
+                'description': 'Description',
+                'status': 'Status',
+                'schedule': 'Schedule',
+                'frequency': 'Frequency',
+                'priority': 'Priority',
+                'tags': 'Tags',
+                'estimated_duration': 'Duration',
+                'start_date': 'Start Date',
+                'end_date': 'End Date',
+                'id': 'ID'
+            }
+            
+            for routine in routines:
+                if isinstance(routine, dict):
+                    result += f"**{routine.get('name', 'No name')}**\n"
+                    for field, label in field_labels.items():
+                        if field in routine:
+                            value = routine[field]
+                            if field == 'tags' and isinstance(value, list):
+                                value = ', '.join(value)
+                            elif field == 'estimated_duration':
+                                value = f"{value} minutes"
+                            if field != 'name':  # Name already added as title
+                                result += f"- **{label}:** {value}\n"
+                    result += "\n"
+                else:
+                    # If routine is a string or other type, just display the value
+                    result += f"**Routine:** {routine}\n\n"
+            
+            logger.info(f"RoutineAgent: Loaded {len(routines)} routines into chat history")
+            return result
+            
+        except Exception as e:
+            logger.error(f"RoutineAgent: Error loading routines into history: {str(e)}")
+            logger.error(f"RoutineAgent: Traceback: {traceback.format_exc()}")
+            return None
 
     def get_routines(self, _=None) -> str:
         """Lista todas as rotinas."""
