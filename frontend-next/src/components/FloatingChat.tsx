@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Box, IconButton, Typography, Paper, TextField, Button, Select, MenuItem, FormControl, InputLabel, Tooltip } from '@mui/material';
-import { Minimize, Maximize, Send, Refresh, CloseFullscreen, OpenInFull } from '@mui/icons-material';
+import { Minimize, Maximize, Send, Refresh, CloseFullscreen, OpenInFull, Close } from '@mui/icons-material';
 import { Message } from '@/types';
 import { styled } from '@mui/material/styles';
 import ReactMarkdown from 'react-markdown';
@@ -179,7 +179,16 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
 }) => {
   const [isMaximized, setIsMaximized] = useState(false);
   const [inputValue, setInputValue] = useState('');
+  const recognitionRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isTyping]);
 
   const handleMaximize = () => {
     setIsMaximized(true);
@@ -192,14 +201,6 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
   const handleClose = () => {
     onMinimize();
   };
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
@@ -302,6 +303,7 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
                 </Typography>
               </Box>
             )}
+            <div ref={messagesEndRef} />
           </ChatMessages>
 
           <ChatInput>
