@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Box, Paper, Fab, IconButton, Typography, Tooltip } from '@mui/material';
 import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
@@ -117,6 +117,38 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   const [isChatMinimized, setIsChatMinimized] = useState(false);
   const taskListRef = useRef<any>(null);
   const routineCalendarRef = useRef<any>(null);
+  const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    // Initialize speech recognition
+    if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
+      const SpeechRecognition = window.webkitSpeechRecognition;
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.lang = 'pt-BR';
+
+      recognitionRef.current.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        // Automatically send the transcript to the chat
+        onSendMessage(transcript);
+      };
+
+      recognitionRef.current.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+      };
+
+      recognitionRef.current.onend = () => {
+        // Do nothing on end, as we want to keep the button state as is
+      };
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, [onSendMessage]);
 
   const handleMinimizeChat = () => {
     console.log('Minimizando chat');
@@ -140,6 +172,21 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     }
   };
 
+  const handleMicButtonClick = () => {
+    if (!recognitionRef.current) {
+      console.error('Speech recognition not supported');
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current.stop();
+    } else {
+      recognitionRef.current.start();
+    }
+    
+    onToggleListening();
+  };
+
   return (
     <MainContainer>
       <ContentArea>
@@ -155,7 +202,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <MicButton
             color="primary"
-            onClick={onToggleListening}
+            onClick={handleMicButtonClick}
             className={isListening ? 'recording' : ''}
             disabled={!isConnected}
           >
