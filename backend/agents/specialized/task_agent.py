@@ -6,7 +6,12 @@ from langchain.tools import Tool
 import requests
 import json
 import asyncio
+import logging
 from typing import Dict, List, Any, Optional
+
+# Configurar logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class TaskAgent(BaseAgent):
     def __init__(self):
@@ -66,9 +71,11 @@ class TaskAgent(BaseAgent):
     def get_tasks_sync(self, query: str = "") -> str:
         """Versão síncrona que obtém a lista de todas as tarefas."""
         try:
+            logger.info(f"TaskAgent: Iniciando get_tasks_sync com query: {query}")
             # Usar o loop de eventos existente
             loop = asyncio.get_event_loop()
             if loop.is_running():
+                logger.info("TaskAgent: Loop de eventos já está em execução, usando run_coroutine_threadsafe")
                 # Se o loop já estiver em execução, use o método assíncrono diretamente
                 future = asyncio.run_coroutine_threadsafe(
                     self.get_tasks(query), 
@@ -76,16 +83,28 @@ class TaskAgent(BaseAgent):
                 )
                 return future.result(timeout=10)  # Timeout de 10 segundos
             else:
+                logger.info("TaskAgent: Criando novo loop de eventos para get_tasks")
                 # Se não houver loop em execução, crie um novo
                 return loop.run_until_complete(self.get_tasks(query))
         except Exception as e:
-            return f"Erro ao obter tarefas: {str(e)}"
+            error_msg = f"Erro ao obter tarefas: {str(e)}"
+            logger.error(f"TaskAgent: {error_msg}")
+            return error_msg
     
     async def get_tasks(self, query: str = "") -> str:
         """Obtém a lista de todas as tarefas."""
         try:
+            logger.info(f"TaskAgent: Fazendo requisição GET para /lambda/tasks")
             response = requests.get('https://api.itenorio.com/lambda/tasks')
+            logger.info(f"TaskAgent: Status code da resposta: {response.status_code}")
+            
+            if response.status_code != 200:
+                error_msg = f"Erro na API: Status code {response.status_code}"
+                logger.error(f"TaskAgent: {error_msg}")
+                return error_msg
+            
             tasks = response.json().get('body', {}).get('Items', [])
+            logger.info(f"TaskAgent: Número de tarefas encontradas: {len(tasks)}")
             
             if not tasks:
                 return "Não há tarefas cadastradas."
@@ -101,15 +120,27 @@ class TaskAgent(BaseAgent):
                 result += "---\n"
             
             return result
+        except requests.exceptions.RequestException as e:
+            error_msg = f"Erro na requisição HTTP: {str(e)}"
+            logger.error(f"TaskAgent: {error_msg}")
+            return error_msg
+        except json.JSONDecodeError as e:
+            error_msg = f"Erro ao decodificar JSON da resposta: {str(e)}"
+            logger.error(f"TaskAgent: {error_msg}")
+            return error_msg
         except Exception as e:
-            return f"Erro ao obter tarefas: {str(e)}"
+            error_msg = f"Erro inesperado ao obter tarefas: {str(e)}"
+            logger.error(f"TaskAgent: {error_msg}")
+            return error_msg
     
     def create_task_sync(self, input_str: str) -> str:
         """Versão síncrona que cria uma nova tarefa."""
         try:
+            logger.info(f"TaskAgent: Iniciando create_task_sync com input: {input_str}")
             # Usar o loop de eventos existente
             loop = asyncio.get_event_loop()
             if loop.is_running():
+                logger.info("TaskAgent: Loop de eventos já está em execução, usando run_coroutine_threadsafe")
                 # Se o loop já estiver em execução, use o método assíncrono diretamente
                 future = asyncio.run_coroutine_threadsafe(
                     self.create_task(input_str), 
@@ -117,18 +148,24 @@ class TaskAgent(BaseAgent):
                 )
                 return future.result(timeout=10)  # Timeout de 10 segundos
             else:
+                logger.info("TaskAgent: Criando novo loop de eventos para create_task")
                 # Se não houver loop em execução, crie um novo
                 return loop.run_until_complete(self.create_task(input_str))
         except Exception as e:
-            return f"Erro ao criar tarefa: {str(e)}"
+            error_msg = f"Erro ao criar tarefa: {str(e)}"
+            logger.error(f"TaskAgent: {error_msg}")
+            return error_msg
     
     async def create_task(self, input_str: str) -> str:
         """Cria uma nova tarefa."""
         try:
+            logger.info(f"TaskAgent: Processando input para criar tarefa: {input_str}")
             parts = input_str.split("|")
             
             if len(parts) != 4:
-                return "Erro: Formato inválido. Use 'descrição|prioridade|categoria|status'"
+                error_msg = "Erro: Formato inválido. Use 'descrição|prioridade|categoria|status'"
+                logger.error(f"TaskAgent: {error_msg}")
+                return error_msg
             
             descricao, prioridade, categoria, status = parts
             
@@ -139,10 +176,14 @@ class TaskAgent(BaseAgent):
             
             # Validar valores aceitos
             if prioridade not in ["Alta", "Média", "Baixa"]:
-                return "Erro: Prioridade deve ser 'Alta', 'Média' ou 'Baixa'"
+                error_msg = "Erro: Prioridade deve ser 'Alta', 'Média' ou 'Baixa'"
+                logger.error(f"TaskAgent: {error_msg}")
+                return error_msg
             
             if status not in ["Pendente", "Concluído"]:
-                return "Erro: Status deve ser 'Pendente' ou 'Concluído'"
+                error_msg = "Erro: Status deve ser 'Pendente' ou 'Concluído'"
+                logger.error(f"TaskAgent: {error_msg}")
+                return error_msg
             
             task_data = {
                 "descricao": descricao,
@@ -151,21 +192,33 @@ class TaskAgent(BaseAgent):
                 "status": status
             }
             
+            logger.info(f"TaskAgent: Enviando requisição POST para criar tarefa: {task_data}")
             response = requests.post('https://api.itenorio.com/lambda/tasks', json=task_data)
+            logger.info(f"TaskAgent: Status code da resposta: {response.status_code}")
             
             if response.status_code == 200:
                 return "Tarefa criada com sucesso!"
             else:
-                return f"Erro ao criar tarefa: {response.text}"
+                error_msg = f"Erro ao criar tarefa: {response.text}"
+                logger.error(f"TaskAgent: {error_msg}")
+                return error_msg
+        except requests.exceptions.RequestException as e:
+            error_msg = f"Erro na requisição HTTP: {str(e)}"
+            logger.error(f"TaskAgent: {error_msg}")
+            return error_msg
         except Exception as e:
-            return f"Erro ao criar tarefa: {str(e)}"
+            error_msg = f"Erro inesperado ao criar tarefa: {str(e)}"
+            logger.error(f"TaskAgent: {error_msg}")
+            return error_msg
     
     def update_task_sync(self, input_str: str) -> str:
         """Versão síncrona que atualiza uma tarefa existente."""
         try:
+            logger.info(f"TaskAgent: Iniciando update_task_sync com input: {input_str}")
             # Usar o loop de eventos existente
             loop = asyncio.get_event_loop()
             if loop.is_running():
+                logger.info("TaskAgent: Loop de eventos já está em execução, usando run_coroutine_threadsafe")
                 # Se o loop já estiver em execução, use o método assíncrono diretamente
                 future = asyncio.run_coroutine_threadsafe(
                     self.update_task(input_str), 
@@ -173,17 +226,23 @@ class TaskAgent(BaseAgent):
                 )
                 return future.result(timeout=10)  # Timeout de 10 segundos
             else:
+                logger.info("TaskAgent: Criando novo loop de eventos para update_task")
                 # Se não houver loop em execução, crie um novo
                 return loop.run_until_complete(self.update_task(input_str))
         except Exception as e:
-            return f"Erro ao atualizar tarefa: {str(e)}"
+            error_msg = f"Erro ao atualizar tarefa: {str(e)}"
+            logger.error(f"TaskAgent: {error_msg}")
+            return error_msg
     
     async def update_task(self, input_str: str) -> str:
         """Atualiza uma tarefa existente."""
         try:
+            logger.info(f"TaskAgent: Processando input para atualizar tarefa: {input_str}")
             parts = input_str.split("|")
             if len(parts) < 2:
-                return "Erro: Formato inválido. Use 'task_id|campo1=valor1|campo2=valor2|...'"
+                error_msg = "Erro: Formato inválido. Use 'task_id|campo1=valor1|campo2=valor2|...'"
+                logger.error(f"TaskAgent: {error_msg}")
+                return error_msg
             
             task_id = parts[0]
             formatted_task = {}
@@ -202,29 +261,47 @@ class TaskAgent(BaseAgent):
                         formatted_task[field_mapping[key]] = value
             
             if "prioridade" in formatted_task and formatted_task["prioridade"] not in ["Alta", "Média", "Baixa"]:
-                return "Erro: Prioridade deve ser 'Alta', 'Média' ou 'Baixa'"
+                error_msg = "Erro: Prioridade deve ser 'Alta', 'Média' ou 'Baixa'"
+                logger.error(f"TaskAgent: {error_msg}")
+                return error_msg
             
             if "status" in formatted_task and formatted_task["status"] not in ["Pendente", "Concluído"]:
-                return "Erro: Status deve ser 'Pendente' ou 'Concluído'"
+                error_msg = "Erro: Status deve ser 'Pendente' ou 'Concluído'"
+                logger.error(f"TaskAgent: {error_msg}")
+                return error_msg
             
             if not formatted_task:
-                return "Nenhum campo válido para atualização fornecido."
+                error_msg = "Nenhum campo válido para atualização fornecido."
+                logger.error(f"TaskAgent: {error_msg}")
+                return error_msg
             
+            logger.info(f"TaskAgent: Enviando requisição PATCH para atualizar tarefa {task_id}: {formatted_task}")
             response = requests.patch(f'https://api.itenorio.com/lambda/tasks/{task_id}', json=formatted_task)
+            logger.info(f"TaskAgent: Status code da resposta: {response.status_code}")
             
             if response.status_code == 200:
                 return "Tarefa atualizada com sucesso!"
             else:
-                return f"Erro ao atualizar tarefa: {response.text}"
+                error_msg = f"Erro ao atualizar tarefa: {response.text}"
+                logger.error(f"TaskAgent: {error_msg}")
+                return error_msg
+        except requests.exceptions.RequestException as e:
+            error_msg = f"Erro na requisição HTTP: {str(e)}"
+            logger.error(f"TaskAgent: {error_msg}")
+            return error_msg
         except Exception as e:
-            return f"Erro ao atualizar tarefa: {str(e)}"
+            error_msg = f"Erro inesperado ao atualizar tarefa: {str(e)}"
+            logger.error(f"TaskAgent: {error_msg}")
+            return error_msg
     
     def delete_task_sync(self, task_id: str) -> str:
         """Versão síncrona que remove uma tarefa."""
         try:
+            logger.info(f"TaskAgent: Iniciando delete_task_sync para task_id: {task_id}")
             # Usar o loop de eventos existente
             loop = asyncio.get_event_loop()
             if loop.is_running():
+                logger.info("TaskAgent: Loop de eventos já está em execução, usando run_coroutine_threadsafe")
                 # Se o loop já estiver em execução, use o método assíncrono diretamente
                 future = asyncio.run_coroutine_threadsafe(
                     self.delete_task(task_id), 
@@ -232,36 +309,52 @@ class TaskAgent(BaseAgent):
                 )
                 return future.result(timeout=10)  # Timeout de 10 segundos
             else:
+                logger.info("TaskAgent: Criando novo loop de eventos para delete_task")
                 # Se não houver loop em execução, crie um novo
                 return loop.run_until_complete(self.delete_task(task_id))
         except Exception as e:
-            return f"Erro ao remover tarefa: {str(e)}"
+            error_msg = f"Erro ao remover tarefa: {str(e)}"
+            logger.error(f"TaskAgent: {error_msg}")
+            return error_msg
     
     async def delete_task(self, task_id: str) -> str:
         """Remove uma tarefa."""
         try:
+            logger.info(f"TaskAgent: Enviando requisição DELETE para remover tarefa {task_id}")
             response = requests.delete(f'https://api.itenorio.com/lambda/tasks/{task_id}')
+            logger.info(f"TaskAgent: Status code da resposta: {response.status_code}")
             
             if response.status_code == 200:
                 return "Tarefa removida com sucesso!"
             else:
-                return f"Erro ao remover tarefa: {response.text}"
+                error_msg = f"Erro ao remover tarefa: {response.text}"
+                logger.error(f"TaskAgent: {error_msg}")
+                return error_msg
+        except requests.exceptions.RequestException as e:
+            error_msg = f"Erro na requisição HTTP: {str(e)}"
+            logger.error(f"TaskAgent: {error_msg}")
+            return error_msg
         except Exception as e:
-            return f"Erro ao remover tarefa: {str(e)}"
+            error_msg = f"Erro inesperado ao remover tarefa: {str(e)}"
+            logger.error(f"TaskAgent: {error_msg}")
+            return error_msg
     
     async def process_message_async(self, message: str, response_format: str = "markdown", websocket=None):
         """Processa uma mensagem de forma assíncrona."""
         try:
+            logger.info(f"TaskAgent: Processando mensagem: {message}")
             # Adicionar a mensagem do usuário ao histórico
             self.conversation_history.append(HumanMessage(content=message))
             
             # Obter resposta do agente
+            logger.info("TaskAgent: Invocando agent_executor")
             response = self.agent_executor.invoke({
                 "input": message,
                 "chat_history": self.conversation_history[:-1]
             })
             
             response_text = response["output"]
+            logger.info(f"TaskAgent: Resposta obtida: {response_text}")
             
             # Adicionar a resposta ao histórico
             self.conversation_history.append(AIMessage(content=response_text))
@@ -270,4 +363,5 @@ class TaskAgent(BaseAgent):
             
         except Exception as e:
             error_message = f"Erro ao processar mensagem: {str(e)}"
+            logger.error(f"TaskAgent: {error_message}")
             raise Exception(error_message) 
