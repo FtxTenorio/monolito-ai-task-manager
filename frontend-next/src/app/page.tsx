@@ -37,7 +37,7 @@ import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import TaskList from '@/components/TaskList';
-import Chat from '@/components/Chat';
+import MainLayout from '@/components/MainLayout';
 import { Message } from '@/types';
 
 // Componentes estilizados
@@ -254,27 +254,26 @@ const ToolExecutionIndicator = ({ activeTools }: { activeTools: string[] }) => {
 };
 
 export default function Home() {
+  // State declarations with explicit types
   const [messages, setMessages] = useState<Message[]>([]);
-  const [isListening, setIsListening] = useState(false);
-  const [status, setStatus] = useState('Clique no microfone para começar');
-  const [isConnected, setIsConnected] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [liveText, setLiveText] = useState('');
-  const [reconnectAttempts, setReconnectAttempts] = useState(0);
-  const [isReconnecting, setIsReconnecting] = useState(false);
-  const [isStopping, setIsStopping] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState('pt-BR');
-  const [isTyping, setIsTyping] = useState(false);
-  const [typingDots, setTypingDots] = useState('');
-  const [responseFormat, setResponseFormat] = useState('markdown');
-  const [isTaskListExpanded, setIsTaskListExpanded] = useState(false);
+  const [isConnected, setIsConnected] = useState<boolean>(false);
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [isListening, setIsListening] = useState<boolean>(false);
+  const [isTyping, setIsTyping] = useState<boolean>(false);
+  const [typingDots, setTypingDots] = useState<string>('');
+  const [liveText, setLiveText] = useState<string>('');
+  const [status, setStatus] = useState<string>('Conectando ao servidor...');
+  const [error, setError] = useState<string | null>(null);
+  const [responseFormat, setResponseFormat] = useState<string>('markdown');
+  const [language, setLanguage] = useState<string>('pt-BR');
+  const [activeTools, setActiveTools] = useState<string[]>([]);
   
+  // Ref declarations with explicit types
   const socketRef = useRef<WebSocket | null>(null);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const chatContainerRef = useRef<HTMLDivElement>(null);
   const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const taskListRef = useRef<{ fetchTasks: () => void; refresh: () => void }>(null);
+  const recognitionRef = useRef<any>(null);
+  const typingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const SILENCE_THRESHOLD = 1500; // 1.5 segundos de silêncio
   const MAX_RECONNECT_ATTEMPTS = 5;
@@ -288,9 +287,7 @@ export default function Home() {
 
   // Efeito para rolar para baixo quando novas mensagens chegarem
   useEffect(() => {
-    if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
-    }
+    // Removed chatContainerRef references
   }, [messages]);
 
   // Efeito para animação dos pontinhos
@@ -313,199 +310,30 @@ export default function Home() {
     };
   }, [isTyping]);
 
-  const connectWebSocket = () => {
-    if (socketRef.current) {
-      socketRef.current.close();
-    }
-
-    socketRef.current = new WebSocket('ws://localhost:8000/ws');
-    
-    socketRef.current.onopen = () => {
-      setIsConnected(true);
-      setStatus('Conectado ao servidor. Clique no microfone para começar.');
-      setReconnectAttempts(0);
-      setIsReconnecting(false);
-    };
-    
-    socketRef.current.onclose = () => {
-      if (isConnected) {
-        setIsConnected(false);
-        if (!isReconnecting && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-          setIsReconnecting(true);
-          setReconnectAttempts(prev => prev + 1);
-          setStatus('Reconectando...');
-          setTimeout(() => {
-            connectWebSocket();
-          }, 1000 * Math.min(reconnectAttempts + 1, 5));
-        } else if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-          setIsReconnecting(false);
-          setStatus('Não foi possível conectar ao servidor. Tente novamente mais tarde.');
-        }
-      }
-    };
-    
-    socketRef.current.onerror = (error) => {
-      console.error('WebSocket error:', error);
-      setStatus('Erro na conexão com o servidor.');
-    };
-    
-    socketRef.current.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        console.log("Recebido do WebSocket:", data);
-        
-        if (data.type === 'message') {
-          console.log("Adicionando mensagem ao chat:", data.content);
-          addAIMessage(data.content);
-        } else if (data.type === 'error') {
-          console.error("Erro recebido do servidor:", data.content);
-          addErrorMessage(data.content);
-        }
-      } catch (e) {
-        console.error('Erro ao processar mensagem do WebSocket:', e);
-      }
-    };
+  // Function declarations with explicit types
+  const handleFormatChange = (format: string): void => {
+    setResponseFormat(format);
   };
 
-  // Inicializar WebSocket
-  useEffect(() => {
-    connectWebSocket();
-    
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.close();
-      }
-      if (reconnectTimerRef.current) {
-        clearTimeout(reconnectTimerRef.current);
-      }
-    };
-  }, []);
-
-  // Inicializar reconhecimento de voz
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
-      
-      if (SpeechRecognitionAPI) {
-        recognitionRef.current = new SpeechRecognitionAPI();
-        
-        recognitionRef.current.lang = selectedLanguage;
-        recognitionRef.current.continuous = true;
-        recognitionRef.current.interimResults = true;
-        
-        recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
-          if (isStopping) return;
-          
-          let transcript = '';
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            transcript += event.results[i][0].transcript;
-          }
-          
-          setLiveText(transcript);
-          
-          if (silenceTimerRef.current) {
-            clearTimeout(silenceTimerRef.current);
-          }
-          
-          silenceTimerRef.current = setTimeout(() => {
-            if (transcript.trim() && !isStopping) {
-              addUserMessage(transcript);
-            }
-          }, SILENCE_THRESHOLD);
-        };
-        
-        recognitionRef.current.onerror = (event: SpeechRecognitionErrorEvent) => {
-          console.error('Erro no reconhecimento:', event.error);
-          setStatus('Erro no reconhecimento de voz: ' + event.error);
-        };
-        
-        recognitionRef.current.onend = () => {
-          if (isListening && !isStopping) {
-            setStatus('Reiniciando reconhecimento...');
-            recognitionRef.current?.start();
-          }
-        };
-      }
-    }
-    
-    return () => {
-      if (silenceTimerRef.current) {
-        clearTimeout(silenceTimerRef.current);
-      }
-    };
-  }, [isListening, isStopping, selectedLanguage, responseFormat]);
-
-  const handleLanguageChange = (event: SelectChangeEvent<string>) => {
-    const newLanguage = event.target.value;
-    setSelectedLanguage(newLanguage);
-    
-    // Se estiver ouvindo, reinicia o reconhecimento com o novo idioma
-    if (isListening && recognitionRef.current) {
-      recognitionRef.current.stop();
-      recognitionRef.current.lang = newLanguage;
-      recognitionRef.current.start();
-    }
-  };
-
-  const handleFormatChange = (event: SelectChangeEvent<string>) => {
-    setResponseFormat(event.target.value);
-  };
-
-  const handleTaskListOpen = () => {
-    setIsTaskListExpanded(true);
-    // Pequeno delay para garantir que o componente está montado
-    setTimeout(() => {
-      taskListRef.current?.refresh();
-    }, 100);
-  };
-
-  // Função para alternar o reconhecimento de voz
-  const toggleListening = () => {
-    if (isListening) {
-      // Primeiro, parar o reconhecimento
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-        recognitionRef.current.abort(); // Força a parada imediata
-      }
-      
-      // Limpar o timer de silêncio
-      if (silenceTimerRef.current) {
-        clearTimeout(silenceTimerRef.current);
-        silenceTimerRef.current = null;
-      }
-      
-      // Atualizar estados
-      setIsListening(false);
-      setLiveText('');
-      setStatus('Reconhecimento de voz parado. Clique no microfone para começar.');
-    } else {
-      if (recognitionRef.current) {
-        recognitionRef.current.start();
-        setIsListening(true);
-        setStatus('Falando...');
-      }
-    }
-  };
-
-  // Função para adicionar uma mensagem do usuário
-  const addUserMessage = (text: string) => {
-    // Adicionar a mensagem do usuário
-    setMessages(prevMessages => [...prevMessages, { text, isUser: true }]);
-    setLiveText('');
+  const addUserMessage = (text: string): void => {
+    setMessages(prev => [...prev, { text, isUser: true }]);
+    setIsTyping(true);
+    setStatus('Processando...');
     
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      socketRef.current.send(JSON.stringify({ 
-        text: text,
-        format: responseFormat
+      socketRef.current.send(JSON.stringify({
+        type: 'message',
+        content: text,
+        format: responseFormat,
+        language: language
       }));
-      setStatus('Processando sua mensagem...');
-      setIsProcessing(true);
-      setIsTyping(true);
+    } else {
+      setError('Não foi possível enviar a mensagem. Servidor desconectado.');
+      setStatus('Erro na conexão. Tente novamente.');
     }
   };
 
-  // Função para adicionar uma mensagem da IA
-  const addAIMessage = (text: string) => {
+  const addAIMessage = (text: string): void => {
     setMessages(prevMessages => [
       ...prevMessages,
       {
@@ -521,28 +349,23 @@ export default function Home() {
     setStatus('Resposta recebida. Clique no microfone para falar novamente.');
   };
 
-  // Função para adicionar uma mensagem de erro
-  const addErrorMessage = (text: string) => {
+  const addErrorMessage = (text: string): void => {
     setMessages(prev => [...prev, { text: `Erro: ${text}`, isUser: false }]);
     setIsProcessing(false);
     setIsTyping(false);
   };
 
-  // Função para tentar novamente uma mensagem
-  const handleRetryMessage = (messageIndex: number) => {
-    // Encontrar a mensagem do usuário correspondente
+  const handleRetryMessage = (messageIndex: number): void => {
     const userMessageIndex = messageIndex - 1;
     if (userMessageIndex >= 0 && userMessageIndex < messages.length) {
       const userMessage = messages[userMessageIndex];
       
-      // Remover a mensagem da IA que falhou
       setMessages(prevMessages => {
         const newMessages = [...prevMessages];
         newMessages.splice(messageIndex, 1);
         return newMessages;
       });
       
-      // Reenviar a mensagem do usuário
       if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
         socketRef.current.send(JSON.stringify({ 
           text: userMessage.text,
@@ -555,131 +378,185 @@ export default function Home() {
     }
   };
 
-  return (
-    <Container maxWidth="md" sx={{ py: 4, height: '100vh', overflow: 'hidden' }}>
-      <ConnectionIndicator>
-        <Tooltip title={isConnected ? "Conectado ao servidor" : "Desconectado do servidor"}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <IconButton color={isConnected ? "success" : "error"}>
-              {isConnected ? <WifiIcon /> : <WifiOffIcon />}
-            </IconButton>
-            {!isConnected && !isReconnecting && (
-              <IconButton 
-                onClick={connectWebSocket}
-                color="primary"
-                size="small"
-                sx={{ 
-                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                  '&:hover': { backgroundColor: 'rgba(255, 255, 255, 1)' }
-                }}
-              >
-                <Typography variant="caption">Tentar Novamente</Typography>
-              </IconButton>
-            )}
-          </Box>
-        </Tooltip>
-        
-        <LanguageSelector size="small">
-          <InputLabel id="language-select-label">
-            <LanguageIcon fontSize="small" sx={{ mr: 1 }} />
-            Idioma
-          </InputLabel>
-          <Select
-            labelId="language-select-label"
-            value={selectedLanguage}
-            label="Idioma"
-            onChange={handleLanguageChange}
-            disabled={isListening}
-          >
-            <MenuItem value="pt-BR">Português (BR)</MenuItem>
-            <MenuItem value="en-US">English (US)</MenuItem>
-            <MenuItem value="es-ES">Español</MenuItem>
-            <MenuItem value="fr-FR">Français</MenuItem>
-            <MenuItem value="de-DE">Deutsch</MenuItem>
-            <MenuItem value="it-IT">Italiano</MenuItem>
-            <MenuItem value="ja-JP">日本語</MenuItem>
-            <MenuItem value="ko-KR">한국어</MenuItem>
-            <MenuItem value="zh-CN">中文</MenuItem>
-            <MenuItem value="ru-RU">Русский</MenuItem>
-          </Select>
-        </LanguageSelector>
-
-        <ResponseFormatSelector size="small">
-          <InputLabel id="format-select-label">
-            <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center' }}>
-              <span style={{ marginRight: 8 }}>Formato</span>
-            </Typography>
-          </InputLabel>
-          <Select
-            labelId="format-select-label"
-            value={responseFormat}
-            label="Formato"
-            onChange={handleFormatChange}
-            disabled={isListening}
-          >
-            <MenuItem value="markdown">Markdown</MenuItem>
-            <MenuItem value="text">Texto Simples</MenuItem>
-            <MenuItem value="html">HTML</MenuItem>
-          </Select>
-        </ResponseFormatSelector>
-      </ConnectionIndicator>
-
-      <Typography variant="h1" component="h1" align="center" gutterBottom>
-        Assistente de Voz
-      </Typography>
+  const connectWebSocket = (): void => {
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+    
+    if (socketRef.current) {
+      socketRef.current.close();
+    }
+    
+    setStatus('Conectando ao servidor...');
+    
+    try {
+      const socket = new WebSocket('ws://localhost:8000/ws');
+      socketRef.current = socket;
       
-      <div className="flex h-[calc(100vh-200px)]">
-        {/* Chat */}
-        <Chat
-          messages={messages}
-          isConnected={isConnected}
-          isProcessing={isProcessing}
-          isListening={isListening}
-          status={status}
-          onToggleListening={toggleListening}
-          isTyping={isTyping}
-          typingDots={typingDots}
-          liveText={liveText}
-          onRetryMessage={handleRetryMessage}
-        />
-      </div>
+      socket.onopen = () => {
+        console.log('WebSocket conectado');
+        setIsConnected(true);
+        setStatus('Conectado. Clique no microfone para começar.');
+        setError(null);
+      };
+      
+      socket.onclose = () => {
+        console.log('WebSocket desconectado');
+        setIsConnected(false);
+        setStatus('Desconectado do servidor. Tentando reconectar...');
+        
+        reconnectTimerRef.current = setTimeout(() => {
+          connectWebSocket();
+        }, 5000);
+      };
+      
+      socket.onerror = (event) => {
+        console.error('Erro no WebSocket:', event);
+        setError('Erro na conexão com o servidor');
+      };
+      
+      socket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log("Recebido do WebSocket:", data);
+          
+          if (data.type === 'message') {
+            console.log("Adicionando mensagem ao chat:", data.content);
+            addAIMessage(data.content);
+          } else if (data.type === 'error') {
+            console.error("Erro recebido do servidor:", data.content);
+            addErrorMessage(data.content);
+          }
+        } catch (e) {
+          console.error('Erro ao processar mensagem do WebSocket:', e);
+        }
+      };
+    } catch (error) {
+      console.error('Erro ao criar WebSocket:', error);
+      setError('Não foi possível conectar ao servidor');
+      setStatus('Erro na conexão. Tente novamente mais tarde.');
+    }
+  };
 
-      {/* Botões de atalho para tarefas */}
-      <Box sx={{ position: 'fixed', bottom: 24, right: 24, display: 'flex', gap: 2 }}>
-        <Tooltip title="Ver todas as tarefas">
-          <Fab 
-            color="primary" 
-            onClick={handleTaskListOpen}
-            sx={{ bgcolor: 'primary.main' }}
-          >
-            <ListAltIcon />
-          </Fab>
-        </Tooltip>
-      </Box>
+  const startListening = (): void => {
+    if (!recognitionRef.current) {
+      try {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+          setError('Seu navegador não suporta reconhecimento de voz');
+          return;
+        }
 
-      {/* Dialog para TaskList expandida */}
-      <Dialog
-        open={isTaskListExpanded}
-        onClose={() => setIsTaskListExpanded(false)}
-        maxWidth="lg"
-        fullWidth
-      >
-        <DialogTitle>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h6">Minhas Tarefas</Typography>
-            <IconButton 
-              onClick={() => setIsTaskListExpanded(false)}
-              color="primary"
-              size="small"
-            >
-              <FullscreenExitIcon />
-            </IconButton>
-          </Box>
-        </DialogTitle>
-        <DialogContent>
-          <TaskList ref={taskListRef} />
-        </DialogContent>
-      </Dialog>
-    </Container>
+        recognitionRef.current = new SpeechRecognition();
+        recognitionRef.current.continuous = true;
+        recognitionRef.current.interimResults = true;
+        recognitionRef.current.lang = language;
+
+        recognitionRef.current.onstart = () => {
+          setIsListening(true);
+          setStatus('Ouvindo...');
+        };
+
+        recognitionRef.current.onend = () => {
+          if (isListening) {
+            recognitionRef.current.start();
+          }
+        };
+
+        recognitionRef.current.onresult = (event: any) => {
+          const transcript = Array.from(event.results)
+            .map((result: any) => result[0].transcript)
+            .join('');
+
+          setLiveText(transcript);
+
+          if (silenceTimeoutRef.current) {
+            clearTimeout(silenceTimeoutRef.current);
+          }
+
+          silenceTimeoutRef.current = setTimeout(() => {
+            if (isListening) {
+              stopListening();
+              addUserMessage(transcript);
+            }
+          }, 2000);
+        };
+
+        recognitionRef.current.onerror = (event: any) => {
+          console.error('Erro no reconhecimento de voz:', event.error);
+          setError(`Erro no reconhecimento de voz: ${event.error}`);
+          stopListening();
+        };
+      } catch (error) {
+        console.error('Erro ao inicializar reconhecimento de voz:', error);
+        setError('Erro ao inicializar reconhecimento de voz');
+        return;
+      }
+    }
+
+    try {
+      recognitionRef.current.start();
+    } catch (error) {
+      console.error('Erro ao iniciar reconhecimento de voz:', error);
+      setError('Erro ao iniciar reconhecimento de voz');
+    }
+  };
+
+  const stopListening = (): void => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (error) {
+        console.error('Erro ao parar reconhecimento de voz:', error);
+      }
+    }
+    setIsListening(false);
+    setStatus('Conectado. Clique no microfone para começar.');
+    
+    if (silenceTimeoutRef.current) {
+      clearTimeout(silenceTimeoutRef.current);
+      silenceTimeoutRef.current = null;
+    }
+  };
+
+  const toggleListening = (): void => {
+    if (isListening) {
+      stopListening();
+    } else {
+      startListening();
+    }
+  };
+
+  const handleLanguageChange = (event: SelectChangeEvent<string>) => {
+    const newLanguage = event.target.value;
+    setLanguage(newLanguage);
+    
+    // Se estiver ouvindo, reinicia o reconhecimento com o novo idioma
+    if (isListening && recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current.lang = newLanguage;
+      recognitionRef.current.start();
+    }
+  };
+
+  return (
+    <MainLayout
+      messages={messages}
+      onSendMessage={addUserMessage}
+      isProcessing={isProcessing}
+      isTyping={isTyping}
+      status={status}
+      error={error}
+      responseFormat={responseFormat}
+      onFormatChange={handleFormatChange}
+      isConnected={isConnected}
+      onReconnect={connectWebSocket}
+      isListening={isListening}
+      onToggleListening={toggleListening}
+    />
   );
 }
+
+
+
