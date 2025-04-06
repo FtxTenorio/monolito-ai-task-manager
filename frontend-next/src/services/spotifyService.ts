@@ -169,23 +169,70 @@ const spotifyService = {
     }
   },
 
-  // Controlar a reprodução (play, pause, next, previous)
-  controlPlayback: async (action: 'play' | 'pause' | 'next' | 'previous'): Promise<{ success: boolean }> => {
+  // Controlar a reprodução
+  controlPlayback: async (action: 'play' | 'pause' | 'next' | 'previous' | 'seek' | 'repeat' | 'shuffle', value?: number | string | boolean): Promise<void> => {
     try {
-      console.log(`Controlando reprodução: ${action}`);
-      const response = await axios.post(`${API_BASE_URL}/api/spotify/player/${action}`, {}, {
-        headers: getAuthHeader()
+      console.log(`Iniciando controle de reprodução: ${action}`, value ? `com valor: ${value}` : '');
+      const token = getAccessToken();
+      if (!token) {
+        throw new Error('Token de acesso não encontrado');
+      }
+
+      let endpoint = '';
+      let method = 'PUT';
+      let data = {};
+
+      switch (action) {
+        case 'play':
+        case 'pause':
+          endpoint = `${API_BASE_URL}/api/spotify/player/${action}`;
+          break;
+        case 'next':
+        case 'previous':
+          endpoint = `${API_BASE_URL}/api/spotify/player/${action}`;
+          method = 'POST';
+          break;
+        case 'seek':
+          if (typeof value === 'number') {
+            endpoint = `${API_BASE_URL}/api/spotify/player/seek?position_ms=${value}`;
+            method = 'PUT';
+          }
+          break;
+        case 'repeat':
+          if (typeof value === 'string') {
+            endpoint = `${API_BASE_URL}/api/spotify/player/repeat?state=${value}`;
+            method = 'PUT';
+          }
+          break;
+        case 'shuffle':
+          if (typeof value === 'boolean') {
+            endpoint = `${API_BASE_URL}/api/spotify/player/shuffle?state=${value}`;
+            method = 'PUT';
+          }
+          break;
+      }
+
+      if (!endpoint) {
+        throw new Error('Ação inválida');
+      }
+
+      const response = await axios({
+        method,
+        url: endpoint,
+        headers: {
+          ...getAuthHeader(),
+          'Content-Type': 'application/json',
+        },
+        data,
       });
-      console.log(`Ação ${action} executada com sucesso`);
-      return response.data;
+
+      console.log(`Controle de reprodução ${action} concluído com sucesso`);
     } catch (error) {
       console.error(`Erro ao controlar reprodução (${action}):`, error);
       if (axios.isAxiosError(error)) {
-        console.error('Detalhes do erro:', {
-          status: error.response?.status,
-          data: error.response?.data,
-          headers: error.response?.headers
-        });
+        console.error('Status:', error.response?.status);
+        console.error('Dados:', error.response?.data);
+        console.error('Headers:', error.response?.headers);
       }
       throw error;
     }

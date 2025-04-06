@@ -15,6 +15,8 @@ import TaskList from './TaskList';
 import RoutineCalendar from './RoutineCalendar';
 import FloatingChat from './FloatingChat';
 import SpotifyConnect from './SpotifyConnect';
+import SpotifyMiniPlayer from './SpotifyMiniPlayer';
+import spotifyService from '@/services/spotifyService';
 import { Message } from '@/types';
 
 // Declaração de tipos para a API de reconhecimento de voz
@@ -118,6 +120,14 @@ const MinimizeButton = styled(IconButton)(({ theme }) => ({
   },
 }));
 
+const UserContainer = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  gap: theme.spacing(2),
+  marginLeft: 'auto',
+  padding: theme.spacing(1),
+}));
+
 interface MainLayoutProps {
   children?: React.ReactNode;
   messages: Message[];
@@ -158,6 +168,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   const taskListRef = useRef<any>(null);
   const routineCalendarRef = useRef<any>(null);
   const recognitionRef = useRef<any>(null);
+  const [isSpotifyConnected, setIsSpotifyConnected] = useState(false);
 
   // Função para lidar com o envio de mensagem
   const handleSendMessage = (message: string) => {
@@ -255,6 +266,20 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       }
     };
   }, [onSendMessage, continuousListening, isListening]);
+
+  useEffect(() => {
+    const checkSpotifyConnection = async () => {
+      try {
+        const isConnected = await spotifyService.checkLoginStatus();
+        setIsSpotifyConnected(isConnected);
+      } catch (error) {
+        console.error('Erro ao verificar conexão com Spotify:', error);
+        setIsSpotifyConnected(false);
+      }
+    };
+
+    checkSpotifyConnection();
+  }, []);
 
   const handleMinimizeChat = () => {
     console.log('Minimizando chat');
@@ -371,21 +396,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     <MainContainer>
       <StyledAppBar position="fixed">
         <Toolbar>
-          <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-            <Typography variant="h6" component="div" sx={{ flexGrow: 0, mr: 4 }}>
-              Monolito AI
-            </Typography>
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <Button color="inherit">Dashboard</Button>
-              <Button color="inherit">Projetos</Button>
-              <Button color="inherit">Configurações</Button>
-            </Box>
-          </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <IconButton size="small" sx={{ ml: 2 }}>
-              <Avatar sx={{ width: 32, height: 32 }}>U</Avatar>
-            </IconButton>
-          </Box>
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+            Monolito AI Task Manager
+          </Typography>
+          <UserContainer>
+            {isSpotifyConnected && <SpotifyMiniPlayer />}
+            <Avatar sx={{ bgcolor: 'primary.main' }}>U</Avatar>
+          </UserContainer>
         </Toolbar>
       </StyledAppBar>
 

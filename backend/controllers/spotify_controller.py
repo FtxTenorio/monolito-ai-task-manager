@@ -255,57 +255,109 @@ async def get_currently_playing(request: Request):
         logger.error(f"SpotifyController: Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/player/{action}")
+@router.put("/player/{action}")
 async def control_playback(action: str, request: Request):
-    """Controla a reprodução do Spotify (play, pause, next, previous)"""
+    """Controla a reprodução do Spotify (play, pause, seek, repeat, shuffle)"""
     start_time = time.time()
     try:
         logger.info(f"SpotifyController: Iniciando controle de reprodução: {action}")
         
-        # Verificar se o token foi enviado no cabeçalho
-        auth_header = request.headers.get("Authorization")
-        if not auth_header or not auth_header.startswith("Bearer "):
-            error_msg = "Token de acesso não fornecido"
-            logger.error(f"SpotifyController: {error_msg}")
-            raise HTTPException(status_code=401, detail=error_msg)
+        # Obter token de acesso do usuário
+        token = request.headers.get("Authorization", "").replace("Bearer ", "")
+        if not token:
+            raise HTTPException(status_code=401, detail="Token de acesso não fornecido")
         
-        access_token = auth_header.split(" ")[1]
-        logger.info("SpotifyController: Token de acesso extraído do cabeçalho")
-        
-        if action not in ["play", "pause", "next", "previous"]:
-            error_msg = "Ação inválida"
-            logger.error(f"SpotifyController: {error_msg}")
-            raise HTTPException(status_code=400, detail="Invalid action")
-        
+        # Definir endpoint e método baseado na ação
         endpoint = f"{SPOTIFY_API_URL}/me/player/{action}"
-        method = "PUT" if action in ["play", "pause"] else "POST"
+        method = "PUT"
         
-        logger.info(f"SpotifyController: Enviando requisição {method} para {endpoint}")
+        # Configurar parâmetros específicos para cada ação
+        params = {}
+        if action == "seek":
+            position_ms = request.query_params.get("position_ms")
+            if position_ms:
+                params["position_ms"] = position_ms
+        elif action == "repeat":
+            state = request.query_params.get("state")
+            if state:
+                params["state"] = state
+        elif action == "shuffle":
+            state = request.query_params.get("state")
+            if state:
+                params["state"] = state
+        
+        # Fazer requisição para o Spotify
         response = requests.request(
-            method,
-            endpoint,
-            headers={"Authorization": f"Bearer {access_token}"},
-            json={} if action in ["play", "pause"] else None
+            method=method,
+            url=endpoint,
+            params=params,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json"
+            }
         )
         
         if response.status_code not in [200, 202, 204]:
             error_msg = f"Erro ao controlar reprodução: {response.text}"
             logger.error(f"SpotifyController: {error_msg}")
-            raise HTTPException(status_code=response.status_code, detail="Failed to control playback")
-        
-        logger.info(f"SpotifyController: Ação {action} executada com sucesso")
+            logger.error(f"SpotifyController: Status code: {response.status_code}")
+            logger.error(f"SpotifyController: Headers: {response.headers}")
+            raise HTTPException(status_code=response.status_code, detail=error_msg)
         
         elapsed_time = time.time() - start_time
         logger.info(f"SpotifyController: Controle de reprodução concluído em {elapsed_time:.2f}s")
         
-        return {"success": True, "action": action}
+        return {"success": True}
     
     except Exception as e:
         elapsed_time = time.time() - start_time
-        error_msg = f"Erro ao controlar reprodução após {elapsed_time:.2f}s: {str(e)}"
+        error_msg = f"Erro no controle de reprodução após {elapsed_time:.2f}s: {str(e)}"
         logger.error(f"SpotifyController: {error_msg}")
         logger.error(f"SpotifyController: Traceback: {traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=error_msg)
+
+@router.post("/player/{action}")
+async def control_playback_post(action: str, request: Request):
+    """Controla a reprodução do Spotify (next, previous)"""
+    start_time = time.time()
+    try:
+        logger.info(f"SpotifyController: Iniciando controle de reprodução: {action}")
+        
+        # Obter token de acesso do usuário
+        token = request.headers.get("Authorization", "").replace("Bearer ", "")
+        if not token:
+            raise HTTPException(status_code=401, detail="Token de acesso não fornecido")
+        
+        # Definir endpoint
+        endpoint = f"{SPOTIFY_API_URL}/me/player/{action}"
+        
+        # Fazer requisição para o Spotify
+        response = requests.post(
+            url=endpoint,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json"
+            }
+        )
+        
+        if response.status_code not in [200, 202, 204]:
+            error_msg = f"Erro ao controlar reprodução: {response.text}"
+            logger.error(f"SpotifyController: {error_msg}")
+            logger.error(f"SpotifyController: Status code: {response.status_code}")
+            logger.error(f"SpotifyController: Headers: {response.headers}")
+            raise HTTPException(status_code=response.status_code, detail=error_msg)
+        
+        elapsed_time = time.time() - start_time
+        logger.info(f"SpotifyController: Controle de reprodução concluído em {elapsed_time:.2f}s")
+        
+        return {"success": True}
+    
+    except Exception as e:
+        elapsed_time = time.time() - start_time
+        error_msg = f"Erro no controle de reprodução após {elapsed_time:.2f}s: {str(e)}"
+        logger.error(f"SpotifyController: {error_msg}")
+        logger.error(f"SpotifyController: Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=error_msg)
 
 @router.get("/recently-played")
 async def get_recently_played(request: Request, limit: int = 10):
