@@ -133,14 +133,16 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
       const SpeechRecognition = window.webkitSpeechRecognition;
       recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = continuousListening;
+      recognitionRef.current.continuous = true; // Sempre mantém como true para permitir reconhecimento contínuo
       recognitionRef.current.interimResults = false;
       recognitionRef.current.lang = 'pt-BR';
 
       recognitionRef.current.onresult = (event: any) => {
+        console.log('Recognition result:', event.results);
         // Process all results
         for (let i = 0; i < event.results.length; i++) {
           const transcript = event.results[i][0].transcript;
+          console.log('Transcript:', transcript, 'Continuous:', continuousListening);
           
           if (continuousListening) {
             // Se escuta contínua estiver ativada, envia a mensagem diretamente
@@ -148,16 +150,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({
           } else {
             // Se escuta contínua estiver desativada, coloca o texto na caixa de mensagens
             setRecognizedText(transcript);
+            // Para o reconhecimento após capturar o texto
+            recognitionRef.current.stop();
           }
-        }
-        
-        // Se não estiver em modo contínuo, reinicia o reconhecimento
-        if (isListening && !continuousListening) {
-          setTimeout(() => {
-            if (recognitionRef.current && isListening) {
-              recognitionRef.current.start();
-            }
-          }, 300);
         }
       };
 
@@ -175,9 +170,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({
 
       recognitionRef.current.onend = () => {
         console.log('Recognition ended, continuous:', continuousListening, 'isListening:', isListening);
-        // If still listening, restart recognition
-        if (isListening) {
-          console.log('Restarting recognition after end');
+        // Se estiver ouvindo e não estiver em modo contínuo, reinicia o reconhecimento
+        if (isListening && !continuousListening) {
+          console.log('Restarting recognition in non-continuous mode');
           setTimeout(() => {
             if (recognitionRef.current && isListening) {
               recognitionRef.current.start();
@@ -229,14 +224,16 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
         const SpeechRecognition = window.webkitSpeechRecognition;
         recognitionRef.current = new SpeechRecognition();
-        recognitionRef.current.continuous = continuousListening;
+        recognitionRef.current.continuous = true; // Sempre mantém como true para permitir reconhecimento contínuo
         recognitionRef.current.interimResults = false;
         recognitionRef.current.lang = 'pt-BR';
 
         recognitionRef.current.onresult = (event: any) => {
+          console.log('Recognition result:', event.results);
           // Process all results
           for (let i = 0; i < event.results.length; i++) {
             const transcript = event.results[i][0].transcript;
+            console.log('Transcript:', transcript, 'Continuous:', continuousListening);
             
             if (continuousListening) {
               // Se escuta contínua estiver ativada, envia a mensagem diretamente
@@ -244,16 +241,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({
             } else {
               // Se escuta contínua estiver desativada, coloca o texto na caixa de mensagens
               setRecognizedText(transcript);
+              // Para o reconhecimento após capturar o texto
+              recognitionRef.current.stop();
             }
-          }
-          
-          // Se não estiver em modo contínuo, reinicia o reconhecimento
-          if (isListening && !continuousListening) {
-            setTimeout(() => {
-              if (recognitionRef.current && isListening) {
-                recognitionRef.current.start();
-              }
-            }, 300);
           }
         };
 
@@ -263,9 +253,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({
 
         recognitionRef.current.onend = () => {
           console.log('Recognition ended, continuous:', continuousListening, 'isListening:', isListening);
-          // If still listening, restart recognition
-          if (isListening) {
-            console.log('Restarting recognition after end');
+          // Se estiver ouvindo e não estiver em modo contínuo, reinicia o reconhecimento
+          if (isListening && !continuousListening) {
+            console.log('Restarting recognition in non-continuous mode');
             setTimeout(() => {
               if (recognitionRef.current && isListening) {
                 recognitionRef.current.start();
@@ -296,14 +286,16 @@ const MainLayout: React.FC<MainLayoutProps> = ({
           if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
             const SpeechRecognition = window.webkitSpeechRecognition;
             recognitionRef.current = new SpeechRecognition();
-            recognitionRef.current.continuous = newValue;
+            recognitionRef.current.continuous = true; // Sempre mantém como true para permitir reconhecimento contínuo
             recognitionRef.current.interimResults = false;
             recognitionRef.current.lang = 'pt-BR';
 
             recognitionRef.current.onresult = (event: any) => {
+              console.log('Recognition result:', event.results);
               // Process all results
               for (let i = 0; i < event.results.length; i++) {
                 const transcript = event.results[i][0].transcript;
+                console.log('Transcript:', transcript, 'Continuous:', newValue);
                 
                 if (newValue) {
                   // Se escuta contínua estiver ativada, envia a mensagem diretamente
@@ -311,16 +303,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({
                 } else {
                   // Se escuta contínua estiver desativada, coloca o texto na caixa de mensagens
                   setRecognizedText(transcript);
+                  // Para o reconhecimento após capturar o texto
+                  recognitionRef.current.stop();
                 }
-              }
-              
-              // Se não estiver em modo contínuo, reinicia o reconhecimento
-              if (isListening && !newValue) {
-                setTimeout(() => {
-                  if (recognitionRef.current && isListening) {
-                    recognitionRef.current.start();
-                  }
-                }, 300);
               }
             };
 
@@ -330,9 +315,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({
 
             recognitionRef.current.onend = () => {
               console.log('Recognition ended, continuous:', newValue, 'isListening:', isListening);
-              // If still listening, restart recognition
-              if (isListening) {
-                console.log('Restarting recognition after end');
+              // Se estiver ouvindo e não estiver em modo contínuo, reinicia o reconhecimento
+              if (isListening && !newValue) {
+                console.log('Restarting recognition in non-continuous mode');
                 setTimeout(() => {
                   if (recognitionRef.current && isListening) {
                     recognitionRef.current.start();
