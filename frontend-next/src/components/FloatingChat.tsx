@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Box, IconButton, Typography, Paper, TextField, Button, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
-import { Minimize, Maximize, Send, Refresh } from '@mui/icons-material';
+import { Box, IconButton, Typography, Paper, TextField, Button, Select, MenuItem, FormControl, InputLabel, Tooltip } from '@mui/material';
+import { Minimize, Maximize, Send, Refresh, CloseFullscreen, OpenInFull } from '@mui/icons-material';
 import { Message } from '@/types';
 import { styled } from '@mui/material/styles';
 import ReactMarkdown from 'react-markdown';
@@ -10,7 +10,7 @@ import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 const ChatContainer = styled(Paper)(({ theme }) => ({
   position: 'fixed',
-  bottom: 100,
+  bottom: 120,
   right: 16,
   width: 400,
   height: 500,
@@ -22,16 +22,45 @@ const ChatContainer = styled(Paper)(({ theme }) => ({
   '&.minimized': {
     display: 'none',
   },
+  '&.maximized': {
+    width: '90vw',
+    height: '85vh',
+    bottom: '10vh',
+    right: '5vw',
+    maxWidth: '1400px',
+    maxHeight: '900px',
+    margin: 'auto',
+  },
+}));
+
+const HeaderIconButton = styled(IconButton)(({ theme }) => ({
+  color: theme.palette.primary.contrastText,
+  padding: theme.spacing(0.5),
+  '&:hover': {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  '& .MuiSvgIcon-root': {
+    fontSize: '1.2rem',
+  },
+  '.maximized &': {
+    padding: theme.spacing(0.75),
+    '& .MuiSvgIcon-root': {
+      fontSize: '1.4rem',
+    },
+  },
 }));
 
 const ChatHeader = styled(Box)(({ theme }) => ({
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-  padding: theme.spacing(1),
+  padding: theme.spacing(1, 1.5),
   borderBottom: `1px solid ${theme.palette.divider}`,
   backgroundColor: theme.palette.primary.main,
   color: theme.palette.primary.contrastText,
+  '.maximized &': {
+    padding: theme.spacing(1.5, 2),
+  },
 }));
 
 const ChatMessages = styled(Box)(({ theme }) => ({
@@ -41,16 +70,24 @@ const ChatMessages = styled(Box)(({ theme }) => ({
   display: 'flex',
   flexDirection: 'column',
   gap: theme.spacing(2),
+  '.maximized &': {
+    padding: theme.spacing(3),
+    gap: theme.spacing(3),
+  },
 }));
 
 const MessageBubble = styled(Paper, {
   shouldForwardProp: (prop) => prop !== 'isUser',
 })<{ isUser: boolean }>(({ theme, isUser }) => ({
-  padding: theme.spacing(1),
+  padding: theme.spacing(1.5),
   maxWidth: '80%',
   alignSelf: isUser ? 'flex-end' : 'flex-start',
   backgroundColor: isUser ? theme.palette.primary.light : theme.palette.grey[100],
   color: isUser ? theme.palette.primary.contrastText : theme.palette.text.primary,
+  '& .maximized &': {
+    maxWidth: '60%',
+    padding: theme.spacing(2),
+  },
 }));
 
 const MessageContent = styled(Box)(({ theme }) => ({
@@ -89,6 +126,10 @@ const ChatInput = styled(Box)(({ theme }) => ({
   padding: theme.spacing(1),
   borderTop: `1px solid ${theme.palette.divider}`,
   backgroundColor: theme.palette.background.paper,
+  '.maximized &': {
+    padding: theme.spacing(2),
+    gap: theme.spacing(2),
+  },
 }));
 
 interface FloatingChatProps {
@@ -125,6 +166,7 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
   recognizedText,
 }) => {
   const [message, setMessage] = useState('');
+  const [isMaximized, setIsMaximized] = useState(false);
   const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
@@ -145,6 +187,10 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
     }
   };
 
+  const handleMaximizeToggle = () => {
+    setIsMaximized(!isMaximized);
+  };
+
   // Limpar o texto reconhecido quando a mensagem for enviada
   useEffect(() => {
     if (message === '') {
@@ -155,22 +201,40 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
   }, [message]);
 
   return (
-    <ChatContainer className={isMinimized ? 'minimized' : ''}>
+    <ChatContainer className={`${isMinimized ? 'minimized' : ''} ${isMaximized ? 'maximized' : ''}`}>
       <ChatHeader>
-        <Typography variant="subtitle1">Chat</Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>Chat</Typography>
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 0.5,
+          '& > button': {
+            transition: 'all 0.2s ease',
+          }
+        }}>
           {!isConnected && (
-            <IconButton size="small" onClick={onReconnect} color="inherit">
-              <Refresh />
-            </IconButton>
+            <Tooltip title="Reconectar">
+              <HeaderIconButton size="small" onClick={onReconnect}>
+                <Refresh />
+              </HeaderIconButton>
+            </Tooltip>
           )}
-          <IconButton 
-            size="small" 
-            onClick={isMinimized ? onMaximize : onMinimize} 
-            color="inherit"
-          >
-            {isMinimized ? <Maximize /> : <Minimize />}
-          </IconButton>
+          <Tooltip title={isMaximized ? "Restaurar" : "Maximizar"}>
+            <HeaderIconButton
+              size="small" 
+              onClick={handleMaximizeToggle}
+            >
+              {isMaximized ? <CloseFullscreen /> : <OpenInFull />}
+            </HeaderIconButton>
+          </Tooltip>
+          <Tooltip title={isMinimized ? "Restaurar" : "Minimizar"}>
+            <HeaderIconButton
+              size="small" 
+              onClick={isMinimized ? onMaximize : onMinimize}
+            >
+              {isMinimized ? <Maximize /> : <Minimize />}
+            </HeaderIconButton>
+          </Tooltip>
         </Box>
       </ChatHeader>
 
@@ -250,20 +314,28 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
                 <MenuItem value="code">Código</MenuItem>
               </Select>
             </FormControl>
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flex: 1, gap: 8 }}>
+            <form onSubmit={handleSubmit} style={{ flex: 1, display: 'flex', gap: 8 }}>
               <TextField
                 fullWidth
-                size="small"
+                size={isMaximized ? "medium" : "small"}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder="Digite sua mensagem..."
                 disabled={isProcessing}
+                multiline={isMaximized}
+                maxRows={isMaximized ? 5 : 1}
+                sx={{
+                  '& .MuiInputBase-root': {
+                    backgroundColor: 'background.paper',
+                  },
+                }}
               />
               <Button
                 type="submit"
                 variant="contained"
                 color="primary"
                 disabled={isProcessing || !message.trim()}
+                size={isMaximized ? "large" : "medium"}
               >
                 <Send />
               </Button>
