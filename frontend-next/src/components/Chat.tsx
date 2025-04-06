@@ -408,9 +408,10 @@ const Chat: React.FC<ChatProps> = ({
       {/* Dialog para RoutineCalendar expandido */}
       <Dialog
         open={showRoutineCalendar}
-        onClose={handleRoutineCalendarClose}
+        onClose={isRoutineCalendarMinimized ? undefined : handleRoutineCalendarClose}
         maxWidth="xl"
         fullWidth
+        disableEscapeKeyDown={isRoutineCalendarMinimized}
         PaperProps={{
           sx: {
             height: isRoutineCalendarMinimized ? 'auto' : '90vh',
@@ -421,6 +422,13 @@ const Chat: React.FC<ChatProps> = ({
             top: isRoutineCalendarMinimized ? '50%' : 'auto',
             transform: isRoutineCalendarMinimized ? 'translateY(-50%)' : 'none',
             transition: 'all 0.3s ease',
+            boxShadow: isRoutineCalendarMinimized ? 3 : 24,
+          }
+        }}
+        BackdropProps={{
+          sx: {
+            backgroundColor: isRoutineCalendarMinimized ? 'transparent' : 'rgba(0, 0, 0, 0.5)',
+            pointerEvents: isRoutineCalendarMinimized ? 'none' : 'auto',
           }
         }}
       >
