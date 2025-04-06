@@ -4,6 +4,7 @@ import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
 import MinimizeIcon from '@mui/icons-material/Minimize';
 import MaximizeIcon from '@mui/icons-material/Maximize';
+import ChatIcon from '@mui/icons-material/Chat';
 import { styled } from '@mui/material/styles';
 import TaskList from './TaskList';
 import RoutineCalendar from './RoutineCalendar';
@@ -152,7 +153,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
           </MicButton>
           
           <MinimizeButton onClick={handleToggleChatVisibility}>
-            {isChatVisible ? <MinimizeIcon /> : <MaximizeIcon />}
+            {isChatVisible ? <MinimizeIcon /> : <ChatIcon />}
           </MinimizeButton>
         </Box>
       </BottomBar>

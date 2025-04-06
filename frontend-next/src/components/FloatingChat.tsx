@@ -16,9 +16,7 @@ const ChatContainer = styled(Paper)(({ theme }) => ({
   transition: 'all 0.3s ease',
   boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
   '&.minimized': {
-    width: 300,
-    height: 100,
-    bottom: 90,
+    display: 'none',
   },
 }));
 
@@ -118,7 +116,7 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
         <>
           <ChatMessages>
             {messages.map((msg, index) => (
-              <MessageBubble key={index} isUser={msg.isUser} component="div">
+              <MessageBubble key={index} isUser={msg.isUser}>
                 <Typography variant="body2">{msg.text}</Typography>
               </MessageBubble>
             ))}
