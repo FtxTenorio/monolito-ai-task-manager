@@ -91,62 +91,148 @@ const getAuthHeader = (): { Authorization: string } | {} => {
 const spotifyService = {
   // Iniciar o processo de login
   login: () => {
+    console.log('Iniciando processo de login do Spotify');
     window.location.href = `${API_BASE_URL}/api/spotify/login`;
   },
 
   // Verificar se o login foi bem-sucedido
   checkLoginStatus: async (): Promise<boolean> => {
     try {
+      console.log('Verificando status de login');
       const token = getAccessToken();
-      if (!token) return false;
+      if (!token) {
+        console.log('Nenhum token encontrado');
+        return false;
+      }
       
+      console.log('Fazendo requisição para verificar usuário atual');
       const response = await axios.get(`${API_BASE_URL}/api/spotify/current-user`, {
         headers: getAuthHeader()
       });
+      
+      console.log('Resposta da verificação:', response.status);
       return response.status === 200;
     } catch (error) {
+      console.error('Erro ao verificar status de login:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('Detalhes do erro:', {
+          status: error.response?.status,
+          data: error.response?.data,
+          headers: error.response?.headers
+        });
+      }
       return false;
     }
   },
 
   // Obter informações do usuário atual
   getCurrentUser: async (): Promise<SpotifyUser> => {
-    const response = await axios.get(`${API_BASE_URL}/api/spotify/current-user`, {
-      headers: getAuthHeader()
-    });
-    return response.data;
+    try {
+      console.log('Obtendo informações do usuário atual');
+      const response = await axios.get(`${API_BASE_URL}/api/spotify/current-user`, {
+        headers: getAuthHeader()
+      });
+      console.log('Informações do usuário obtidas com sucesso');
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao obter informações do usuário:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('Detalhes do erro:', {
+          status: error.response?.status,
+          data: error.response?.data,
+          headers: error.response?.headers
+        });
+      }
+      throw error;
+    }
   },
 
   // Obter a música que está tocando no momento
   getCurrentlyPlaying: async (): Promise<CurrentlyPlaying> => {
-    const response = await axios.get(`${API_BASE_URL}/api/spotify/currently-playing`, {
-      headers: getAuthHeader()
-    });
-    return response.data;
+    try {
+      console.log('Obtendo música atual');
+      const response = await axios.get(`${API_BASE_URL}/api/spotify/currently-playing`, {
+        headers: getAuthHeader()
+      });
+      console.log('Música atual obtida com sucesso');
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao obter música atual:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('Detalhes do erro:', {
+          status: error.response?.status,
+          data: error.response?.data,
+          headers: error.response?.headers
+        });
+      }
+      throw error;
+    }
   },
 
   // Controlar a reprodução (play, pause, next, previous)
   controlPlayback: async (action: 'play' | 'pause' | 'next' | 'previous'): Promise<{ success: boolean }> => {
-    const response = await axios.post(`${API_BASE_URL}/api/spotify/player/${action}`, {}, {
-      headers: getAuthHeader()
-    });
-    return response.data;
+    try {
+      console.log(`Controlando reprodução: ${action}`);
+      const response = await axios.post(`${API_BASE_URL}/api/spotify/player/${action}`, {}, {
+        headers: getAuthHeader()
+      });
+      console.log(`Ação ${action} executada com sucesso`);
+      return response.data;
+    } catch (error) {
+      console.error(`Erro ao controlar reprodução (${action}):`, error);
+      if (axios.isAxiosError(error)) {
+        console.error('Detalhes do erro:', {
+          status: error.response?.status,
+          data: error.response?.data,
+          headers: error.response?.headers
+        });
+      }
+      throw error;
+    }
   },
 
   // Obter músicas recentemente reproduzidas
   getRecentlyPlayed: async (limit: number = 10): Promise<RecentlyPlayed> => {
-    const response = await axios.get(`${API_BASE_URL}/api/spotify/recently-played?limit=${limit}`, {
-      headers: getAuthHeader()
-    });
-    return response.data;
+    try {
+      console.log(`Obtendo músicas recentes (limite: ${limit})`);
+      const response = await axios.get(`${API_BASE_URL}/api/spotify/recently-played?limit=${limit}`, {
+        headers: getAuthHeader()
+      });
+      console.log(`${response.data.items?.length || 0} músicas recentes obtidas com sucesso`);
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao obter músicas recentes:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('Detalhes do erro:', {
+          status: error.response?.status,
+          data: error.response?.data,
+          headers: error.response?.headers
+        });
+      }
+      throw error;
+    }
   },
 
   // Obter músicas mais ouvidas
   getTopTracks: async (timeRange: 'short_term' | 'medium_term' | 'long_term' = 'medium_term', limit: number = 10): Promise<TopTracks> => {
-    const response = await axios.get(`${API_BASE_URL}/api/spotify/top-tracks?time_range=${timeRange}&limit=${limit}`, {
-      headers: getAuthHeader()
-    });
-    return response.data;
+    try {
+      console.log(`Obtendo músicas mais ouvidas (período: ${timeRange}, limite: ${limit})`);
+      const response = await axios.get(`${API_BASE_URL}/api/spotify/top-tracks?time_range=${timeRange}&limit=${limit}`, {
+        headers: getAuthHeader()
+      });
+      console.log(`${response.data.items?.length || 0} músicas mais ouvidas obtidas com sucesso`);
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao obter músicas mais ouvidas:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('Detalhes do erro:', {
+          status: error.response?.status,
+          data: error.response?.data,
+          headers: error.response?.headers
+        });
+      }
+      throw error;
+    }
   },
 
   // Obter playlists do usuário
