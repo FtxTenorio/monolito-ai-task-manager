@@ -1,10 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Box, Paper, Fab, IconButton, Typography, Tooltip, Switch, FormControlLabel } from '@mui/material';
+import { Box, Paper, Fab, IconButton, Typography, Tooltip, Switch, FormControlLabel, Drawer, List, ListItem, ListItemIcon, ListItemText, ListItemButton, Divider } from '@mui/material';
 import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
 import MinimizeIcon from '@mui/icons-material/Minimize';
 import MaximizeIcon from '@mui/icons-material/Maximize';
 import ChatIcon from '@mui/icons-material/Chat';
+import ListAltIcon from '@mui/icons-material/ListAlt';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import { styled } from '@mui/material/styles';
 import TaskList from './TaskList';
 import RoutineCalendar from './RoutineCalendar';
@@ -19,25 +21,38 @@ declare global {
   }
 }
 
+const DRAWER_WIDTH = 240;
+
 // Styled components
 const MainContainer = styled(Box)(({ theme }) => ({
   display: 'flex',
-  flexDirection: 'column',
   height: '100vh',
   width: '100%',
   overflow: 'hidden',
   position: 'relative',
 }));
 
+const SideDrawer = styled(Drawer)(({ theme }) => ({
+  width: DRAWER_WIDTH,
+  flexShrink: 0,
+  '& .MuiDrawer-paper': {
+    width: DRAWER_WIDTH,
+    boxSizing: 'border-box',
+    backgroundColor: theme.palette.background.paper,
+    borderRight: `1px solid ${theme.palette.divider}`,
+    height: '100%',
+    position: 'relative',
+    zIndex: 1,
+  },
+}));
+
 const ContentArea = styled(Box)(({ theme }) => ({
   flex: 1,
   overflow: 'auto',
-  padding: theme.spacing(2),
-  display: 'grid',
-  gridTemplateColumns: '1fr 1fr',
-  gap: theme.spacing(2),
+  marginLeft: DRAWER_WIDTH,
+  height: 'calc(100vh - 80px)', // Subtract bottom bar height
   [theme.breakpoints.down('md')]: {
-    gridTemplateColumns: '1fr',
+    marginLeft: 0,
   },
 }));
 
@@ -53,7 +68,7 @@ const BottomBar = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(1),
   backgroundColor: theme.palette.background.paper,
   boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
-  zIndex: 100,
+  zIndex: 1200, // Higher than the drawer
 }));
 
 const MicButton = styled(Fab)(({ theme }) => ({
@@ -125,6 +140,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   const [isChatMinimized, setIsChatMinimized] = useState(false);
   const [continuousListening, setContinuousListening] = useState(true);
   const [recognizedText, setRecognizedText] = useState('');
+  const [currentView, setCurrentView] = useState<'tasks' | 'calendar'>('tasks');
   const taskListRef = useRef<any>(null);
   const routineCalendarRef = useRef<any>(null);
   const recognitionRef = useRef<any>(null);
@@ -329,15 +345,47 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     }
   };
 
+  const handleViewChange = (view: 'tasks' | 'calendar') => {
+    setCurrentView(view);
+  };
+
   return (
     <MainContainer>
+      <SideDrawer variant="permanent">
+        <Box sx={{ overflow: 'auto', mt: 8 }}>
+          <List>
+            <ListItem disablePadding>
+              <ListItemButton
+                onClick={() => handleViewChange('tasks')}
+                selected={currentView === 'tasks'}
+              >
+                <ListItemIcon>
+                  <ListAltIcon />
+                </ListItemIcon>
+                <ListItemText primary="Tarefas" />
+              </ListItemButton>
+            </ListItem>
+            <ListItem disablePadding>
+              <ListItemButton
+                onClick={() => handleViewChange('calendar')}
+                selected={currentView === 'calendar'}
+              >
+                <ListItemIcon>
+                  <CalendarMonthIcon />
+                </ListItemIcon>
+                <ListItemText primary="Calendário" />
+              </ListItemButton>
+            </ListItem>
+          </List>
+        </Box>
+      </SideDrawer>
+
       <ContentArea>
-        <Box sx={{ overflow: 'auto', height: '100%' }}>
+        {currentView === 'tasks' ? (
           <TaskList ref={taskListRef} />
-        </Box>
-        <Box sx={{ overflow: 'auto', height: '100%' }}>
+        ) : (
           <RoutineCalendar ref={routineCalendarRef} />
-        </Box>
+        )}
       </ContentArea>
 
       <BottomBar elevation={3}>

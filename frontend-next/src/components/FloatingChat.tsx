@@ -124,6 +124,12 @@ const CodeBlock = styled(Box)(({ theme }) => ({
     color: theme.palette.grey[300],
     borderBottomLeftRadius: theme.shape.borderRadius,
   },
+  '& pre': {
+    backgroundColor: 'transparent !important',
+  },
+  '& code': {
+    backgroundColor: 'transparent !important',
+  },
 }));
 
 const ChatInput = styled(Box)(({ theme }) => ({
