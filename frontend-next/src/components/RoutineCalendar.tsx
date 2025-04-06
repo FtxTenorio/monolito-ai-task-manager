@@ -71,6 +71,16 @@ const RoutineItem = styled(Paper)(({ theme }) => ({
   },
 }));
 
+// Componente para rotina ativa
+const ActiveRoutineItem = styled(RoutineItem)(({ theme }) => ({
+  backgroundColor: theme.palette.action.selected,
+  borderLeft: `4px solid ${theme.palette.success.main}`,
+  boxShadow: `0 0 8px ${theme.palette.success.light}`,
+  '&:hover': {
+    backgroundColor: theme.palette.action.selected,
+  },
+}));
+
 // Types
 export interface Routine {
   id: string;
@@ -149,6 +159,7 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
     start_date: '',
     end_date: ''
   });
+  const [currentTime, setCurrentTime] = useState<Date>(new Date());
 
   // Expose fetchRoutines method to parent component
   useImperativeHandle(ref, () => ({
@@ -187,6 +198,15 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
 
   useEffect(() => {
     fetchRoutines();
+  }, []);
+
+  // Atualiza o horário atual a cada minuto
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000); // Atualiza a cada minuto
+    
+    return () => clearInterval(timer);
   }, []);
 
   const getWeekDates = () => {
@@ -249,8 +269,46 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
     }
   };
 
+  // Função para ordenar rotinas por horário
+  const sortRoutinesByTime = (routines: Routine[]) => {
+    return [...routines].sort((a, b) => {
+      const [hoursA, minutesA] = a.schedule.split(':').map(Number);
+      const [hoursB, minutesB] = b.schedule.split(':').map(Number);
+      
+      if (hoursA !== hoursB) {
+        return hoursA - hoursB;
+      }
+      return minutesA - minutesB;
+    });
+  };
+  
+  // Função para verificar se uma rotina está ativa no momento atual
+  const isRoutineActive = (routine: Routine, date: Date) => {
+    // Verifica se a rotina é para o dia atual
+    const today = new Date();
+    const isToday = date.getDate() === today.getDate() && 
+                    date.getMonth() === today.getMonth() && 
+                    date.getFullYear() === today.getFullYear();
+    
+    if (!isToday) return false;
+    
+    // Extrai a hora e minuto do schedule
+    const [hours, minutes] = routine.schedule.split(':').map(Number);
+    
+    // Cria uma data para o horário da rotina
+    const routineTime = new Date();
+    routineTime.setHours(hours, minutes, 0, 0);
+    
+    // Calcula o tempo de término da rotina
+    const endTime = new Date(routineTime);
+    endTime.setMinutes(endTime.getMinutes() + routine.estimated_duration);
+    
+    // Verifica se o horário atual está dentro do período da rotina
+    return currentTime >= routineTime && currentTime <= endTime;
+  };
+
   const getRoutinesForDate = (date: Date) => {
-    return routines.filter(routine => {
+    const filteredRoutines = routines.filter(routine => {
       // Aplica os filtros de status, prioridade e frequência
       if (statusFilter !== 'all' && routine.status !== statusFilter) return false;
       if (priorityFilter !== 'all' && routine.priority !== priorityFilter) return false;
@@ -290,6 +348,9 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
           return false;
       }
     });
+    
+    // Ordena as rotinas por horário
+    return sortRoutinesByTime(filteredRoutines);
   };
 
   const handlePreviousWeek = () => {
@@ -450,6 +511,100 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
     return Array.from(years).sort((a, b) => a - b);
   };
 
+  const renderRoutineItem = (routine: Routine, date: Date) => {
+    const isActive = isRoutineActive(routine, date);
+    const RoutineComponent = isActive ? ActiveRoutineItem : RoutineItem;
+    
+    return (
+      <Tooltip 
+        key={routine.id} 
+        title={
+          <Box>
+            <Typography variant="subtitle2">{routine.name}</Typography>
+            <Typography variant="body2">{routine.description}</Typography>
+            {isActive && (
+              <Typography variant="body2" color="success.main" sx={{ mt: 1, fontWeight: 'bold' }}>
+                Em execução agora
+              </Typography>
+            )}
+          </Box>
+        }
+        arrow
+      >
+        <RoutineComponent onClick={() => props.onRoutineSelect?.(routine)}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="body2" noWrap sx={{ flex: 1 }}>
+              {routine.name}
+            </Typography>
+            <Chip
+              label={getStatusLabel(routine.status)}
+              size="small"
+              color={getStatusColor(routine.status) as any}
+              sx={{ ml: 1 }}
+            />
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+            <AccessTimeIcon fontSize="small" sx={{ mr: 0.5 }} />
+            <Typography variant="caption" sx={{ mr: 1 }}>
+              {routine.schedule}
+            </Typography>
+            <Typography variant="caption" sx={{ mr: 1 }}>
+              ({formatDuration(routine.estimated_duration)})
+            </Typography>
+            <Chip
+              label={routine.priority}
+              size="small"
+              color={getPriorityColor(routine.priority) as any}
+              sx={{ mr: 1 }}
+            />
+            <Chip
+              label={getFrequencyLabel(routine.frequency)}
+              size="small"
+              variant="outlined"
+            />
+          </Box>
+          {routine.tags && routine.tags.length > 0 && (
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
+              {routine.tags.map((tag, index) => (
+                <Chip
+                  key={index}
+                  label={tag}
+                  size="small"
+                  variant="outlined"
+                  sx={{ height: '20px', fontSize: '0.7rem' }}
+                />
+              ))}
+            </Box>
+          )}
+          <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+            <Tooltip title="Editar">
+              <IconButton
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenEditDialog(routine);
+                }}
+              >
+                <EditIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Excluir">
+              <IconButton
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenDeleteDialog(routine);
+                }}
+              >
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        </RoutineComponent>
+      </Tooltip>
+    );
+  };
+
   const renderMonthView = () => {
     const dates = getMonthDates();
     const hasRoutines = dates.some(date => date && getRoutinesForDate(date).length > 0);
@@ -491,65 +646,7 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
                 <Typography variant="subtitle2" sx={{ mb: 1 }}>
                   {date.getDate()}
                 </Typography>
-                {getRoutinesForDate(date).map((routine) => (
-                  <Tooltip 
-                    key={routine.id} 
-                    title={
-                      <Box>
-                        <Typography variant="subtitle2">{routine.name}</Typography>
-                        <Typography variant="body2">{routine.description}</Typography>
-                      </Box>
-                    }
-                    arrow
-                  >
-                    <RoutineItem onClick={() => props.onRoutineSelect?.(routine)}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Typography variant="body2" noWrap sx={{ flex: 1 }}>
-                          {routine.name}
-                        </Typography>
-                        <Chip
-                          label={getStatusLabel(routine.status)}
-                          size="small"
-                          color={getStatusColor(routine.status) as any}
-                          sx={{ ml: 1 }}
-                        />
-                      </Box>
-                      <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
-                        <AccessTimeIcon fontSize="small" sx={{ mr: 0.5 }} />
-                        <Typography variant="caption" sx={{ mr: 1 }}>
-                          {routine.schedule}
-                        </Typography>
-                        <Typography variant="caption" sx={{ mr: 1 }}>
-                          ({formatDuration(routine.estimated_duration)})
-                        </Typography>
-                        <Chip
-                          label={routine.priority}
-                          size="small"
-                          color={getPriorityColor(routine.priority) as any}
-                          sx={{ mr: 1 }}
-                        />
-                        <Chip
-                          label={getFrequencyLabel(routine.frequency)}
-                          size="small"
-                          variant="outlined"
-                        />
-                      </Box>
-                      {routine.tags && routine.tags.length > 0 && (
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
-                          {routine.tags.map((tag, index) => (
-                            <Chip
-                              key={index}
-                              label={tag}
-                              size="small"
-                              variant="outlined"
-                              sx={{ height: '20px', fontSize: '0.7rem' }}
-                            />
-                          ))}
-                        </Box>
-                      )}
-                    </RoutineItem>
-                  </Tooltip>
-                ))}
+                {getRoutinesForDate(date).map((routine) => renderRoutineItem(routine, date))}
               </>
             )}
           </Box>
@@ -1033,89 +1130,7 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
                         {formatDate(date)}
                       </Typography>
                       {routinesForDate.length > 0 ? (
-                        routinesForDate.map((routine) => (
-                          <Tooltip 
-                            key={routine.id} 
-                            title={
-                              <Box>
-                                <Typography variant="subtitle2">{routine.name}</Typography>
-                                <Typography variant="body2">{routine.description}</Typography>
-                              </Box>
-                            }
-                            arrow
-                          >
-                            <RoutineItem onClick={() => props.onRoutineSelect?.(routine)}>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <Typography variant="body2" noWrap sx={{ flex: 1 }}>
-                                  {routine.name}
-                                </Typography>
-                                <Chip
-                                  label={getStatusLabel(routine.status)}
-                                  size="small"
-                                  color={getStatusColor(routine.status) as any}
-                                  sx={{ ml: 1 }}
-                                />
-                              </Box>
-                              <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
-                                <AccessTimeIcon fontSize="small" sx={{ mr: 0.5 }} />
-                                <Typography variant="caption" sx={{ mr: 1 }}>
-                                  {routine.schedule}
-                                </Typography>
-                                <Typography variant="caption" sx={{ mr: 1 }}>
-                                  ({formatDuration(routine.estimated_duration)})
-                                </Typography>
-                                <Chip
-                                  label={routine.priority}
-                                  size="small"
-                                  color={getPriorityColor(routine.priority) as any}
-                                  sx={{ mr: 1 }}
-                                />
-                                <Chip
-                                  label={getFrequencyLabel(routine.frequency)}
-                                  size="small"
-                                  variant="outlined"
-                                />
-                              </Box>
-                              {routine.tags && routine.tags.length > 0 && (
-                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
-                                  {routine.tags.map((tag, index) => (
-                                    <Chip
-                                      key={index}
-                                      label={tag}
-                                      size="small"
-                                      variant="outlined"
-                                      sx={{ height: '20px', fontSize: '0.7rem' }}
-                                    />
-                                  ))}
-                                </Box>
-                              )}
-                              <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-                                <Tooltip title="Editar">
-                                  <IconButton
-                                    size="small"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleOpenEditDialog(routine);
-                                    }}
-                                  >
-                                    <EditIcon fontSize="small" />
-                                  </IconButton>
-                                </Tooltip>
-                                <Tooltip title="Excluir">
-                                  <IconButton
-                                    size="small"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleOpenDeleteDialog(routine);
-                                    }}
-                                  >
-                                    <DeleteIcon fontSize="small" />
-                                  </IconButton>
-                                </Tooltip>
-                              </Box>
-                            </RoutineItem>
-                          </Tooltip>
-                        ))
+                        routinesForDate.map((routine) => renderRoutineItem(routine, date))
                       ) : (
                         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50px' }}>
                           <Typography variant="body2" color="text.secondary">
