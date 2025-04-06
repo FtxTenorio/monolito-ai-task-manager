@@ -20,7 +20,9 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  IconButton as MuiIconButton,
+  DialogActions,
+  TextField,
+  Stack,
 } from '@mui/material';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
@@ -31,6 +33,12 @@ import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
 import CloseIcon from '@mui/icons-material/Close';
 import { styled } from '@mui/material/styles';
 import axios from 'axios';
+import AddIcon from '@mui/icons-material/Add';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import { Calendar } from 'react-big-calendar';
+import 'react-big-calendar/lib/css/react-big-calendar.css';
 
 // Styled components
 const FloatingPanel = styled(Paper)(({ theme }) => ({
@@ -117,6 +125,24 @@ export interface RoutineCalendarRef {
   setVisible: (visible: boolean) => void;
 }
 
+// Valores para os filtros
+const prioridades = ['low', 'medium', 'high'];
+const frequencias = ['daily', 'weekly', 'monthly', 'weekdays', 'weekends', 'custom'];
+const status = ['pending', 'completed', 'cancelled'];
+
+interface RoutineFormData {
+  name: string;
+  description: string;
+  status: string;
+  schedule: string;
+  frequency: string;
+  priority: string;
+  tags: string[];
+  estimated_duration: number;
+  start_date: string;
+  end_date: string;
+}
+
 const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((props, ref) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -130,6 +156,22 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
   const [frequencyFilter, setFrequencyFilter] = useState<string>('all');
   const [isMaximized, setIsMaximized] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
+  const [openAddDialog, setOpenAddDialog] = useState(false);
+  const [openEditDialog, setOpenEditDialog] = useState(false);
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [selectedRoutine, setSelectedRoutine] = useState<Routine | null>(null);
+  const [formData, setFormData] = useState<RoutineFormData>({
+    name: '',
+    description: '',
+    status: 'pending',
+    schedule: '',
+    frequency: 'daily',
+    priority: 'medium',
+    tags: [],
+    estimated_duration: 30,
+    start_date: '',
+    end_date: ''
+  });
 
   // Expose fetchRoutines method to parent component
   useImperativeHandle(ref, () => ({
@@ -525,6 +567,96 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
     }
   };
 
+  const handleOpenAddDialog = () => {
+    setFormData({
+      name: '',
+      description: '',
+      status: 'pending',
+      schedule: '',
+      frequency: 'daily',
+      priority: 'medium',
+      tags: [],
+      estimated_duration: 30,
+      start_date: '',
+      end_date: ''
+    });
+    setOpenAddDialog(true);
+  };
+
+  const handleOpenEditDialog = (routine: Routine) => {
+    setSelectedRoutine(routine);
+    setFormData({
+      name: routine.name,
+      description: routine.description,
+      status: routine.status,
+      schedule: routine.schedule,
+      frequency: routine.frequency,
+      priority: routine.priority,
+      tags: routine.tags,
+      estimated_duration: routine.estimated_duration,
+      start_date: routine.start_date || '',
+      end_date: routine.end_date || ''
+    });
+    setOpenEditDialog(true);
+  };
+
+  const handleOpenDeleteDialog = (routine: Routine) => {
+    setSelectedRoutine(routine);
+    setOpenDeleteDialog(true);
+  };
+
+  const handleCloseDialogs = () => {
+    setOpenAddDialog(false);
+    setOpenEditDialog(false);
+    setOpenDeleteDialog(false);
+    setSelectedRoutine(null);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | SelectChangeEvent) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleAddRoutine = async () => {
+    try {
+      await axios.post('https://api.itenorio.com/lambda/routines', formData);
+      fetchRoutines();
+      handleCloseDialogs();
+    } catch (err) {
+      console.error('Erro ao adicionar rotina:', err);
+      setError('Não foi possível adicionar a rotina. Tente novamente mais tarde.');
+    }
+  };
+
+  const handleUpdateRoutine = async () => {
+    if (!selectedRoutine) return;
+    
+    try {
+      await axios.put(`https://api.itenorio.com/lambda/routines/${selectedRoutine.id}`, formData);
+      fetchRoutines();
+      handleCloseDialogs();
+    } catch (err) {
+      console.error('Erro ao atualizar rotina:', err);
+      setError('Não foi possível atualizar a rotina. Tente novamente mais tarde.');
+    }
+  };
+
+  const handleDeleteRoutine = async () => {
+    if (!selectedRoutine) return;
+    
+    try {
+      await axios.delete(`https://api.itenorio.com/lambda/routines/${selectedRoutine.id}`);
+      fetchRoutines();
+      handleCloseDialogs();
+    } catch (err) {
+      console.error('Erro ao excluir rotina:', err);
+      setError('Não foi possível excluir a rotina. Tente novamente mais tarde.');
+    }
+  };
+
   const renderHeader = () => (
     <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -745,6 +877,46 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
     </>
   );
 
+  const renderEvent = (event: any) => {
+    const routine = routines.find(r => r.id === event.id);
+    if (!routine) return null;
+
+    return (
+      <Box sx={{ p: 1 }}>
+        <Typography variant="subtitle2" noWrap>
+          {routine.name}
+        </Typography>
+        <Typography variant="caption" noWrap>
+          {routine.schedule}
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+          <Tooltip title="Editar">
+            <IconButton
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOpenEditDialog(routine);
+              }}
+            >
+              <EditIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Excluir">
+            <IconButton
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOpenDeleteDialog(routine);
+              }}
+            >
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      </Box>
+    );
+  };
+
   return (
     <>
       {isVisible && (
@@ -873,6 +1045,242 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
           </FloatingPanel>
         )
       )}
+
+      {/* Diálogo de Adicionar Rotina */}
+      <Dialog open={openAddDialog} onClose={handleCloseDialogs} maxWidth="sm" fullWidth>
+        <DialogTitle>Nova Rotina</DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 2 }}>
+            <TextField
+              fullWidth
+              label="Nome"
+              name="name"
+              value={formData.name}
+              onChange={handleInputChange}
+              margin="normal"
+            />
+            <TextField
+              fullWidth
+              label="Descrição"
+              name="description"
+              value={formData.description}
+              onChange={handleInputChange}
+              margin="normal"
+              multiline
+              rows={2}
+            />
+            <TextField
+              fullWidth
+              label="Horário"
+              name="schedule"
+              value={formData.schedule}
+              onChange={handleInputChange}
+              margin="normal"
+              placeholder="HH:MM"
+            />
+            <FormControl fullWidth margin="normal">
+              <InputLabel>Frequência</InputLabel>
+              <Select
+                name="frequency"
+                value={formData.frequency}
+                label="Frequência"
+                onChange={handleInputChange}
+              >
+                {frequencias.map((f) => (
+                  <MenuItem key={f} value={f}>{f}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <FormControl fullWidth margin="normal">
+              <InputLabel>Prioridade</InputLabel>
+              <Select
+                name="priority"
+                value={formData.priority}
+                label="Prioridade"
+                onChange={handleInputChange}
+              >
+                {prioridades.map((p) => (
+                  <MenuItem key={p} value={p}>{p}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <FormControl fullWidth margin="normal">
+              <InputLabel>Status</InputLabel>
+              <Select
+                name="status"
+                value={formData.status}
+                label="Status"
+                onChange={handleInputChange}
+              >
+                {status.map((s) => (
+                  <MenuItem key={s} value={s}>{s}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <TextField
+              fullWidth
+              label="Duração (minutos)"
+              name="estimated_duration"
+              type="number"
+              value={formData.estimated_duration}
+              onChange={handleInputChange}
+              margin="normal"
+            />
+            <TextField
+              fullWidth
+              label="Data de Início"
+              name="start_date"
+              type="datetime-local"
+              value={formData.start_date}
+              onChange={handleInputChange}
+              margin="normal"
+              InputLabelProps={{ shrink: true }}
+            />
+            <TextField
+              fullWidth
+              label="Data de Término"
+              name="end_date"
+              type="datetime-local"
+              value={formData.end_date}
+              onChange={handleInputChange}
+              margin="normal"
+              InputLabelProps={{ shrink: true }}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialogs}>Cancelar</Button>
+          <Button onClick={handleAddRoutine} variant="contained" color="primary">
+            Adicionar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Diálogo de Editar Rotina */}
+      <Dialog open={openEditDialog} onClose={handleCloseDialogs} maxWidth="sm" fullWidth>
+        <DialogTitle>Editar Rotina</DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 2 }}>
+            <TextField
+              fullWidth
+              label="Nome"
+              name="name"
+              value={formData.name}
+              onChange={handleInputChange}
+              margin="normal"
+            />
+            <TextField
+              fullWidth
+              label="Descrição"
+              name="description"
+              value={formData.description}
+              onChange={handleInputChange}
+              margin="normal"
+              multiline
+              rows={2}
+            />
+            <TextField
+              fullWidth
+              label="Horário"
+              name="schedule"
+              value={formData.schedule}
+              onChange={handleInputChange}
+              margin="normal"
+              placeholder="HH:MM"
+            />
+            <FormControl fullWidth margin="normal">
+              <InputLabel>Frequência</InputLabel>
+              <Select
+                name="frequency"
+                value={formData.frequency}
+                label="Frequência"
+                onChange={handleInputChange}
+              >
+                {frequencias.map((f) => (
+                  <MenuItem key={f} value={f}>{f}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <FormControl fullWidth margin="normal">
+              <InputLabel>Prioridade</InputLabel>
+              <Select
+                name="priority"
+                value={formData.priority}
+                label="Prioridade"
+                onChange={handleInputChange}
+              >
+                {prioridades.map((p) => (
+                  <MenuItem key={p} value={p}>{p}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <FormControl fullWidth margin="normal">
+              <InputLabel>Status</InputLabel>
+              <Select
+                name="status"
+                value={formData.status}
+                label="Status"
+                onChange={handleInputChange}
+              >
+                {status.map((s) => (
+                  <MenuItem key={s} value={s}>{s}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <TextField
+              fullWidth
+              label="Duração (minutos)"
+              name="estimated_duration"
+              type="number"
+              value={formData.estimated_duration}
+              onChange={handleInputChange}
+              margin="normal"
+            />
+            <TextField
+              fullWidth
+              label="Data de Início"
+              name="start_date"
+              type="datetime-local"
+              value={formData.start_date}
+              onChange={handleInputChange}
+              margin="normal"
+              InputLabelProps={{ shrink: true }}
+            />
+            <TextField
+              fullWidth
+              label="Data de Término"
+              name="end_date"
+              type="datetime-local"
+              value={formData.end_date}
+              onChange={handleInputChange}
+              margin="normal"
+              InputLabelProps={{ shrink: true }}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialogs}>Cancelar</Button>
+          <Button onClick={handleUpdateRoutine} variant="contained" color="primary">
+            Salvar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Diálogo de Confirmar Exclusão */}
+      <Dialog open={openDeleteDialog} onClose={handleCloseDialogs}>
+        <DialogTitle>Confirmar Exclusão</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Tem certeza que deseja excluir a rotina "{selectedRoutine?.name}"?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialogs}>Cancelar</Button>
+          <Button onClick={handleDeleteRoutine} variant="contained" color="error">
+            Excluir
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 });
