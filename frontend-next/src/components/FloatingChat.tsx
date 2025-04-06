@@ -16,12 +16,13 @@ const ChatContainer = styled(Paper)<{ isMinimized: boolean; isMaximized: boolean
   bottom: isMinimized ? 'auto' : '100px',
   right: theme.spacing(2),
   width: isMaximized ? '90vw' : '400px',
-  height: isMaximized ? '90vh' : '500px',
+  height: isMaximized ? '80vh' : '500px',
   display: 'flex',
   flexDirection: 'column',
   zIndex: 1000,
   transition: 'all 0.3s ease',
   boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+  backgroundColor: theme.palette.background.paper,
   ...(isMinimized && {
     transform: 'translateY(100%)',
     opacity: 0,
@@ -31,11 +32,11 @@ const ChatContainer = styled(Paper)<{ isMinimized: boolean; isMaximized: boolean
   },
   '&.maximized': {
     width: '90vw',
-    height: '85vh',
-    bottom: '10vh',
+    height: '75vh',
+    bottom: '12vh',
     right: '5vw',
     maxWidth: '1400px',
-    maxHeight: '900px',
+    maxHeight: '800px',
     margin: 'auto',
   },
 }));
@@ -178,7 +179,7 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
   recognizedText,
 }) => {
   const [isMaximized, setIsMaximized] = useState(false);
-  const [inputValue, setInputValue] = useState('');
+  const [message, setMessage] = useState('');
   const recognitionRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -190,55 +191,67 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
     scrollToBottom();
   }, [messages, isTyping]);
 
-  const handleMaximize = () => {
-    setIsMaximized(true);
-  };
-
-  const handleMinimize = () => {
-    setIsMaximized(false);
-  };
-
-  const handleClose = () => {
-    onMinimize();
-  };
-
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (inputValue.trim()) {
-      onSendMessage(inputValue);
-      setInputValue('');
+  useEffect(() => {
+    if (recognizedText) {
+      setMessage(recognizedText);
     }
+  }, [recognizedText]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (message.trim()) {
+      onSendMessage(message);
+      setMessage('');
+    }
+  };
+
+  const handleMaximizeToggle = () => {
+    setIsMaximized(!isMaximized);
   };
 
   const handleKeyPress = (event: React.KeyboardEvent) => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
-      handleSendMessage(event as any);
+      handleSubmit(event as any);
     }
   };
 
   return (
-    <ChatContainer isMinimized={isMinimized} isMaximized={isMaximized}>
+    <ChatContainer className={`${isMinimized ? 'minimized' : ''} ${isMaximized ? 'maximized' : ''}`}>
       <ChatHeader>
-        <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-          Chat
-        </Typography>
-        <HeaderButtons>
-          {!isMinimized && (
-            <>
-              <Tooltip title={isMaximized ? "Minimizar" : "Maximizar"}>
-                <HeaderButton onClick={isMaximized ? handleMinimize : handleMaximize}>
-                  {isMaximized ? <MinimizeIcon /> : <MaximizeIcon />}
-                </HeaderButton>
-              </Tooltip>
-              <Tooltip title="Fechar">
-                <HeaderButton onClick={handleClose}>
-                  <CloseIcon />
-                </HeaderButton>
-              </Tooltip>
-            </>
+        <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>Chat</Typography>
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 0.5,
+          '& > button': {
+            transition: 'all 0.2s ease',
+          }
+        }}>
+          {!isConnected && (
+            <Tooltip title="Reconectar">
+              <HeaderIconButton size="small" onClick={onReconnect}>
+                <Refresh />
+              </HeaderIconButton>
+            </Tooltip>
           )}
-        </HeaderButtons>
+          <Tooltip title={isMaximized ? "Restaurar" : "Maximizar"}>
+            <HeaderIconButton
+              size="small" 
+              onClick={handleMaximizeToggle}
+            >
+              {isMaximized ? <CloseFullscreen /> : <OpenInFull />}
+            </HeaderIconButton>
+          </Tooltip>
+          <Tooltip title={isMinimized ? "Restaurar" : "Fechar"}>
+            <HeaderIconButton
+              size="small" 
+              onClick={isMinimized ? onMaximize : onMinimize}
+            >
+              {isMinimized ? <Maximize /> : <Close />}
+            </HeaderIconButton>
+          </Tooltip>
+        </Box>
       </ChatHeader>
 
       {!isMinimized && (
@@ -318,12 +331,12 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
                 <MenuItem value="code">Código</MenuItem>
               </Select>
             </FormControl>
-            <form onSubmit={handleSendMessage} style={{ flex: 1, display: 'flex', gap: 8 }}>
+            <form onSubmit={handleSubmit} style={{ flex: 1, display: 'flex', gap: 8 }}>
               <TextField
                 fullWidth
                 size={isMaximized ? "medium" : "small"}
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="Digite sua mensagem..."
                 disabled={isProcessing}
@@ -332,7 +345,7 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
                 type="submit"
                 variant="contained"
                 color="primary"
-                disabled={isProcessing || !inputValue.trim()}
+                disabled={isProcessing || !message.trim()}
                 size={isMaximized ? "large" : "medium"}
               >
                 Enviar
