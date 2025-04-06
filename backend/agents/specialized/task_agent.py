@@ -9,6 +9,7 @@ import asyncio
 import logging
 import traceback
 import time
+import aiohttp
 from typing import Dict, List, Any, Optional
 
 # Configurar logging
@@ -69,20 +70,39 @@ class TaskAgent(BaseAgent):
             tools=self.tools,
             verbose=True
         )
+        
+        # Criar um loop de eventos dedicado para operações assíncronas
+        self.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self.loop)
+        
+        # Criar uma sessão HTTP assíncrona
+        self.session = None
+    
+    async def _get_session(self):
+        """Obtém ou cria uma sessão HTTP assíncrona."""
+        if self.session is None:
+            self.session = aiohttp.ClientSession()
+        return self.session
+    
+    async def _close_session(self):
+        """Fecha a sessão HTTP assíncrona."""
+        if self.session is not None:
+            await self.session.close()
+            self.session = None
     
     def get_tasks_sync(self, query: str = "") -> str:
         """Versão síncrona que obtém a lista de todas as tarefas."""
         try:
             start_time = time.time()
             logger.info(f"TaskAgent: Iniciando get_tasks_sync com query: {query}")
-            # Usar o loop de eventos existente
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
+            
+            # Usar o loop de eventos dedicado
+            if self.loop.is_running():
                 logger.info("TaskAgent: Loop de eventos já está em execução, usando run_coroutine_threadsafe")
                 # Se o loop já estiver em execução, use o método assíncrono diretamente
                 future = asyncio.run_coroutine_threadsafe(
                     self.get_tasks(query), 
-                    loop
+                    self.loop
                 )
                 try:
                     logger.info("TaskAgent: Aguardando resultado do get_tasks (timeout: 30s)")
@@ -96,9 +116,9 @@ class TaskAgent(BaseAgent):
                     logger.error(f"TaskAgent: {error_msg}")
                     return error_msg
             else:
-                logger.info("TaskAgent: Criando novo loop de eventos para get_tasks")
-                # Se não houver loop em execução, crie um novo
-                result = loop.run_until_complete(self.get_tasks(query))
+                logger.info("TaskAgent: Usando loop de eventos dedicado para get_tasks")
+                # Usar o loop dedicado
+                result = self.loop.run_until_complete(self.get_tasks(query))
                 elapsed_time = time.time() - start_time
                 logger.info(f"TaskAgent: Resultado obtido de get_tasks em {elapsed_time:.2f}s: {result}")
                 return result
@@ -124,34 +144,41 @@ class TaskAgent(BaseAgent):
         try:
             start_time = time.time()
             logger.info(f"TaskAgent: Fazendo requisição GET para /lambda/tasks")
-            response = requests.get('https://api.itenorio.com/lambda/tasks')
-            logger.info(f"TaskAgent: Status code da resposta: {response.status_code}")
             
-            if response.status_code != 200:
-                error_msg = f"Erro na API: Status code {response.status_code}"
-                logger.error(f"TaskAgent: {error_msg}")
-                return error_msg
+            # Usar a sessão HTTP assíncrona
+            session = await self._get_session()
             
-            tasks = response.json().get('body', {}).get('Items', [])
-            logger.info(f"TaskAgent: Número de tarefas encontradas: {len(tasks)}")
-            
-            if not tasks:
-                return "Não há tarefas cadastradas."
-            
-            result = "Lista de Tarefas:\n\n"
-            for task in tasks:
-                result += f"ID: {task.get('ID')}\n"
-                result += f"Descrição: {task.get('Descrição')}\n"
-                result += f"Prioridade: {task.get('Prioridade')}\n"
-                result += f"Categoria: {task.get('Categoria')}\n"
-                result += f"Status: {task.get('Status')}\n"
-                result += f"Data de Criação: {task.get('Data de Criação')}\n"
-                result += "---\n"
-            
-            elapsed_time = time.time() - start_time
-            logger.info(f"TaskAgent: Operação get_tasks concluída em {elapsed_time:.2f}s")
-            return result
-        except requests.exceptions.RequestException as e:
+            # Criar uma task para a requisição HTTP
+            async with session.get('https://api.itenorio.com/lambda/tasks') as response:
+                logger.info(f"TaskAgent: Status code da resposta: {response.status}")
+                
+                if response.status != 200:
+                    error_msg = f"Erro na API: Status code {response.status}"
+                    logger.error(f"TaskAgent: {error_msg}")
+                    return error_msg
+                
+                # Obter o JSON da resposta
+                data = await response.json()
+                tasks = data.get('body', {}).get('Items', [])
+                logger.info(f"TaskAgent: Número de tarefas encontradas: {len(tasks)}")
+                
+                if not tasks:
+                    return "Não há tarefas cadastradas."
+                
+                result = "Lista de Tarefas:\n\n"
+                for task in tasks:
+                    result += f"ID: {task.get('ID')}\n"
+                    result += f"Descrição: {task.get('Descrição')}\n"
+                    result += f"Prioridade: {task.get('Prioridade')}\n"
+                    result += f"Categoria: {task.get('Categoria')}\n"
+                    result += f"Status: {task.get('Status')}\n"
+                    result += f"Data de Criação: {task.get('Data de Criação')}\n"
+                    result += "---\n"
+                
+                elapsed_time = time.time() - start_time
+                logger.info(f"TaskAgent: Operação get_tasks concluída em {elapsed_time:.2f}s")
+                return result
+        except aiohttp.ClientError as e:
             elapsed_time = time.time() - start_time
             error_msg = f"Erro na requisição HTTP após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"TaskAgent: {error_msg}")
@@ -175,14 +202,14 @@ class TaskAgent(BaseAgent):
         try:
             start_time = time.time()
             logger.info(f"TaskAgent: Iniciando create_task_sync com input: {input_str}")
-            # Usar o loop de eventos existente
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
+            
+            # Usar o loop de eventos dedicado
+            if self.loop.is_running():
                 logger.info("TaskAgent: Loop de eventos já está em execução, usando run_coroutine_threadsafe")
                 # Se o loop já estiver em execução, use o método assíncrono diretamente
                 future = asyncio.run_coroutine_threadsafe(
                     self.create_task(input_str), 
-                    loop
+                    self.loop
                 )
                 try:
                     logger.info("TaskAgent: Aguardando resultado do create_task (timeout: 30s)")
@@ -196,9 +223,9 @@ class TaskAgent(BaseAgent):
                     logger.error(f"TaskAgent: {error_msg}")
                     return error_msg
             else:
-                logger.info("TaskAgent: Criando novo loop de eventos para create_task")
-                # Se não houver loop em execução, crie um novo
-                result = loop.run_until_complete(self.create_task(input_str))
+                logger.info("TaskAgent: Usando loop de eventos dedicado para create_task")
+                # Usar o loop dedicado
+                result = self.loop.run_until_complete(self.create_task(input_str))
                 elapsed_time = time.time() - start_time
                 logger.info(f"TaskAgent: Resultado obtido de create_task em {elapsed_time:.2f}s: {result}")
                 return result
@@ -257,18 +284,24 @@ class TaskAgent(BaseAgent):
             }
             
             logger.info(f"TaskAgent: Enviando requisição POST para criar tarefa: {task_data}")
-            response = requests.post('https://api.itenorio.com/lambda/tasks', json=task_data)
-            logger.info(f"TaskAgent: Status code da resposta: {response.status_code}")
             
-            if response.status_code == 200:
-                elapsed_time = time.time() - start_time
-                logger.info(f"TaskAgent: Tarefa criada com sucesso em {elapsed_time:.2f}s")
-                return "Tarefa criada com sucesso!"
-            else:
-                error_msg = f"Erro ao criar tarefa: {response.text}"
-                logger.error(f"TaskAgent: {error_msg}")
-                return error_msg
-        except requests.exceptions.RequestException as e:
+            # Usar a sessão HTTP assíncrona
+            session = await self._get_session()
+            
+            # Criar uma task para a requisição HTTP
+            async with session.post('https://api.itenorio.com/lambda/tasks', json=task_data) as response:
+                logger.info(f"TaskAgent: Status code da resposta: {response.status}")
+                
+                if response.status == 200:
+                    elapsed_time = time.time() - start_time
+                    logger.info(f"TaskAgent: Tarefa criada com sucesso em {elapsed_time:.2f}s")
+                    return "Tarefa criada com sucesso!"
+                else:
+                    response_text = await response.text()
+                    error_msg = f"Erro ao criar tarefa: {response_text}"
+                    logger.error(f"TaskAgent: {error_msg}")
+                    return error_msg
+        except aiohttp.ClientError as e:
             elapsed_time = time.time() - start_time
             error_msg = f"Erro na requisição HTTP após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"TaskAgent: {error_msg}")
@@ -286,14 +319,14 @@ class TaskAgent(BaseAgent):
         try:
             start_time = time.time()
             logger.info(f"TaskAgent: Iniciando update_task_sync com input: {input_str}")
-            # Usar o loop de eventos existente
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
+            
+            # Usar o loop de eventos dedicado
+            if self.loop.is_running():
                 logger.info("TaskAgent: Loop de eventos já está em execução, usando run_coroutine_threadsafe")
                 # Se o loop já estiver em execução, use o método assíncrono diretamente
                 future = asyncio.run_coroutine_threadsafe(
                     self.update_task(input_str), 
-                    loop
+                    self.loop
                 )
                 try:
                     logger.info("TaskAgent: Aguardando resultado do update_task (timeout: 30s)")
@@ -307,9 +340,9 @@ class TaskAgent(BaseAgent):
                     logger.error(f"TaskAgent: {error_msg}")
                     return error_msg
             else:
-                logger.info("TaskAgent: Criando novo loop de eventos para update_task")
-                # Se não houver loop em execução, crie um novo
-                result = loop.run_until_complete(self.update_task(input_str))
+                logger.info("TaskAgent: Usando loop de eventos dedicado para update_task")
+                # Usar o loop dedicado
+                result = self.loop.run_until_complete(self.update_task(input_str))
                 elapsed_time = time.time() - start_time
                 logger.info(f"TaskAgent: Resultado obtido de update_task em {elapsed_time:.2f}s: {result}")
                 return result
@@ -373,18 +406,24 @@ class TaskAgent(BaseAgent):
                 return error_msg
             
             logger.info(f"TaskAgent: Enviando requisição PATCH para atualizar tarefa {task_id}: {formatted_task}")
-            response = requests.patch(f'https://api.itenorio.com/lambda/tasks/{task_id}', json=formatted_task)
-            logger.info(f"TaskAgent: Status code da resposta: {response.status_code}")
             
-            if response.status_code == 200:
-                elapsed_time = time.time() - start_time
-                logger.info(f"TaskAgent: Tarefa atualizada com sucesso em {elapsed_time:.2f}s")
-                return "Tarefa atualizada com sucesso!"
-            else:
-                error_msg = f"Erro ao atualizar tarefa: {response.text}"
-                logger.error(f"TaskAgent: {error_msg}")
-                return error_msg
-        except requests.exceptions.RequestException as e:
+            # Usar a sessão HTTP assíncrona
+            session = await self._get_session()
+            
+            # Criar uma task para a requisição HTTP
+            async with session.patch(f'https://api.itenorio.com/lambda/tasks/{task_id}', json=formatted_task) as response:
+                logger.info(f"TaskAgent: Status code da resposta: {response.status}")
+                
+                if response.status == 200:
+                    elapsed_time = time.time() - start_time
+                    logger.info(f"TaskAgent: Tarefa atualizada com sucesso em {elapsed_time:.2f}s")
+                    return "Tarefa atualizada com sucesso!"
+                else:
+                    response_text = await response.text()
+                    error_msg = f"Erro ao atualizar tarefa: {response_text}"
+                    logger.error(f"TaskAgent: {error_msg}")
+                    return error_msg
+        except aiohttp.ClientError as e:
             elapsed_time = time.time() - start_time
             error_msg = f"Erro na requisição HTTP após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"TaskAgent: {error_msg}")
@@ -402,14 +441,14 @@ class TaskAgent(BaseAgent):
         try:
             start_time = time.time()
             logger.info(f"TaskAgent: Iniciando delete_task_sync para task_id: {task_id}")
-            # Usar o loop de eventos existente
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
+            
+            # Usar o loop de eventos dedicado
+            if self.loop.is_running():
                 logger.info("TaskAgent: Loop de eventos já está em execução, usando run_coroutine_threadsafe")
                 # Se o loop já estiver em execução, use o método assíncrono diretamente
                 future = asyncio.run_coroutine_threadsafe(
                     self.delete_task(task_id), 
-                    loop
+                    self.loop
                 )
                 try:
                     logger.info("TaskAgent: Aguardando resultado do delete_task (timeout: 30s)")
@@ -423,9 +462,9 @@ class TaskAgent(BaseAgent):
                     logger.error(f"TaskAgent: {error_msg}")
                     return error_msg
             else:
-                logger.info("TaskAgent: Criando novo loop de eventos para delete_task")
-                # Se não houver loop em execução, crie um novo
-                result = loop.run_until_complete(self.delete_task(task_id))
+                logger.info("TaskAgent: Usando loop de eventos dedicado para delete_task")
+                # Usar o loop dedicado
+                result = self.loop.run_until_complete(self.delete_task(task_id))
                 elapsed_time = time.time() - start_time
                 logger.info(f"TaskAgent: Resultado obtido de delete_task em {elapsed_time:.2f}s: {result}")
                 return result
@@ -451,18 +490,24 @@ class TaskAgent(BaseAgent):
         try:
             start_time = time.time()
             logger.info(f"TaskAgent: Enviando requisição DELETE para remover tarefa {task_id}")
-            response = requests.delete(f'https://api.itenorio.com/lambda/tasks/{task_id}')
-            logger.info(f"TaskAgent: Status code da resposta: {response.status_code}")
             
-            if response.status_code == 200:
-                elapsed_time = time.time() - start_time
-                logger.info(f"TaskAgent: Tarefa removida com sucesso em {elapsed_time:.2f}s")
-                return "Tarefa removida com sucesso!"
-            else:
-                error_msg = f"Erro ao remover tarefa: {response.text}"
-                logger.error(f"TaskAgent: {error_msg}")
-                return error_msg
-        except requests.exceptions.RequestException as e:
+            # Usar a sessão HTTP assíncrona
+            session = await self._get_session()
+            
+            # Criar uma task para a requisição HTTP
+            async with session.delete(f'https://api.itenorio.com/lambda/tasks/{task_id}') as response:
+                logger.info(f"TaskAgent: Status code da resposta: {response.status}")
+                
+                if response.status == 200:
+                    elapsed_time = time.time() - start_time
+                    logger.info(f"TaskAgent: Tarefa removida com sucesso em {elapsed_time:.2f}s")
+                    return "Tarefa removida com sucesso!"
+                else:
+                    response_text = await response.text()
+                    error_msg = f"Erro ao remover tarefa: {response_text}"
+                    logger.error(f"TaskAgent: {error_msg}")
+                    return error_msg
+        except aiohttp.ClientError as e:
             elapsed_time = time.time() - start_time
             error_msg = f"Erro na requisição HTTP após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"TaskAgent: {error_msg}")
@@ -485,23 +530,44 @@ class TaskAgent(BaseAgent):
             
             # Obter resposta do agente
             logger.info("TaskAgent: Invocando agent_executor")
-            response = self.agent_executor.invoke({
-                "input": message,
-                "chat_history": self.conversation_history[:-1]
-            })
             
-            response_text = response["output"]
-            elapsed_time = time.time() - start_time
-            logger.info(f"TaskAgent: Resposta obtida em {elapsed_time:.2f}s: {response_text}")
+            # Criar uma task para o processamento da mensagem
+            task = asyncio.create_task(self._process_message_internal(message))
             
-            # Adicionar a resposta ao histórico
-            self.conversation_history.append(AIMessage(content=response_text))
-            
-            return response_text
+            # Aguardar a conclusão da task com timeout
+            try:
+                response_text = await asyncio.wait_for(task, timeout=20)  # 20 segundos para processamento interno
+                elapsed_time = time.time() - start_time
+                logger.info(f"TaskAgent: Resposta obtida em {elapsed_time:.2f}s: {response_text}")
+                
+                # Adicionar a resposta ao histórico
+                self.conversation_history.append(AIMessage(content=response_text))
+                
+                return response_text
+            except asyncio.TimeoutError:
+                elapsed_time = time.time() - start_time
+                error_msg = f"Timeout ao processar mensagem após {elapsed_time:.2f}s"
+                logger.error(f"TaskAgent: {error_msg}")
+                # Cancelar a task que está demorando muito
+                task.cancel()
+                return error_msg
             
         except Exception as e:
             elapsed_time = time.time() - start_time
             error_message = f"Erro ao processar mensagem após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"TaskAgent: {error_message}")
             logger.error(f"TaskAgent: Traceback: {traceback.format_exc()}")
-            raise Exception(error_message) 
+            raise Exception(error_message)
+    
+    async def _process_message_internal(self, message: str):
+        """Processa uma mensagem internamente de forma assíncrona."""
+        # Executar o agent_executor em uma thread separada para não bloquear o loop de eventos
+        loop = asyncio.get_event_loop()
+        response = await loop.run_in_executor(
+            None,
+            lambda: self.agent_executor.invoke({
+                "input": message,
+                "chat_history": self.conversation_history[:-1]
+            })
+        )
+        return response["output"] 
