@@ -327,14 +327,6 @@ const Chat: React.FC<ChatProps> = ({
         )}
       </ChatContainer>
 
-      {showRoutineCalendar && (
-        <RoutineCalendar
-          ref={routineCalendarRef}
-          onRoutineSelect={handleRoutineSelect}
-          onClose={handleRoutineCalendarClose}
-        />
-      )}
-
       <Box className="p-4 border-t border-gray-200">
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
           <Typography 
@@ -409,8 +401,14 @@ const Chat: React.FC<ChatProps> = ({
       <Dialog
         open={showRoutineCalendar}
         onClose={handleRoutineCalendarClose}
-        maxWidth="lg"
+        maxWidth="xl"
         fullWidth
+        PaperProps={{
+          sx: {
+            height: '90vh',
+            maxHeight: '90vh',
+          }
+        }}
       >
         <DialogTitle>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
