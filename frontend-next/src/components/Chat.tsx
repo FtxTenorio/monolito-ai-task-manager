@@ -17,7 +17,6 @@ import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { Message } from '@/types';
 import RoutineCalendar, { Routine, RoutineCalendarRef } from './RoutineCalendar';
 import TaskList, { TaskListRef } from './TaskList';
-import RoutineList, { RoutineListRef } from './RoutineList';
 
 interface ChatProps {
   messages: Message[];
@@ -146,14 +145,12 @@ const Chat: React.FC<ChatProps> = ({
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const routineCalendarRef = useRef<RoutineCalendarRef>(null);
   const taskListRef = useRef<TaskListRef>(null);
-  const routineListRef = useRef<RoutineListRef>(null);
   const [localMessages, setLocalMessages] = useState<Message[]>(propMessages);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedMessageIndex, setSelectedMessageIndex] = useState<number | null>(null);
   const [showRoutineCalendar, setShowRoutineCalendar] = useState(true);
   const [isTaskListExpanded, setIsTaskListExpanded] = useState(false);
-  const [isRoutineListExpanded, setIsRoutineListExpanded] = useState(false);
   
   // Efeito para sincronizar as mensagens locais com as props
   useEffect(() => {
@@ -222,13 +219,6 @@ const Chat: React.FC<ChatProps> = ({
 
   const handleTaskListOpen = () => {
     setIsTaskListExpanded(true);
-  };
-
-  const handleRoutineListOpen = () => {
-    setIsRoutineListExpanded(true);
-    setTimeout(() => {
-      routineListRef.current?.refresh();
-    }, 100);
   };
 
   // Renderizar mensagens
@@ -435,32 +425,6 @@ const Chat: React.FC<ChatProps> = ({
       <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
           {/* ... existing code ... */}
-        </Box>
-        <Box sx={{ width: 300, overflow: 'auto', p: 2 }}>
-          {isTaskListExpanded ? (
-            <TaskList ref={taskListRef} />
-          ) : (
-            <Button
-              fullWidth
-              variant="outlined"
-              onClick={handleTaskListOpen}
-              sx={{ mb: 2 }}
-            >
-              Mostrar Lista de Tarefas
-            </Button>
-          )}
-          {isRoutineListExpanded ? (
-            <RoutineList ref={routineListRef} />
-          ) : (
-            <Button
-              fullWidth
-              variant="outlined"
-              onClick={handleRoutineListOpen}
-              sx={{ mb: 2 }}
-            >
-              Mostrar Lista de Rotinas
-            </Button>
-          )}
         </Box>
       </Box>
     </Box>
