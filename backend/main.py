@@ -53,7 +53,7 @@ class ConnectionManager:
         
         try:
             # Obter resposta do agente orquestrador com o formato especificado
-            response_text = await self.agents[client_id].process_message_async(
+            response_text = self.agents[client_id].process_message(
                 current_text, 
                 response_format,
                 self.active_connections[client_id]

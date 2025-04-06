@@ -69,7 +69,7 @@ class OrchestratorAgent(BaseAgent):
             
             # Chamar diretamente o método síncrono do TaskAgent
             logger.info("OrchestratorAgent: Chamando process_message do TaskAgent")
-            response = self.task_agent.process_message(message)
+            response = self.task_agent.process_message(message, chat_history=self.conversation_history)
             
             elapsed_time = time.time() - start_time
             logger.info(f"OrchestratorAgent: Resposta recebida do agente de tarefas em {elapsed_time:.2f}s: {response}")
