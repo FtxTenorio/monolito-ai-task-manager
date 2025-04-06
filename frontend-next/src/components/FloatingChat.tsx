@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Box, IconButton, Typography, Paper, TextField, Button, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
-import { Minimize, Maximize, Send, Refresh, Mic } from '@mui/icons-material';
+import { Minimize, Maximize, Send, Refresh } from '@mui/icons-material';
 import { Message } from '@/types';
 import { styled } from '@mui/material/styles';
 import ReactMarkdown from 'react-markdown';
@@ -103,6 +103,7 @@ interface FloatingChatProps {
   onFormatChange: (format: string) => void;
   isConnected: boolean;
   onReconnect: () => void;
+  recognizedText?: string;
 }
 
 const FloatingChat: React.FC<FloatingChatProps> = ({
@@ -119,9 +120,9 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
   onFormatChange,
   isConnected,
   onReconnect,
+  recognizedText,
 }) => {
   const [message, setMessage] = useState('');
-  const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
@@ -129,50 +130,10 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
   }, [isMinimized]);
 
   useEffect(() => {
-    // Initialize speech recognition
-    if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
-      const SpeechRecognition = window.webkitSpeechRecognition;
-      recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = false;
-      recognitionRef.current.interimResults = false;
-      recognitionRef.current.lang = 'pt-BR';
-
-      recognitionRef.current.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        setMessage(transcript);
-        setIsListening(false);
-      };
-
-      recognitionRef.current.onerror = (event: any) => {
-        console.error('Speech recognition error:', event.error);
-        setIsListening(false);
-      };
-
-      recognitionRef.current.onend = () => {
-        setIsListening(false);
-      };
+    if (recognizedText) {
+      setMessage(recognizedText);
     }
-
-    return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-      }
-    };
-  }, []);
-
-  const toggleListening = () => {
-    if (!recognitionRef.current) {
-      console.error('Speech recognition not supported');
-      return;
-    }
-
-    if (isListening) {
-      recognitionRef.current.stop();
-    } else {
-      recognitionRef.current.start();
-      setIsListening(true);
-    }
-  };
+  }, [recognizedText]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -181,6 +142,15 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
       setMessage('');
     }
   };
+
+  // Limpar o texto reconhecido quando a mensagem for enviada
+  useEffect(() => {
+    if (message === '') {
+      // Se a mensagem for limpa, significa que foi enviada
+      // Não precisamos fazer nada aqui, pois o texto reconhecido já será limpo
+      // quando o usuário enviar a mensagem
+    }
+  }, [message]);
 
   return (
     <ChatContainer className={isMinimized ? 'minimized' : ''}>
@@ -287,13 +257,6 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
                 placeholder="Digite sua mensagem..."
                 disabled={isProcessing}
               />
-              <IconButton
-                onClick={toggleListening}
-                color={isListening ? 'error' : 'primary'}
-                disabled={isProcessing}
-              >
-                <Mic />
-              </IconButton>
               <Button
                 type="submit"
                 variant="contained"

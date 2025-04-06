@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Box, Paper, Fab, IconButton, Typography, Tooltip } from '@mui/material';
+import { Box, Paper, Fab, IconButton, Typography, Tooltip, Switch, FormControlLabel } from '@mui/material';
 import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
 import MinimizeIcon from '@mui/icons-material/Minimize';
@@ -115,31 +115,75 @@ const MainLayout: React.FC<MainLayoutProps> = ({
 }) => {
   const [isChatVisible, setIsChatVisible] = useState(true);
   const [isChatMinimized, setIsChatMinimized] = useState(false);
+  const [continuousListening, setContinuousListening] = useState(true);
+  const [recognizedText, setRecognizedText] = useState('');
   const taskListRef = useRef<any>(null);
   const routineCalendarRef = useRef<any>(null);
   const recognitionRef = useRef<any>(null);
 
+  // Função para lidar com o envio de mensagem
+  const handleSendMessage = (message: string) => {
+    onSendMessage(message);
+    // Limpar o texto reconhecido após o envio
+    setRecognizedText('');
+  };
+
+  // Initialize speech recognition
   useEffect(() => {
-    // Initialize speech recognition
     if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
       const SpeechRecognition = window.webkitSpeechRecognition;
       recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = false;
+      recognitionRef.current.continuous = continuousListening;
       recognitionRef.current.interimResults = false;
       recognitionRef.current.lang = 'pt-BR';
 
       recognitionRef.current.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        // Automatically send the transcript to the chat
-        onSendMessage(transcript);
+        // Process all results
+        for (let i = 0; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          
+          if (continuousListening) {
+            // Se escuta contínua estiver ativada, envia a mensagem diretamente
+            onSendMessage(transcript);
+          } else {
+            // Se escuta contínua estiver desativada, coloca o texto na caixa de mensagens
+            setRecognizedText(transcript);
+          }
+        }
+        
+        // Se não estiver em modo contínuo, reinicia o reconhecimento
+        if (isListening && !continuousListening) {
+          setTimeout(() => {
+            if (recognitionRef.current && isListening) {
+              recognitionRef.current.start();
+            }
+          }, 300);
+        }
       };
 
       recognitionRef.current.onerror = (event: any) => {
         console.error('Speech recognition error:', event.error);
+        // Restart recognition on error if still listening
+        if (isListening) {
+          setTimeout(() => {
+            if (recognitionRef.current && isListening) {
+              recognitionRef.current.start();
+            }
+          }, 300);
+        }
       };
 
       recognitionRef.current.onend = () => {
-        // Do nothing on end, as we want to keep the button state as is
+        console.log('Recognition ended, continuous:', continuousListening, 'isListening:', isListening);
+        // If still listening, restart recognition
+        if (isListening) {
+          console.log('Restarting recognition after end');
+          setTimeout(() => {
+            if (recognitionRef.current && isListening) {
+              recognitionRef.current.start();
+            }
+          }, 300);
+        }
       };
     }
 
@@ -148,7 +192,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         recognitionRef.current.stop();
       }
     };
-  }, [onSendMessage]);
+  }, [onSendMessage, continuousListening, isListening]);
 
   const handleMinimizeChat = () => {
     console.log('Minimizando chat');
@@ -181,10 +225,127 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     if (isListening) {
       recognitionRef.current.stop();
     } else {
+      // Reinitialize recognition with current settings
+      if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
+        const SpeechRecognition = window.webkitSpeechRecognition;
+        recognitionRef.current = new SpeechRecognition();
+        recognitionRef.current.continuous = continuousListening;
+        recognitionRef.current.interimResults = false;
+        recognitionRef.current.lang = 'pt-BR';
+
+        recognitionRef.current.onresult = (event: any) => {
+          // Process all results
+          for (let i = 0; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            
+            if (continuousListening) {
+              // Se escuta contínua estiver ativada, envia a mensagem diretamente
+              onSendMessage(transcript);
+            } else {
+              // Se escuta contínua estiver desativada, coloca o texto na caixa de mensagens
+              setRecognizedText(transcript);
+            }
+          }
+          
+          // Se não estiver em modo contínuo, reinicia o reconhecimento
+          if (isListening && !continuousListening) {
+            setTimeout(() => {
+              if (recognitionRef.current && isListening) {
+                recognitionRef.current.start();
+              }
+            }, 300);
+          }
+        };
+
+        recognitionRef.current.onerror = (event: any) => {
+          console.error('Speech recognition error:', event.error);
+        };
+
+        recognitionRef.current.onend = () => {
+          console.log('Recognition ended, continuous:', continuousListening, 'isListening:', isListening);
+          // If still listening, restart recognition
+          if (isListening) {
+            console.log('Restarting recognition after end');
+            setTimeout(() => {
+              if (recognitionRef.current && isListening) {
+                recognitionRef.current.start();
+              }
+            }, 300);
+          }
+        };
+      }
+      
       recognitionRef.current.start();
     }
     
     onToggleListening();
+  };
+
+  const handleContinuousListeningChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = event.target.checked;
+    console.log('Continuous listening changed to:', newValue);
+    setContinuousListening(newValue);
+    
+    // If already listening, restart recognition with new settings
+    if (isListening && recognitionRef.current) {
+      console.log('Restarting recognition with new continuous setting');
+      recognitionRef.current.stop();
+      setTimeout(() => {
+        if (recognitionRef.current && isListening) {
+          // Reinitialize with new settings
+          if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
+            const SpeechRecognition = window.webkitSpeechRecognition;
+            recognitionRef.current = new SpeechRecognition();
+            recognitionRef.current.continuous = newValue;
+            recognitionRef.current.interimResults = false;
+            recognitionRef.current.lang = 'pt-BR';
+
+            recognitionRef.current.onresult = (event: any) => {
+              // Process all results
+              for (let i = 0; i < event.results.length; i++) {
+                const transcript = event.results[i][0].transcript;
+                
+                if (newValue) {
+                  // Se escuta contínua estiver ativada, envia a mensagem diretamente
+                  onSendMessage(transcript);
+                } else {
+                  // Se escuta contínua estiver desativada, coloca o texto na caixa de mensagens
+                  setRecognizedText(transcript);
+                }
+              }
+              
+              // Se não estiver em modo contínuo, reinicia o reconhecimento
+              if (isListening && !newValue) {
+                setTimeout(() => {
+                  if (recognitionRef.current && isListening) {
+                    recognitionRef.current.start();
+                  }
+                }, 300);
+              }
+            };
+
+            recognitionRef.current.onerror = (event: any) => {
+              console.error('Speech recognition error:', event.error);
+            };
+
+            recognitionRef.current.onend = () => {
+              console.log('Recognition ended, continuous:', newValue, 'isListening:', isListening);
+              // If still listening, restart recognition
+              if (isListening) {
+                console.log('Restarting recognition after end');
+                setTimeout(() => {
+                  if (recognitionRef.current && isListening) {
+                    recognitionRef.current.start();
+                  }
+                }, 300);
+              }
+            };
+          }
+          
+          recognitionRef.current.start();
+        }
+      }, 300);
+    }
   };
 
   return (
@@ -209,6 +370,19 @@ const MainLayout: React.FC<MainLayoutProps> = ({
             {isListening ? <MicOffIcon /> : <MicIcon />}
           </MicButton>
           
+          <FormControlLabel
+            control={
+              <Switch
+                checked={continuousListening}
+                onChange={handleContinuousListeningChange}
+                color="primary"
+                size="small"
+              />
+            }
+            label="Escuta contínua"
+            sx={{ color: 'text.secondary' }}
+          />
+          
           <MinimizeButton onClick={handleToggleChatVisibility}>
             {isChatMinimized ? <ChatIcon /> : <MinimizeIcon />}
           </MinimizeButton>
@@ -217,7 +391,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
 
       <FloatingChat
         messages={messages}
-        onSendMessage={onSendMessage}
+        onSendMessage={handleSendMessage}
         isMinimized={isChatMinimized}
         onMinimize={handleMinimizeChat}
         onMaximize={handleMaximizeChat}
@@ -229,6 +403,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         onFormatChange={onFormatChange}
         isConnected={isConnected}
         onReconnect={onReconnect}
+        recognizedText={recognizedText}
       />
     </MainContainer>
   );
