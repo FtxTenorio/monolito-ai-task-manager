@@ -1,5 +1,6 @@
 import json
 import logging
+import traceback
 from src.services.routine_service import RoutineService
 from src.utils.decimal_encoder import DecimalEncoder
 
@@ -60,8 +61,26 @@ def lambda_handler(event, context):
         elif http_method == 'POST':
             # Create a new routine
             try:
-                body = json.loads(event.get('body', '{}'))
-                routine = service.create_routine(body)
+                body = event.get('body', '{}')
+                logger.info('Request body: %s', body)
+                
+                # Verificar se o body já é um dict
+                if isinstance(body, dict):
+                    routine_data = body
+                else:
+                    try:
+                        routine_data = json.loads(body)
+                    except json.JSONDecodeError as e:
+                        logger.error('Error decoding JSON: %s', str(e))
+                        return {
+                            'statusCode': 400,
+                            'body': json.dumps({
+                                'message': f"Invalid JSON format: {str(e)}",
+                                'data': None
+                            })
+                        }
+                
+                routine = service.create_routine(routine_data)
                 return {
                     'statusCode': 201,
                     'body': json.dumps({
@@ -70,6 +89,7 @@ def lambda_handler(event, context):
                     }, cls=DecimalEncoder)
                 }
             except ValueError as e:
+                logger.error('Validation error: %s', str(e))
                 return {
                     'statusCode': 400,
                     'body': json.dumps({
@@ -90,8 +110,26 @@ def lambda_handler(event, context):
                 }
                 
             try:
-                body = json.loads(event.get('body', '{}'))
-                updated_routine = service.update_routine(routine_id, body)
+                body = event.get('body', '{}')
+                logger.info('Request body: %s', body)
+                
+                # Verificar se o body já é um dict
+                if isinstance(body, dict):
+                    routine_data = body
+                else:
+                    try:
+                        routine_data = json.loads(body)
+                    except json.JSONDecodeError as e:
+                        logger.error('Error decoding JSON: %s', str(e))
+                        return {
+                            'statusCode': 400,
+                            'body': json.dumps({
+                                'message': f"Invalid JSON format: {str(e)}",
+                                'data': None
+                            })
+                        }
+                
+                updated_routine = service.update_routine(routine_id, routine_data)
                 
                 if not updated_routine:
                     return {
@@ -110,6 +148,7 @@ def lambda_handler(event, context):
                     }, cls=DecimalEncoder)
                 }
             except ValueError as e:
+                logger.error('Validation error: %s', str(e))
                 return {
                     'statusCode': 400,
                     'body': json.dumps({
@@ -156,11 +195,16 @@ def lambda_handler(event, context):
         }
         
     except Exception as e:
-        logger.error('Error: %s', str(e))
+        # Capturar o traceback completo
+        error_traceback = traceback.format_exc()
+        logger.error('Error: %s\nTraceback: %s', str(e), error_traceback)
+        
         return {
             'statusCode': 500,
             'body': json.dumps({
                 'message': f"Internal server error: {str(e)}",
+                'error_type': type(e).__name__,
+                'error_location': error_traceback.split('\n')[0] if error_traceback else 'Unknown',
                 'data': None
             })
         } 

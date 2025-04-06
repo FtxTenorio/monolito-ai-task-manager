@@ -1,0 +1,74 @@
+{
+  "daily_routine": {
+    "name": "Meditação Matinal",
+    "description": "15 minutos de meditação para começar o dia",
+    "status": "pending",
+    "schedule": "07:00",
+    "frequency": "daily",
+    "priority": "high",
+    "tags": ["meditação", "bem-estar", "manhã"],
+    "estimated_duration": 15,
+    "start_date": "2025-04-01T07:00:00",
+    "end_date": "2025-04-01T07:15:00"
+  },
+  "weekly_routine": {
+    "name": "Reunião de Equipe",
+    "description": "Reunião semanal de alinhamento com a equipe",
+    "status": "pending",
+    "schedule": "10:00",
+    "frequency": "weekly",
+    "priority": "high",
+    "tags": ["trabalho", "reunião", "equipe"],
+    "estimated_duration": 60,
+    "start_date": "2025-04-01T10:00:00",
+    "end_date": "2025-04-01T11:00:00"
+  },
+  "monthly_routine": {
+    "name": "Backup do Sistema",
+    "description": "Backup completo do sistema e banco de dados",
+    "status": "pending",
+    "schedule": "23:00",
+    "frequency": "monthly",
+    "priority": "high",
+    "tags": ["sistema", "backup", "manutenção"],
+    "estimated_duration": 120,
+    "start_date": "2025-04-01T23:00:00",
+    "end_date": "2025-04-02T01:00:00"
+  },
+  "weekdays_routine": {
+    "name": "Treino de Força",
+    "description": "Treino de força nos dias úteis",
+    "status": "pending",
+    "schedule": "18:00",
+    "frequency": "weekdays",
+    "priority": "medium",
+    "tags": ["exercício", "força", "saúde"],
+    "estimated_duration": 45,
+    "start_date": "2025-04-01T18:00:00",
+    "end_date": "2025-04-01T18:45:00"
+  },
+  "weekends_routine": {
+    "name": "Corrida no Parque",
+    "description": "Corrida matinal nos finais de semana",
+    "status": "pending",
+    "schedule": "08:00",
+    "frequency": "weekends",
+    "priority": "medium",
+    "tags": ["exercício", "corrida", "ar livre"],
+    "estimated_duration": 60,
+    "start_date": "2025-04-05T08:00:00",
+    "end_date": "2025-04-05T09:00:00"
+  },
+  "custom_routine": {
+    "name": "Revisão de Código",
+    "description": "Revisão de código em dias alternados",
+    "status": "pending",
+    "schedule": "14:00",
+    "frequency": "custom",
+    "priority": "medium",
+    "tags": ["código", "revisão", "desenvolvimento"],
+    "estimated_duration": 90,
+    "start_date": "2025-04-01T14:00:00",
+    "end_date": "2025-04-01T15:30:00"
+  }
+} 

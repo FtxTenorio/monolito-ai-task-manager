@@ -159,7 +159,7 @@ def lambda_handler(event, context):
         elif http_method == 'POST':
             # Create a new routine
             try:
-                body = json.loads(event.get('body', '{}'))
+                body = event.get('body', '{}')
                 routine = service.create_routine(body)
                 return {
                     'statusCode': 201,
@@ -181,7 +181,7 @@ def lambda_handler(event, context):
                 }
                 
             try:
-                body = json.loads(event.get('body', '{}'))
+                body = event.get('body', '{}')
                 updated_routine = service.update_routine(routine_id, body)
                 
                 if not updated_routine:

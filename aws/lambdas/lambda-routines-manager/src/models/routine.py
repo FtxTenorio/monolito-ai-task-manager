@@ -66,6 +66,15 @@ class Routine:
 
     @classmethod
     def from_dict(cls, data: dict) -> 'Routine':
+        if not isinstance(data, dict):
+            raise ValueError("Input must be a dictionary")
+
+        # Validar campos obrigatórios
+        required_fields = ['name', 'description']
+        for field in required_fields:
+            if field not in data:
+                raise ValueError(f"Missing required field: {field}")
+
         # Converter strings ISO para datetime
         start_date = datetime.fromisoformat(data.get('start_date')) if data.get('start_date') else None
         end_date = datetime.fromisoformat(data.get('end_date')) if data.get('end_date') else None
