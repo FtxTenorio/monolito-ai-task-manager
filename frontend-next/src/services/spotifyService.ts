@@ -6,10 +6,10 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 export interface SpotifyUser {
   id: string;
   display_name: string;
-  images: { url: string; height: number; width: number }[];
-  product: string;
-  type: string;
-  uri: string;
+  images: { url: string; height: number; width: number; }[];
+  external_urls: { spotify: string };
+  followers: { total: number };
+  product?: string;
 }
 
 // Interface para a música atual

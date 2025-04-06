@@ -21,7 +21,8 @@ import {
   ListItemAvatar,
   Avatar,
   Chip,
-  LinearProgress
+  LinearProgress,
+  Link
 } from '@mui/material';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import LoginIcon from '@mui/icons-material/Login';
@@ -29,6 +30,7 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
 import SkipNextIcon from '@mui/icons-material/SkipNext';
 import SkipPreviousIcon from '@mui/icons-material/SkipPrevious';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { styled } from '@mui/material/styles';
 import spotifyService, { SpotifyUser, CurrentlyPlaying, RecentlyPlayed, TopTracks, Playlists } from '@/services/spotifyService';
 
@@ -130,7 +132,7 @@ const SpotifyConnect: React.FC<SpotifyConnectProps> = ({ onConnect }) => {
   const [recentlyPlayed, setRecentlyPlayed] = useState<RecentlyPlayed | null>(null);
   const [topTracks, setTopTracks] = useState<TopTracks | null>(null);
   const [playlists, setPlaylists] = useState<Playlists | null>(null);
-  const [tabValue, setTabValue] = useState(0);
+  const [tabValue, setTabValue] = useState(2);
   const [refreshInterval, setRefreshInterval] = useState<NodeJS.Timeout | null>(null);
 
   // Verificar se o usuário está autenticado ao carregar o componente
@@ -174,6 +176,7 @@ const SpotifyConnect: React.FC<SpotifyConnectProps> = ({ onConnect }) => {
   const loadUserData = async () => {
     try {
       const userData = await spotifyService.getCurrentUser();
+      console.log("Spotify Connect userData:", userData);
       setUser(userData);
     } catch (err) {
       console.error('Erro ao carregar dados do usuário:', err);
@@ -301,9 +304,28 @@ const SpotifyConnect: React.FC<SpotifyConnectProps> = ({ onConnect }) => {
             <Box>
               <Typography variant="h4" gutterBottom>
                 {user.display_name}
+                <Link 
+                  href={user.external_urls.spotify} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  sx={{ 
+                    color: '#1DB954',
+                    textDecoration: 'none',
+                    display: 'inline-flex',
+                    alignItems: 'flex-start',
+                    verticalAlign: 'super',
+                    fontSize: '0.5em',
+                    ml: 0.5,
+                    '&:hover': {
+                      color: 'rgb(29, 185, 84)',
+                    },
+                  }}
+                >
+                  <OpenInNewIcon sx={{ fontSize: '1.2em' }} />
+                </Link>
               </Typography>
               <Typography variant="body1" color="text.secondary">
-                {user.product === 'premium' ? 'Spotify Premium' : 'Spotify Free'}
+                {user.followers.total} seguidores
               </Typography>
             </Box>
           </Box>
@@ -359,13 +381,106 @@ const SpotifyConnect: React.FC<SpotifyConnectProps> = ({ onConnect }) => {
 
           <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
             <Tabs value={tabValue} onChange={handleTabChange} aria-label="spotify tabs">
-              <Tab label="Recentes" id="spotify-tab-0" aria-controls="spotify-tabpanel-0" />
-              <Tab label="Mais Ouvidas" id="spotify-tab-1" aria-controls="spotify-tabpanel-1" />
-              <Tab label="Playlists" id="spotify-tab-2" aria-controls="spotify-tabpanel-2" />
+              <Tab label="Playlists" id="spotify-tab-0" aria-controls="spotify-tabpanel-0" />
+              <Tab label="Recentes" id="spotify-tab-1" aria-controls="spotify-tabpanel-1" />
+              <Tab label="Mais Ouvidas" id="spotify-tab-2" aria-controls="spotify-tabpanel-2" />
             </Tabs>
           </Box>
 
           <TabPanel value={tabValue} index={0}>
+            {playlists && playlists.items.length > 0 ? (
+              <Box sx={{ 
+                display: 'grid',
+                gridTemplateColumns: {
+                  xs: '1fr',
+                  sm: 'repeat(2, 1fr)',
+                  md: 'repeat(3, 1fr)'
+                },
+                gap: 3,
+                width: '100%'
+              }}>
+                {playlists.items.map((playlist) => (
+                  <Box key={playlist.id}>
+                    <Card 
+                      sx={{ 
+                        height: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        transition: 'transform 0.2s',
+                        '&:hover': {
+                          transform: 'scale(1.02)',
+                          boxShadow: 3,
+                        },
+                      }}
+                    >
+                      <CardMedia
+                        component="img"
+                        height="100"
+                        image={playlist.images[0]?.url || '/placeholder-playlist.jpg'}
+                        alt={playlist.name}
+                        sx={{ objectFit: 'cover' }}
+                      />
+                      <CardContent sx={{ flexGrow: 1, p: 1.5 }}>
+                        <Typography 
+                          variant="subtitle1" 
+                          component="h3" 
+                          gutterBottom
+                          sx={{ 
+                            fontWeight: 'bold',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 1,
+                            WebkitBoxOrient: 'vertical',
+                            fontSize: '0.9rem',
+                          }}
+                        >
+                          {playlist.name}
+                        </Typography>
+                        <Typography 
+                          variant="body2" 
+                          color="text.secondary"
+                          sx={{
+                            mb: 1,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 1,
+                            WebkitBoxOrient: 'vertical',
+                            fontSize: '0.8rem',
+                          }}
+                        >
+                          {playlist.description || 'Sem descrição'}
+                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 'auto' }}>
+                          <Chip 
+                            label={`${playlist.tracks.total} músicas`} 
+                            size="small"
+                            sx={{ 
+                              backgroundColor: 'rgba(30, 215, 96, 0.1)',
+                              color: 'rgb(30, 215, 96)',
+                              fontWeight: 'medium',
+                              height: '20px',
+                              '& .MuiChip-label': {
+                                fontSize: '0.7rem',
+                                px: 1,
+                              },
+                            }}
+                          />
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Box>
+                ))}
+              </Box>
+            ) : (
+              <Typography variant="body1" color="text.secondary" align="center">
+                Nenhuma playlist encontrada
+              </Typography>
+            )}
+          </TabPanel>
+
+          <TabPanel value={tabValue} index={1}>
             {recentlyPlayed && recentlyPlayed.items.length > 0 ? (
               <List>
                 {recentlyPlayed.items.map((item, index) => (
@@ -387,7 +502,7 @@ const SpotifyConnect: React.FC<SpotifyConnectProps> = ({ onConnect }) => {
             )}
           </TabPanel>
 
-          <TabPanel value={tabValue} index={1}>
+          <TabPanel value={tabValue} index={2}>
             {topTracks && topTracks.items.length > 0 ? (
               <List>
                 {topTracks.items.map((track, index) => (
@@ -405,42 +520,6 @@ const SpotifyConnect: React.FC<SpotifyConnectProps> = ({ onConnect }) => {
             ) : (
               <Typography variant="body1" color="text.secondary" align="center">
                 Nenhuma música mais ouvida encontrada
-              </Typography>
-            )}
-          </TabPanel>
-
-          <TabPanel value={tabValue} index={2}>
-            {playlists && playlists.items.length > 0 ? (
-              <Grid container spacing={2}>
-                {playlists.items.map((playlist) => (
-                  <Grid item xs={12} sm={6} md={4} key={playlist.id}>
-                    <Card>
-                      <CardMedia
-                        component="img"
-                        height="140"
-                        image={playlist.images[0].url}
-                        alt={playlist.name}
-                      />
-                      <CardContent>
-                        <Typography variant="h6" noWrap>
-                          {playlist.name}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" noWrap>
-                          {playlist.description || 'Sem descrição'}
-                        </Typography>
-                        <Chip 
-                          label={`${playlist.tracks.total} músicas`} 
-                          size="small" 
-                          sx={{ mt: 1 }} 
-                        />
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))}
-              </Grid>
-            ) : (
-              <Typography variant="body1" color="text.secondary" align="center">
-                Nenhuma playlist encontrada
               </Typography>
             )}
           </TabPanel>
