@@ -53,7 +53,6 @@ interface TaskFormData {
 
 // Valores para os filtros
 const prioridades = ['Alta', 'Média', 'Baixa'];
-const categorias = ['Compasso', 'Geral', 'Continuar', 'Desenvolvimento', 'Backup'];
 const status = ['Pendente', 'Concluído'];
 
 export interface TaskListRef {
@@ -65,6 +64,7 @@ const TaskList = forwardRef<TaskListRef>((props, ref) => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [categories, setCategories] = useState<string[]>([]);
   
   // Estados para filtros
   const [filtroDescricao, setFiltroDescricao] = useState('');
@@ -93,12 +93,19 @@ const TaskList = forwardRef<TaskListRef>((props, ref) => {
       const response = await axios.get('https://api.itenorio.com/lambda/tasks');
       // Garantir que tasks seja sempre um array
       const tasksData = response.data?.body?.Items || response.data || [];
-      setTasks(Array.isArray(tasksData) ? tasksData : []);
+      const tasksArray = Array.isArray(tasksData) ? tasksData : [];
+      setTasks(tasksArray);
+      
+      // Extrair categorias únicas das tarefas
+      const uniqueCategories = Array.from(new Set(tasksArray.map(task => task.Categoria)));
+      setCategories(uniqueCategories);
+      
       setError(null);
     } catch (error) {
       console.error('Erro ao buscar tarefas:', error);
       setError('Não foi possível carregar as tarefas. Tente novamente mais tarde.');
       setTasks([]); // Em caso de erro, garantir que tasks seja um array vazio
+      setCategories([]); // Em caso de erro, garantir que categories seja um array vazio
     } finally {
       setLoading(false);
     }
@@ -124,7 +131,7 @@ const TaskList = forwardRef<TaskListRef>((props, ref) => {
     setFormData({
       descrição: '',
       prioridade: 'Média',
-      categoria: 'Trabalho',
+      categoria: categories.length > 0 ? categories[0] : '',
       status: 'Pendente'
     });
     setOpenAddDialog(true);
@@ -287,88 +294,139 @@ const TaskList = forwardRef<TaskListRef>((props, ref) => {
   }));
 
   return (
-    <Paper elevation={3} sx={{ p: 2, height: '100%', overflow: 'auto' }}>
+    <Paper 
+      elevation={3} 
+      sx={{ 
+        p: 2, 
+        height: '100%', 
+        overflow: 'auto',
+        bgcolor: 'background.default',
+        color: 'text.primary',
+      }}
+    >
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h6" component="h2">
-          Minhas Tarefas
+        <Typography variant="h6" component="h2" sx={{ color: 'text.primary' }}>
+          Lista de Tarefas
         </Typography>
         <Box sx={{ display: 'flex', gap: 1 }}>
-          <Tooltip title="Atualizar tarefas">
-            <IconButton onClick={fetchTasks} color="primary">
-              <RefreshIcon />
-            </IconButton>
-          </Tooltip>
-          {selectedTasks.length > 0 && (
-            <Tooltip title={`Excluir ${selectedTasks.length} tarefa(s)`}>
-              <IconButton 
-                onClick={handleOpenBulkDeleteDialog} 
-                color="error"
-              >
-                <DeleteIcon />
-              </IconButton>
-            </Tooltip>
-          )}
           <Button
             variant="contained"
+            color="primary"
             startIcon={<AddIcon />}
             onClick={handleOpenAddDialog}
+            sx={{
+              bgcolor: 'primary.main',
+              color: 'primary.contrastText',
+              '&:hover': {
+                bgcolor: 'primary.dark',
+              },
+            }}
           >
             Nova Tarefa
           </Button>
+          {selectedTasks.length > 0 && (
+            <Button
+              variant="outlined"
+              color="error"
+              startIcon={<DeleteIcon />}
+              onClick={handleOpenBulkDeleteDialog}
+              sx={{
+                borderColor: 'error.main',
+                color: 'error.main',
+                '&:hover': {
+                  borderColor: 'error.dark',
+                  bgcolor: 'error.dark',
+                  color: 'error.contrastText',
+                },
+              }}
+            >
+              Excluir Selecionados
+            </Button>
+          )}
         </Box>
       </Box>
 
-      {/* Filtros */}
-      <Box sx={{ mb: 2 }}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-          <TextField
-            fullWidth
-            label="Filtrar por descrição"
-            variant="outlined"
-            size="small"
-            value={filtroDescricao}
-            onChange={(e) => setFiltroDescricao(e.target.value)}
-          />
-          <FormControl fullWidth size="small">
-            <InputLabel>Prioridade</InputLabel>
-            <Select
-              value={filtroPrioridade}
-              label="Prioridade"
-              onChange={(e) => setFiltroPrioridade(e.target.value)}
-            >
-              <MenuItem value="">Todas</MenuItem>
-              {prioridades.map((p) => (
-                <MenuItem key={p} value={p}>{p}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <FormControl fullWidth size="small">
-            <InputLabel>Categoria</InputLabel>
-            <Select
-              value={filtroCategoria}
-              label="Categoria"
-              onChange={(e) => setFiltroCategoria(e.target.value)}
-            >
-              <MenuItem value="">Todas</MenuItem>
-              {categorias.map((c) => (
-                <MenuItem key={c} value={c}>{c}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <FormControl fullWidth size="small">
-            <InputLabel>Status</InputLabel>
-            <Select
-              value={filtroStatus}
-              label="Status"
-              onChange={(e) => setFiltroStatus(e.target.value)}
-            >
-              <MenuItem value="">Todos</MenuItem>
-              {status.map((s) => (
-                <MenuItem key={s} value={s}>{s}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Stack>
+      <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+        <TextField
+          size="small"
+          placeholder="Buscar tarefas..."
+          value={filtroDescricao}
+          onChange={(e) => setFiltroDescricao(e.target.value)}
+          sx={{ 
+            flexGrow: 1,
+            '& .MuiOutlinedInput-root': {
+              '& fieldset': {
+                borderColor: 'divider',
+              },
+              '&:hover fieldset': {
+                borderColor: 'primary.main',
+              },
+            },
+          }}
+        />
+        <FormControl size="small" sx={{ minWidth: 120 }}>
+          <InputLabel>Prioridade</InputLabel>
+          <Select
+            value={filtroPrioridade}
+            label="Prioridade"
+            onChange={(e) => setFiltroPrioridade(e.target.value)}
+            sx={{ 
+              '& .MuiOutlinedInput-notchedOutline': {
+                borderColor: 'divider',
+              },
+              '&:hover .MuiOutlinedInput-notchedOutline': {
+                borderColor: 'primary.main',
+              },
+            }}
+          >
+            <MenuItem value="all">Todas</MenuItem>
+            {prioridades.map((p) => (
+              <MenuItem key={p} value={p}>{p}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <FormControl size="small" sx={{ minWidth: 120 }}>
+          <InputLabel>Categoria</InputLabel>
+          <Select
+            value={filtroCategoria}
+            label="Categoria"
+            onChange={(e) => setFiltroCategoria(e.target.value)}
+            sx={{ 
+              '& .MuiOutlinedInput-notchedOutline': {
+                borderColor: 'divider',
+              },
+              '&:hover .MuiOutlinedInput-notchedOutline': {
+                borderColor: 'primary.main',
+              },
+            }}
+          >
+            <MenuItem value="all">Todas</MenuItem>
+            {categories.map((c) => (
+              <MenuItem key={c} value={c}>{c}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <FormControl size="small" sx={{ minWidth: 120 }}>
+          <InputLabel>Status</InputLabel>
+          <Select
+            value={filtroStatus}
+            label="Status"
+            onChange={(e) => setFiltroStatus(e.target.value)}
+            sx={{ 
+              '& .MuiOutlinedInput-notchedOutline': {
+                borderColor: 'divider',
+              },
+              '&:hover .MuiOutlinedInput-notchedOutline': {
+                borderColor: 'primary.main',
+              },
+            }}
+          >
+            <MenuItem value="all">Todos</MenuItem>
+            {status.map((s) => (
+              <MenuItem key={s} value={s}>{s}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
       </Box>
 
       {/* Mensagem de erro */}
@@ -385,7 +443,26 @@ const TaskList = forwardRef<TaskListRef>((props, ref) => {
         <Typography>Nenhuma tarefa encontrada.</Typography>
       ) : (
         <TableContainer>
-          <Table size="small">
+          <Table size="small" sx={{ 
+            '& .MuiTableCell-root': {
+              borderColor: 'divider',
+              color: 'text.primary',
+            },
+            '& .MuiTableHead-root': {
+              '& .MuiTableCell-root': {
+                bgcolor: 'background.default',
+                color: 'text.primary',
+                fontWeight: 'bold',
+                borderBottom: 2,
+                borderColor: 'divider',
+              },
+            },
+            '& .MuiTableRow-root': {
+              '&:hover': {
+                bgcolor: 'action.hover',
+              },
+            },
+          }}>
             <TableHead>
               <TableRow>
                 <TableCell padding="checkbox">
@@ -393,6 +470,12 @@ const TaskList = forwardRef<TaskListRef>((props, ref) => {
                     indeterminate={selectedTasks.length > 0 && selectedTasks.length < filteredTasks.length}
                     checked={selectedTasks.length === filteredTasks.length && filteredTasks.length > 0}
                     onChange={handleSelectAllTasks}
+                    sx={{
+                      color: 'primary.main',
+                      '&.Mui-checked': {
+                        color: 'primary.main',
+                      },
+                    }}
                   />
                 </TableCell>
                 <TableCell>Descrição</TableCell>
@@ -405,37 +488,75 @@ const TaskList = forwardRef<TaskListRef>((props, ref) => {
             </TableHead>
             <TableBody>
               {filteredTasks.map((task) => (
-                <TableRow key={task.ID}>
+                <TableRow 
+                  key={task.ID}
+                  hover
+                  sx={{ 
+                    '&:last-child td, &:last-child th': { border: 0 },
+                    '&:hover': {
+                      bgcolor: 'action.hover',
+                    },
+                  }}
+                >
                   <TableCell padding="checkbox">
                     <Checkbox
                       checked={selectedTasks.includes(task.ID)}
                       onChange={() => handleSelectTask(task.ID)}
+                      sx={{
+                        color: 'primary.main',
+                        '&.Mui-checked': {
+                          color: 'primary.main',
+                        },
+                      }}
                     />
                   </TableCell>
                   <TableCell>{task.Descrição}</TableCell>
                   <TableCell>
-                    <Typography
+                    <Chip
+                      label={task.Prioridade}
+                      size="small"
                       sx={{
-                        color: 
-                          task.Prioridade === 'Alta' ? 'error.main' : 
-                          task.Prioridade === 'Média' ? 'warning.main' : 
-                          'success.main',
-                        fontWeight: 'bold'
+                        bgcolor: task.Prioridade === 'Alta' ? 'error.main' : 
+                                task.Prioridade === 'Média' ? 'warning.main' : 
+                                'success.main',
+                        color: 'white',
+                        '&:hover': {
+                          bgcolor: task.Prioridade === 'Alta' ? 'error.dark' : 
+                                  task.Prioridade === 'Média' ? 'warning.dark' : 
+                                  'success.dark',
+                        },
                       }}
-                    >
-                      {task.Prioridade}
-                    </Typography>
+                    />
                   </TableCell>
-                  <TableCell>{task.Categoria}</TableCell>
                   <TableCell>
-                    <Typography
+                    <Chip
+                      label={task.Categoria}
+                      size="small"
                       sx={{
-                        color: task.Status === 'Concluído' ? 'success.main' : 'text.primary',
-                        fontWeight: task.Status === 'Concluído' ? 'bold' : 'normal'
+                        bgcolor: 'primary.main',
+                        color: 'primary.contrastText',
+                        '&:hover': {
+                          bgcolor: 'primary.dark',
+                        },
                       }}
-                    >
-                      {task.Status}
-                    </Typography>
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      label={task.Status}
+                      size="small"
+                      sx={{
+                        bgcolor: task.Status === 'Concluída' ? 'success.main' : 
+                                task.Status === 'Em Andamento' ? 'info.main' : 
+                                'warning.main',
+                        color: 'white',
+                        '&:hover': {
+                          bgcolor: task.Status === 'Concluída' ? 'success.dark' : 
+                                  task.Status === 'Em Andamento' ? 'info.dark' : 
+                                  'warning.dark',
+                        },
+                      }}
+                    />
                   </TableCell>
                   <TableCell>{formatDate(task['Data de Criação'])}</TableCell>
                   <TableCell align="right">
@@ -458,8 +579,19 @@ const TaskList = forwardRef<TaskListRef>((props, ref) => {
       )}
 
       {/* Diálogo de Adicionar Tarefa */}
-      <Dialog open={openAddDialog} onClose={handleCloseDialogs} maxWidth="sm" fullWidth>
-        <DialogTitle>Nova Tarefa</DialogTitle>
+      <Dialog 
+        open={openAddDialog} 
+        onClose={handleCloseDialogs} 
+        maxWidth="sm" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: 'background.paper',
+            color: 'text.primary',
+          }
+        }}
+      >
+        <DialogTitle sx={{ borderBottom: 1, borderColor: 'divider' }}>Nova Tarefa</DialogTitle>
         <DialogContent>
           <Box sx={{ pt: 2 }}>
             <TextField
@@ -469,6 +601,19 @@ const TaskList = forwardRef<TaskListRef>((props, ref) => {
               value={formData.descrição}
               onChange={handleInputChange}
               margin="normal"
+              sx={{ 
+                '& .MuiOutlinedInput-root': {
+                  '& fieldset': {
+                    borderColor: 'divider',
+                  },
+                  '&:hover fieldset': {
+                    borderColor: 'primary.main',
+                  },
+                },
+                '& .MuiInputLabel-root': {
+                  color: 'text.secondary',
+                },
+              }}
             />
             <FormControl fullWidth margin="normal">
               <InputLabel>Prioridade</InputLabel>
@@ -477,6 +622,17 @@ const TaskList = forwardRef<TaskListRef>((props, ref) => {
                 value={formData.prioridade}
                 label="Prioridade"
                 onChange={handleInputChange}
+                sx={{ 
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'divider',
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'primary.main',
+                  },
+                  '& .MuiInputLabel-root': {
+                    color: 'text.secondary',
+                  },
+                }}
               >
                 {prioridades.map((p) => (
                   <MenuItem key={p} value={p}>{p}</MenuItem>
@@ -490,8 +646,19 @@ const TaskList = forwardRef<TaskListRef>((props, ref) => {
                 value={formData.categoria}
                 label="Categoria"
                 onChange={handleInputChange}
+                sx={{ 
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'divider',
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'primary.main',
+                  },
+                  '& .MuiInputLabel-root': {
+                    color: 'text.secondary',
+                  },
+                }}
               >
-                {categorias.map((c) => (
+                {categories.map((c) => (
                   <MenuItem key={c} value={c}>{c}</MenuItem>
                 ))}
               </Select>
@@ -503,6 +670,17 @@ const TaskList = forwardRef<TaskListRef>((props, ref) => {
                 value={formData.status}
                 label="Status"
                 onChange={handleInputChange}
+                sx={{ 
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'divider',
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'primary.main',
+                  },
+                  '& .MuiInputLabel-root': {
+                    color: 'text.secondary',
+                  },
+                }}
               >
                 {status.map((s) => (
                   <MenuItem key={s} value={s}>{s}</MenuItem>
@@ -511,7 +689,7 @@ const TaskList = forwardRef<TaskListRef>((props, ref) => {
             </FormControl>
           </Box>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ borderTop: 1, borderColor: 'divider', p: 2 }}>
           <Button onClick={handleCloseDialogs}>Cancelar</Button>
           <Button onClick={handleAddTask} variant="contained" color="primary">
             Adicionar
@@ -520,8 +698,19 @@ const TaskList = forwardRef<TaskListRef>((props, ref) => {
       </Dialog>
 
       {/* Diálogo de Editar Tarefa */}
-      <Dialog open={openEditDialog} onClose={handleCloseDialogs} maxWidth="sm" fullWidth>
-        <DialogTitle>Editar Tarefa</DialogTitle>
+      <Dialog 
+        open={openEditDialog} 
+        onClose={handleCloseDialogs} 
+        maxWidth="sm" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: 'background.paper',
+            color: 'text.primary',
+          }
+        }}
+      >
+        <DialogTitle sx={{ borderBottom: 1, borderColor: 'divider' }}>Editar Tarefa</DialogTitle>
         <DialogContent>
           <Box sx={{ pt: 2 }}>
             <TextField
@@ -531,6 +720,19 @@ const TaskList = forwardRef<TaskListRef>((props, ref) => {
               value={formData.descrição}
               onChange={handleInputChange}
               margin="normal"
+              sx={{ 
+                '& .MuiOutlinedInput-root': {
+                  '& fieldset': {
+                    borderColor: 'divider',
+                  },
+                  '&:hover fieldset': {
+                    borderColor: 'primary.main',
+                  },
+                },
+                '& .MuiInputLabel-root': {
+                  color: 'text.secondary',
+                },
+              }}
             />
             <FormControl fullWidth margin="normal">
               <InputLabel>Prioridade</InputLabel>
@@ -539,6 +741,17 @@ const TaskList = forwardRef<TaskListRef>((props, ref) => {
                 value={formData.prioridade}
                 label="Prioridade"
                 onChange={handleInputChange}
+                sx={{ 
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'divider',
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'primary.main',
+                  },
+                  '& .MuiInputLabel-root': {
+                    color: 'text.secondary',
+                  },
+                }}
               >
                 {prioridades.map((p) => (
                   <MenuItem key={p} value={p}>{p}</MenuItem>
@@ -552,8 +765,19 @@ const TaskList = forwardRef<TaskListRef>((props, ref) => {
                 value={formData.categoria}
                 label="Categoria"
                 onChange={handleInputChange}
+                sx={{ 
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'divider',
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'primary.main',
+                  },
+                  '& .MuiInputLabel-root': {
+                    color: 'text.secondary',
+                  },
+                }}
               >
-                {categorias.map((c) => (
+                {categories.map((c) => (
                   <MenuItem key={c} value={c}>{c}</MenuItem>
                 ))}
               </Select>
@@ -565,6 +789,17 @@ const TaskList = forwardRef<TaskListRef>((props, ref) => {
                 value={formData.status}
                 label="Status"
                 onChange={handleInputChange}
+                sx={{ 
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'divider',
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'primary.main',
+                  },
+                  '& .MuiInputLabel-root': {
+                    color: 'text.secondary',
+                  },
+                }}
               >
                 {status.map((s) => (
                   <MenuItem key={s} value={s}>{s}</MenuItem>
@@ -573,7 +808,7 @@ const TaskList = forwardRef<TaskListRef>((props, ref) => {
             </FormControl>
           </Box>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ borderTop: 1, borderColor: 'divider', p: 2 }}>
           <Button onClick={handleCloseDialogs}>Cancelar</Button>
           <Button onClick={handleUpdateTask} variant="contained" color="primary">
             Salvar
@@ -582,14 +817,23 @@ const TaskList = forwardRef<TaskListRef>((props, ref) => {
       </Dialog>
 
       {/* Diálogo de Confirmar Exclusão */}
-      <Dialog open={openDeleteDialog} onClose={handleCloseDialogs}>
-        <DialogTitle>Confirmar Exclusão</DialogTitle>
+      <Dialog 
+        open={openDeleteDialog} 
+        onClose={handleCloseDialogs}
+        PaperProps={{
+          sx: {
+            bgcolor: 'background.paper',
+            color: 'text.primary',
+          }
+        }}
+      >
+        <DialogTitle sx={{ borderBottom: 1, borderColor: 'divider' }}>Confirmar Exclusão</DialogTitle>
         <DialogContent>
           <Typography>
             Tem certeza que deseja excluir a tarefa "{selectedTask?.Descrição}"?
           </Typography>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ borderTop: 1, borderColor: 'divider', p: 2 }}>
           <Button onClick={handleCloseDialogs}>Cancelar</Button>
           <Button onClick={handleDeleteTask} variant="contained" color="error">
             Excluir
@@ -598,14 +842,23 @@ const TaskList = forwardRef<TaskListRef>((props, ref) => {
       </Dialog>
 
       {/* Diálogo de Exclusão em Massa */}
-      <Dialog open={openBulkDeleteDialog} onClose={handleCloseBulkDeleteDialog}>
-        <DialogTitle>Confirmar Exclusão</DialogTitle>
+      <Dialog 
+        open={openBulkDeleteDialog} 
+        onClose={handleCloseBulkDeleteDialog}
+        PaperProps={{
+          sx: {
+            bgcolor: 'background.paper',
+            color: 'text.primary',
+          }
+        }}
+      >
+        <DialogTitle sx={{ borderBottom: 1, borderColor: 'divider' }}>Confirmar Exclusão</DialogTitle>
         <DialogContent>
           <Typography>
             Tem certeza que deseja excluir {selectedTasks.length} tarefa(s) selecionada(s)?
           </Typography>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ borderTop: 1, borderColor: 'divider', p: 2 }}>
           <Button onClick={handleCloseBulkDeleteDialog}>Cancelar</Button>
           <Button onClick={handleBulkDeleteTasks} variant="contained" color="error">
             Excluir
