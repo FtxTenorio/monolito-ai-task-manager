@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Box, Paper, Fab, IconButton, Typography, Tooltip, Switch, FormControlLabel, Drawer, List, ListItem, ListItemIcon, ListItemText, ListItemButton, Divider, AppBar, Toolbar, Button, Avatar, Collapse } from '@mui/material';
+import { Box, Paper, Fab, IconButton, Typography, Tooltip, Switch, FormControlLabel, Drawer, List, ListItem, ListItemIcon, ListItemText, ListItemButton, Divider, AppBar, Toolbar, Button, Avatar, Collapse, Badge } from '@mui/material';
 import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
 import MinimizeIcon from '@mui/icons-material/Minimize';
@@ -10,6 +10,10 @@ import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import RecordVoiceOverIcon from '@mui/icons-material/RecordVoiceOver';
+import HearingIcon from '@mui/icons-material/Hearing';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import { styled } from '@mui/material/styles';
 import TaskList from './TaskList';
 import RoutineCalendar from './RoutineCalendar';
@@ -109,6 +113,27 @@ const MicButton = styled(Fab)(({ theme }) => ({
     '100%': {
       transform: 'scale(1)',
     },
+  },
+}));
+
+const ToggleButton = styled(IconButton)(({ theme }) => ({
+  width: 38,
+  height: 38,
+  backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
+  color: theme.palette.text.secondary,
+  transition: 'all 0.2s ease',
+  '&:hover': {
+    backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+  },
+  '&.active': {
+    backgroundColor: theme.palette.primary.main,
+    color: theme.palette.primary.contrastText,
+    '&:hover': {
+      backgroundColor: theme.palette.primary.dark,
+    },
+  },
+  '& .MuiSvgIcon-root': {
+    fontSize: '1.2rem',
   },
 }));
 
@@ -476,6 +501,18 @@ const MainLayout: React.FC<MainLayoutProps> = ({
 
       <BottomBar elevation={3}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Tooltip 
+            title={continuousListening ? "Modo de escuta contínua ativado" : "Modo de escuta única ativado"}
+            placement="top"
+          >
+            <ToggleButton
+              onClick={() => setContinuousListening(!continuousListening)}
+              className={continuousListening ? 'active' : ''}
+            >
+              {continuousListening ? <RecordVoiceOverIcon /> : <HearingIcon />}
+            </ToggleButton>
+          </Tooltip>
+          
           <MicButton
             color="primary"
             onClick={handleMicButtonClick}
@@ -485,18 +522,22 @@ const MainLayout: React.FC<MainLayoutProps> = ({
             {isListening ? <MicOffIcon /> : <MicIcon />}
           </MicButton>
           
-          <FormControlLabel
-            control={
-              <Switch
-                checked={continuousListening}
-                onChange={handleContinuousListeningChange}
-                color="primary"
-                size="small"
-              />
-            }
-            label="Escuta contínua"
-            sx={{ color: 'text.secondary' }}
-          />
+          {!isConnected && (
+            <Tooltip title="Reconectar">
+              <IconButton 
+                color="primary" 
+                onClick={onReconnect}
+                sx={{ 
+                  backgroundColor: 'rgba(0, 0, 0, 0.05)',
+                  '&:hover': {
+                    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+                  }
+                }}
+              >
+                <RefreshIcon />
+              </IconButton>
+            </Tooltip>
+          )}
           
           <MinimizeButton onClick={handleToggleChatVisibility}>
             {isChatMinimized ? <ChatIcon /> : <MinimizeIcon />}

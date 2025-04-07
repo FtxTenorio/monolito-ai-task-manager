@@ -240,13 +240,6 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
             transition: 'all 0.2s ease',
           }
         }}>
-          {!isConnected && (
-            <Tooltip title="Reconectar">
-              <HeaderIconButton size="small" onClick={onReconnect}>
-                <Refresh />
-              </HeaderIconButton>
-            </Tooltip>
-          )}
           <Tooltip title={isMaximized ? "Restaurar" : "Maximizar"}>
             <HeaderIconButton
               size="small" 
