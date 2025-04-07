@@ -546,12 +546,12 @@ const TaskList = forwardRef<TaskListRef>((props, ref) => {
                       label={task.Status}
                       size="small"
                       sx={{
-                        bgcolor: task.Status === 'Concluída' ? 'success.main' : 
+                        bgcolor: task.Status === 'Concluído' ? 'success.main' : 
                                 task.Status === 'Em Andamento' ? 'info.main' : 
                                 'warning.main',
                         color: 'white',
                         '&:hover': {
-                          bgcolor: task.Status === 'Concluída' ? 'success.dark' : 
+                          bgcolor: task.Status === 'Concluído' ? 'success.dark' : 
                                   task.Status === 'Em Andamento' ? 'info.dark' : 
                                   'warning.dark',
                         },
