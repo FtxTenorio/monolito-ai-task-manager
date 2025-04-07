@@ -63,6 +63,7 @@ const StyledAppBar = styled(AppBar)(({ theme }) => ({
   backgroundColor: theme.palette.background.paper,
   color: theme.palette.text.primary,
   boxShadow: '0 1px 3px rgba(0, 0, 0, 0.12)',
+  borderRadius: 0,
 }));
 
 const ContentArea = styled(Box)(({ theme }) => ({
@@ -89,6 +90,7 @@ const BottomBar = styled(Paper)(({ theme }) => ({
   backgroundColor: theme.palette.background.paper,
   boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
   zIndex: 1200, // Higher than the drawer
+  borderRadius: 0,
 }));
 
 const MicButton = styled(Fab)(({ theme }) => ({
