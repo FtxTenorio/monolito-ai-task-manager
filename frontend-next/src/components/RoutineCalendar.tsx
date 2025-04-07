@@ -32,6 +32,7 @@ import {
   TablePagination,
   Switch,
   FormControlLabel,
+  GlobalStyles,
 } from '@mui/material';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
@@ -50,6 +51,33 @@ import { Calendar } from 'react-big-calendar';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import ListAltIcon from '@mui/icons-material/ListAlt';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+
+// Adicionar os estilos globais para a barra de rolagem
+const GlobalScrollbarStyles = () => (
+  <GlobalStyles
+    styles={(theme) => ({
+      '*::-webkit-scrollbar': {
+        width: '8px',
+        height: '8px',
+      },
+      '*::-webkit-scrollbar-track': {
+        background: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)',
+        borderRadius: '4px',
+      },
+      '*::-webkit-scrollbar-thumb': {
+        backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)',
+        borderRadius: '4px',
+        '&:hover': {
+          backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)',
+        },
+      },
+      '*': {
+        scrollbarWidth: 'thin',
+        scrollbarColor: `${theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)'} transparent`,
+      },
+    })}
+  />
+);
 
 // Styled components
 const DayColumn = styled(Paper)(({ theme }) => ({
@@ -126,6 +154,28 @@ interface RoutineFormData {
   start_date: string;
   end_date: string;
 }
+
+const NavigationContainer = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  gap: theme.spacing(2),
+  padding: theme.spacing(2),
+  backgroundColor: theme.palette.background.paper,
+  borderRadius: 0,
+  borderBottom: `1px solid ${theme.palette.divider}`,
+  '& .MuiIconButton-root': {
+    color: theme.palette.text.secondary,
+    padding: theme.spacing(1),
+    '&:hover': {
+      backgroundColor: theme.palette.action.hover,
+    },
+  },
+  '& .MuiTypography-root': {
+    fontWeight: 500,
+    flex: 1,
+    textAlign: 'center',
+  },
+}));
 
 const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((props, ref) => {
   const theme = useTheme();
@@ -1110,6 +1160,7 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
 
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <GlobalScrollbarStyles />
       {renderHeader()}
       {renderContent()}
 
