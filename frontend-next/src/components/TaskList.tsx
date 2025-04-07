@@ -310,6 +310,23 @@ const TaskList = forwardRef<TaskListRef>((props, ref) => {
         </Typography>
         <Box sx={{ display: 'flex', gap: 1 }}>
           <Button
+            variant="outlined"
+            color="primary"
+            startIcon={<RefreshIcon />}
+            onClick={fetchTasks}
+            sx={{
+              borderColor: 'primary.main',
+              color: 'primary.main',
+              '&:hover': {
+                borderColor: 'primary.dark',
+                bgcolor: 'primary.dark',
+                color: 'primary.contrastText',
+              },
+            }}
+          >
+            Recarregar
+          </Button>
+          <Button
             variant="contained"
             color="primary"
             startIcon={<AddIcon />}
