@@ -88,8 +88,14 @@ const MessageBubble = styled(Paper, {
   padding: theme.spacing(1.5),
   maxWidth: '80%',
   alignSelf: isUser ? 'flex-end' : 'flex-start',
-  backgroundColor: isUser ? theme.palette.primary.light : theme.palette.grey[100],
-  color: isUser ? theme.palette.primary.contrastText : theme.palette.text.primary,
+  backgroundColor: isUser 
+    ? theme.palette.primary.dark
+    : theme.palette.mode === 'dark' 
+      ? theme.palette.grey[800] 
+      : theme.palette.grey[100],
+  color: theme.palette.mode === 'dark' 
+    ? '#ffffff'  // Texto branco no modo escuro
+    : '#000000', // Texto preto no modo claro
   '& .maximized &': {
     maxWidth: '60%',
     padding: theme.spacing(2),
@@ -99,15 +105,18 @@ const MessageBubble = styled(Paper, {
 const MessageContent = styled(Box)(({ theme }) => ({
   '& p': {
     margin: 0,
+    color: theme.palette.text.primary,
   },
   '& pre': {
     margin: theme.spacing(1, 0),
+    backgroundColor: theme.palette.mode === 'dark' ? theme.palette.grey[900] : theme.palette.grey[100],
   },
   '& code': {
-    backgroundColor: theme.palette.grey[200],
+    backgroundColor: theme.palette.mode === 'dark' ? theme.palette.grey[900] : theme.palette.grey[200],
     padding: theme.spacing(0.5),
     borderRadius: theme.shape.borderRadius,
     fontFamily: 'monospace',
+    color: theme.palette.text.primary,
   },
 }));
 
