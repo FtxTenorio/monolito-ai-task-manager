@@ -16,6 +16,7 @@ import RoutineCalendar from './RoutineCalendar';
 import FloatingChat from './FloatingChat';
 import SpotifyConnect from './SpotifyConnect';
 import SpotifyMiniPlayer from './SpotifyMiniPlayer';
+import { ThemeToggle } from './ThemeToggle';
 import spotifyService from '@/services/spotifyService';
 import { Message } from '@/types';
 
@@ -400,6 +401,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
             Monolito AI Task Manager
           </Typography>
           <UserContainer>
+            <ThemeToggle />
             {isSpotifyConnected && <SpotifyMiniPlayer />}
             <Avatar sx={{ bgcolor: 'primary.main' }}>U</Avatar>
           </UserContainer>
