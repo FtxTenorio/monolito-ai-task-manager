@@ -4,15 +4,15 @@
 
 :root {
   --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
+  --background-start-rgb: 245, 247, 250;
   --background-end-rgb: 255, 255, 255;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
+    --background-start-rgb: 18, 18, 18;
+    --background-end-rgb: 30, 30, 30;
   }
 }
 
@@ -26,32 +26,302 @@ body {
     rgb(var(--background-start-rgb));
 }
 
-/* RoutineCalendar styles */
-.routine-calendar {
-  transition: all 0.3s ease;
+/* Animações Globais */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.routine-calendar:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+@keyframes slideIn {
+  from {
+    transform: translateX(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
-.routine-item {
+@keyframes scaleIn {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+/* Aplicando animações aos elementos */
+.MuiPaper-root {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.MuiCard-root {
+  animation: scaleIn 0.3s ease-out;
+}
+
+.MuiListItem-root {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* Efeitos de hover e interação */
+.MuiButton-root {
+  position: relative;
+  overflow: hidden;
+}
+
+.MuiButton-root::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transform: translateX(-100%);
+  transition: transform 0.6s ease;
+}
+
+.MuiButton-root:hover::after {
+  transform: translateX(100%);
+}
+
+.MuiCard-root {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.MuiCard-root:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.15);
+}
+
+.MuiListItemButton-root {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.MuiListItemButton-root:hover {
+  transform: translateX(8px);
+  background-color: rgba(33, 150, 243, 0.08);
+}
+
+.MuiChip-root {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.MuiChip-root:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Efeitos de loading e shimmer */
+.loading-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.1),
+    rgba(255, 255, 255, 0.2),
+    rgba(255, 255, 255, 0.1)
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Efeitos para o tema escuro */
+@media (prefers-color-scheme: dark) {
+  .MuiCard-root:hover {
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3);
+  }
+
+  .MuiListItemButton-root:hover {
+    background-color: rgba(144, 202, 249, 0.08);
+  }
+
+  .MuiChip-root:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  .loading-shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.05),
+      rgba(255, 255, 255, 0.1),
+      rgba(255, 255, 255, 0.05)
+    );
+  }
+}
+
+/* Estilos para scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
   transition: all 0.2s ease;
 }
 
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+@media (prefers-color-scheme: dark) {
+  ::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+}
+
+/* Efeitos para o chat */
+.chat-message {
+  animation: fadeIn 0.3s ease-out;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.chat-message:hover {
+  transform: translateY(-2px);
+}
+
+.chat-message.user {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* Efeitos para o player do Spotify */
+.spotify-player {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: float 3s ease-in-out infinite;
+}
+
+.spotify-player:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+/* Efeitos para o calendário */
+.routine-calendar {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: fadeIn 0.5s ease-out;
+}
+
+.routine-calendar:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.15);
+}
+
+.routine-item {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: slideIn 0.3s ease-out;
+}
+
 .routine-item:hover {
-  transform: translateX(4px);
-  background-color: rgba(0, 0, 0, 0.04);
+  transform: translateX(8px);
+  background-color: rgba(33, 150, 243, 0.08);
 }
 
 .day-column {
   min-height: 120px;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: fadeIn 0.3s ease-out;
 }
 
 .day-column:hover {
-  background-color: rgba(0, 0, 0, 0.02);
+  background-color: rgba(33, 150, 243, 0.05);
+}
+
+/* Efeitos para campos de formulário */
+.MuiTextField-root {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.MuiTextField-root:focus-within {
+  transform: translateY(-2px);
+}
+
+.MuiInputBase-root {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.MuiInputBase-root:focus-within {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Efeitos para o AppBar */
+.MuiAppBar-root {
+  backdrop-filter: blur(8px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.MuiAppBar-root:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Efeitos para o Drawer */
+.MuiDrawer-paper {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.MuiDrawer-paper:hover {
+  box-shadow: 4px 0 12px rgba(0, 0, 0, 0.1);
 }
 
 /* Priority colors */

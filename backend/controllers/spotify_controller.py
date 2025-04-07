@@ -96,6 +96,7 @@ async def spotify_callback(code: str):
             content={
                 "success": True,
                 "access_token": token_data["access_token"],
+                "refresh_token": token_data.get("refresh_token"),
                 "expires_in": token_data["expires_in"]
             }
         )

@@ -81,10 +81,67 @@ const getAccessToken = (): string | null => {
   return null;
 };
 
-// Função para criar o cabeçalho de autorização
-const getAuthHeader = (): { Authorization: string } | {} => {
+// Função para obter o refresh token
+const getRefreshToken = (): string | null => {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('spotify_refresh_token');
+  }
+  return null;
+};
+
+// Função para renovar o token de acesso
+const refreshAccessToken = async (): Promise<string> => {
+  try {
+    const refresh_token = getRefreshToken();
+    if (!refresh_token) {
+      throw new Error('Refresh token não encontrado');
+    }
+
+    const response = await axios.get(`${API_BASE_URL}/api/spotify/refresh-token`, {
+      headers: {
+        Authorization: `Bearer ${refresh_token}`
+      }
+    });
+
+    if (response.data.success && response.data.access_token) {
+      localStorage.setItem('spotify_access_token', response.data.access_token);
+      return response.data.access_token;
+    }
+    throw new Error('Falha ao renovar o token');
+  } catch (error) {
+    console.error('Erro ao renovar token:', error);
+    throw error;
+  }
+};
+
+// Função para criar o cabeçalho de autorização com renovação automática
+const getAuthHeader = async (): Promise<{ Authorization: string } | {}> => {
   const token = getAccessToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  if (!token) {
+    return {};
+  }
+  return { Authorization: `Bearer ${token}` };
+};
+
+// Função para fazer requisições com renovação automática do token
+const makeAuthenticatedRequest = async <T>(
+  requestFn: () => Promise<T>,
+  retryCount = 0
+): Promise<T> => {
+  try {
+    return await requestFn();
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 401 && retryCount === 0) {
+      try {
+        await refreshAccessToken();
+        return await requestFn();
+      } catch (refreshError) {
+        console.error('Erro ao renovar token:', refreshError);
+        throw refreshError;
+      }
+    }
+    throw error;
+  }
 };
 
 // Serviço para interagir com a API do Spotify
@@ -105,68 +162,36 @@ const spotifyService = {
         return false;
       }
       
-      console.log('Fazendo requisição para verificar usuário atual');
-      const response = await axios.get(`${API_BASE_URL}/api/spotify/current-user`, {
-        headers: getAuthHeader()
+      return await makeAuthenticatedRequest(async () => {
+        const response = await axios.get(`${API_BASE_URL}/api/spotify/current-user`, {
+          headers: await getAuthHeader()
+        });
+        return response.status === 200;
       });
-      
-      console.log('Resposta da verificação:', response.status);
-      return response.status === 200;
     } catch (error) {
       console.error('Erro ao verificar status de login:', error);
-      if (axios.isAxiosError(error)) {
-        console.error('Detalhes do erro:', {
-          status: error.response?.status,
-          data: error.response?.data,
-          headers: error.response?.headers
-        });
-      }
       return false;
     }
   },
 
   // Obter informações do usuário atual
   getCurrentUser: async (): Promise<SpotifyUser> => {
-    try {
-      console.log('Obtendo informações do usuário atual');
+    return makeAuthenticatedRequest(async () => {
       const response = await axios.get(`${API_BASE_URL}/api/spotify/current-user`, {
-        headers: getAuthHeader()
+        headers: await getAuthHeader()
       });
-      console.log('Informações do usuário obtidas com sucesso');
       return response.data;
-    } catch (error) {
-      console.error('Erro ao obter informações do usuário:', error);
-      if (axios.isAxiosError(error)) {
-        console.error('Detalhes do erro:', {
-          status: error.response?.status,
-          data: error.response?.data,
-          headers: error.response?.headers
-        });
-      }
-      throw error;
-    }
+    });
   },
 
   // Obter a música que está tocando no momento
   getCurrentlyPlaying: async (): Promise<CurrentlyPlaying> => {
-    try {
-      console.log('Obtendo música atual');
+    return makeAuthenticatedRequest(async () => {
       const response = await axios.get(`${API_BASE_URL}/api/spotify/currently-playing`, {
-        headers: getAuthHeader()
+        headers: await getAuthHeader()
       });
-      console.log('Música atual obtida com sucesso');
       return response.data;
-    } catch (error) {
-      console.error('Erro ao obter música atual:', error);
-      if (axios.isAxiosError(error)) {
-        console.error('Detalhes do erro:', {
-          status: error.response?.status,
-          data: error.response?.data,
-          headers: error.response?.headers
-        });
-      }
-      throw error;
-    }
+    });
   },
 
   // Controlar a reprodução
@@ -220,7 +245,7 @@ const spotifyService = {
         method,
         url: endpoint,
         headers: {
-          ...getAuthHeader(),
+          ...await getAuthHeader(),
           'Content-Type': 'application/json',
         },
         data,
@@ -243,7 +268,7 @@ const spotifyService = {
     try {
       console.log(`Obtendo músicas recentes (limite: ${limit})`);
       const response = await axios.get(`${API_BASE_URL}/api/spotify/recently-played?limit=${limit}`, {
-        headers: getAuthHeader()
+        headers: await getAuthHeader()
       });
       console.log(`${response.data.items?.length || 0} músicas recentes obtidas com sucesso`);
       return response.data;
@@ -265,7 +290,7 @@ const spotifyService = {
     try {
       console.log(`Obtendo músicas mais ouvidas (período: ${timeRange}, limite: ${limit})`);
       const response = await axios.get(`${API_BASE_URL}/api/spotify/top-tracks?time_range=${timeRange}&limit=${limit}`, {
-        headers: getAuthHeader()
+        headers: await getAuthHeader()
       });
       console.log(`${response.data.items?.length || 0} músicas mais ouvidas obtidas com sucesso`);
       return response.data;
@@ -285,7 +310,7 @@ const spotifyService = {
   // Obter playlists do usuário
   getPlaylists: async (limit: number = 20): Promise<Playlists> => {
     const response = await axios.get(`${API_BASE_URL}/api/spotify/playlists?limit=${limit}`, {
-      headers: getAuthHeader()
+      headers: await getAuthHeader()
     });
     return response.data;
   },

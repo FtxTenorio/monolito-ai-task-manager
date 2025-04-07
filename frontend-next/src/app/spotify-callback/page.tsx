@@ -39,6 +39,9 @@ export default function SpotifyCallback() {
             if (response.data.success && response.data.access_token) {
               console.log('Token obtido com sucesso');
               localStorage.setItem('spotify_access_token', response.data.access_token);
+              if (response.data.refresh_token) {
+                localStorage.setItem('spotify_refresh_token', response.data.refresh_token);
+              }
               setStatus('success');
               
               // Verificar se o usuário está autenticado

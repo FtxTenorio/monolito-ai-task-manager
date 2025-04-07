@@ -124,8 +124,6 @@ const SpotifyConnect: React.FC<SpotifyConnectProps> = ({ onConnect }) => {
   const [showLogin, setShowLogin] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [clientId, setClientId] = useState('');
-  const [clientSecret, setClientSecret] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<SpotifyUser | null>(null);
   const [currentlyPlaying, setCurrentlyPlaying] = useState<CurrentlyPlaying | null>(null);
@@ -251,32 +249,6 @@ const SpotifyConnect: React.FC<SpotifyConnectProps> = ({ onConnect }) => {
 
   const handleConnectClick = () => {
     setShowLogin(true);
-  };
-
-  const handleLogin = async () => {
-    if (!clientId || !clientSecret) {
-      setError('Por favor, preencha o Client ID e Client Secret');
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      // Aqui você implementaria a autenticação real com o Spotify
-      // Usando o clientId e clientSecret fornecidos
-      
-      // Simulando uma chamada de API
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Após autenticação bem-sucedida
-      onConnect();
-    } catch (err) {
-      setError('Erro ao conectar com o Spotify. Verifique suas credenciais.');
-      console.error('Erro de autenticação:', err);
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   const handleSpotifyOAuth = () => {
@@ -551,7 +523,7 @@ const SpotifyConnect: React.FC<SpotifyConnectProps> = ({ onConnect }) => {
           
           <Box sx={{ mt: 3 }}>
             <Typography variant="subtitle1" gutterBottom>
-              Método 1: Autenticação OAuth (Recomendado)
+              Autenticação OAuth
             </Typography>
             <Typography variant="body2" color="text.secondary" paragraph>
               Esta opção redireciona você para a página de login oficial do Spotify.
@@ -572,52 +544,6 @@ const SpotifyConnect: React.FC<SpotifyConnectProps> = ({ onConnect }) => {
             >
               Login com Spotify
             </Button>
-            
-            <Divider sx={{ my: 3 }}>
-              <Typography variant="body2" color="text.secondary">OU</Typography>
-            </Divider>
-            
-            <Typography variant="subtitle1" gutterBottom>
-              Método 2: Credenciais da API
-            </Typography>
-            <Typography variant="body2" color="text.secondary" paragraph>
-              Insira suas credenciais da API do Spotify (requer conta de desenvolvedor).
-            </Typography>
-            
-            <TextField
-              fullWidth
-              label="Client ID"
-              variant="outlined"
-              margin="normal"
-              value={clientId}
-              onChange={(e) => setClientId(e.target.value)}
-            />
-            
-            <TextField
-              fullWidth
-              label="Client Secret"
-              variant="outlined"
-              margin="normal"
-              type="password"
-              value={clientSecret}
-              onChange={(e) => setClientSecret(e.target.value)}
-            />
-            
-            <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center' }}>
-              <Button
-                variant="contained"
-                color="primary"
-                size="large"
-                onClick={handleLogin}
-                disabled={isLoading}
-                sx={{ 
-                  px: 4,
-                  py: 1.5,
-                }}
-              >
-                {isLoading ? <CircularProgress size={24} color="inherit" /> : 'Conectar'}
-              </Button>
-            </Box>
           </Box>
         </SpotifyContainer>
       </Box>
