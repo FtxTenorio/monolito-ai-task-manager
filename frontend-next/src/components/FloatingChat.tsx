@@ -44,10 +44,10 @@ const ChatContainer = styled(Paper, {
 }));
 
 const HeaderIconButton = styled(IconButton)(({ theme }) => ({
-  color: theme.palette.primary.contrastText,
+  color: theme.palette.mode === 'dark' ? '#ffffff' : theme.palette.primary.main,
   padding: theme.spacing(0.5),
   '&:hover': {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
   },
   '& .MuiSvgIcon-root': {
     fontSize: '1.2rem',
