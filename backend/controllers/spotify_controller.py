@@ -1,4 +1,3 @@
-import os
 import base64
 import requests
 import logging
@@ -6,22 +5,14 @@ import time
 import traceback
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse, JSONResponse
-from dotenv import load_dotenv
+from config.settings import get_settings
+
+# Obter configurações
+settings = get_settings()
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# Carregar variáveis de ambiente
-load_dotenv()
-
-# Configurações do Spotify
-SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID", "")
-SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET", "")
-SPOTIFY_REDIRECT_URI = os.getenv("SPOTIFY_REDIRECT_URI", "http://localhost:3000/spotify-callback")
-SPOTIFY_AUTH_URL = "https://accounts.spotify.com/authorize"
-SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token"
-SPOTIFY_API_URL = "https://api.spotify.com/v1"
 
 # Criar router para as rotas do Spotify
 router = APIRouter(prefix="/api/spotify", tags=["spotify"])
@@ -34,7 +25,7 @@ async def spotify_login():
         logger.info("SpotifyController: Iniciando processo de login")
         
         scope = "user-read-playback-state user-modify-playback-state user-read-currently-playing user-read-recently-played user-top-read playlist-read-private playlist-read-collaborative"
-        auth_url = f"{SPOTIFY_AUTH_URL}?client_id={SPOTIFY_CLIENT_ID}&response_type=code&redirect_uri={SPOTIFY_REDIRECT_URI}&scope={scope}"
+        auth_url = f"{settings.spotify_auth_url}?client_id={settings.spotify_client_id}&response_type=code&redirect_uri={settings.spotify_redirect_uri}&scope={scope}"
         
         elapsed_time = time.time() - start_time
         logger.info(f"SpotifyController: Login iniciado em {elapsed_time:.2f}s")
@@ -57,16 +48,16 @@ async def spotify_callback(code: str):
         logger.info(f"SpotifyController: Código de autorização recebido: {code[:10]}...")
         
         # Codificar credenciais para autenticação básica
-        auth_header = base64.b64encode(f"{SPOTIFY_CLIENT_ID}:{SPOTIFY_CLIENT_SECRET}".encode()).decode()
+        auth_header = base64.b64encode(f"{settings.spotify_client_id}:{settings.spotify_client_secret}".encode()).decode()
         
         # Solicitar token de acesso
         logger.info("SpotifyController: Solicitando token de acesso")
         response = requests.post(
-            SPOTIFY_TOKEN_URL,
+            settings.spotify_token_url,
             data={
                 "grant_type": "authorization_code",
                 "code": code,
-                "redirect_uri": SPOTIFY_REDIRECT_URI
+                "redirect_uri": settings.spotify_redirect_uri
             },
             headers={
                 "Authorization": f"Basic {auth_header}",
@@ -129,12 +120,12 @@ async def refresh_spotify_token(request: Request):
         logger.info("SpotifyController: Token de acesso extraído do cabeçalho")
         
         # Codificar credenciais para autenticação básica
-        auth_header = base64.b64encode(f"{SPOTIFY_CLIENT_ID}:{SPOTIFY_CLIENT_SECRET}".encode()).decode()
+        auth_header = base64.b64encode(f"{settings.spotify_client_id}:{settings.spotify_client_secret}".encode()).decode()
         
         # Solicitar novo token de acesso
         logger.info("SpotifyController: Solicitando novo token de acesso")
         response = requests.post(
-            SPOTIFY_TOKEN_URL,
+            settings.spotify_token_url,
             data={
                 "grant_type": "refresh_token",
                 "refresh_token": access_token
@@ -184,7 +175,7 @@ async def get_current_user(request: Request):
         
         logger.info("SpotifyController: Fazendo requisição para a API do Spotify")
         response = requests.get(
-            f"{SPOTIFY_API_URL}/me",
+            f"{settings.spotify_api_url}/me",
             headers={"Authorization": f"Bearer {access_token}"}
         )
         
@@ -227,7 +218,7 @@ async def get_currently_playing(request: Request):
         
         logger.info("SpotifyController: Fazendo requisição para a API do Spotify")
         response = requests.get(
-            f"{SPOTIFY_API_URL}/me/player/currently-playing",
+            f"{settings.spotify_api_url}/me/player/currently-playing",
             headers={"Authorization": f"Bearer {access_token}"}
         )
         
@@ -269,7 +260,7 @@ async def control_playback(action: str, request: Request):
             raise HTTPException(status_code=401, detail="Token de acesso não fornecido")
         
         # Definir endpoint e método baseado na ação
-        endpoint = f"{SPOTIFY_API_URL}/me/player/{action}"
+        endpoint = f"{settings.spotify_api_url}/me/player/{action}"
         method = "PUT"
         
         # Configurar parâmetros específicos para cada ação
@@ -330,7 +321,7 @@ async def control_playback_post(action: str, request: Request):
             raise HTTPException(status_code=401, detail="Token de acesso não fornecido")
         
         # Definir endpoint
-        endpoint = f"{SPOTIFY_API_URL}/me/player/{action}"
+        endpoint = f"{settings.spotify_api_url}/me/player/{action}"
         
         # Fazer requisição para o Spotify
         response = requests.post(
@@ -379,7 +370,7 @@ async def get_recently_played(request: Request, limit: int = 10):
         
         logger.info("SpotifyController: Fazendo requisição para a API do Spotify")
         response = requests.get(
-            f"{SPOTIFY_API_URL}/me/player/recently-played?limit={limit}",
+            f"{settings.spotify_api_url}/me/player/recently-played?limit={limit}",
             headers={"Authorization": f"Bearer {access_token}"}
         )
         
@@ -427,7 +418,7 @@ async def get_top_tracks(request: Request, time_range: str = "medium_term", limi
         
         logger.info("SpotifyController: Fazendo requisição para a API do Spotify")
         response = requests.get(
-            f"{SPOTIFY_API_URL}/me/top/tracks?time_range={time_range}&limit={limit}",
+            f"{settings.spotify_api_url}/me/top/tracks?time_range={time_range}&limit={limit}",
             headers={"Authorization": f"Bearer {access_token}"}
         )
         
@@ -471,7 +462,7 @@ async def get_playlists(request: Request, limit: int = 20):
         
         logger.info("SpotifyController: Fazendo requisição para a API do Spotify")
         response = requests.get(
-            f"{SPOTIFY_API_URL}/me/playlists?limit={limit}",
+            f"{settings.spotify_api_url}/me/playlists?limit={limit}",
             headers={"Authorization": f"Bearer {access_token}"}
         )
         

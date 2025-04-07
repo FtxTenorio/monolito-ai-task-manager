@@ -1,6 +1,8 @@
 import logging
-import os
-from config.settings import settings
+from config.settings import get_settings
+
+# Obter configurações
+settings = get_settings()
 
 def get_logger(name):
     """
@@ -13,7 +15,7 @@ def get_logger(name):
         logging.Logger: Logger configurado
     """
     # Configurar o nível de log
-    log_level = getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO)
+    log_level = getattr(logging, settings.log_level.upper(), logging.INFO)
     
     # Criar o logger
     logger = logging.getLogger(name)

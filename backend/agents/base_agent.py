@@ -1,10 +1,9 @@
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
-import os
-from dotenv import load_dotenv
+from config.settings import get_settings
 
-# Carregar variáveis de ambiente
-load_dotenv()
+# Obter configurações
+settings = get_settings()
 
 class BaseAgent:
     def __init__(self, system_prompt="Você é um assistente útil e amigável. Responda de forma clara e concisa."):
@@ -12,7 +11,7 @@ class BaseAgent:
         self.llm = ChatOpenAI(
             temperature=0.7,
             model_name="gpt-4o-mini",
-            openai_api_key=os.getenv("OPENAI_API_KEY")
+            openai_api_key=settings.openai_api_key
         )
         
         # Inicializar o histórico de conversa

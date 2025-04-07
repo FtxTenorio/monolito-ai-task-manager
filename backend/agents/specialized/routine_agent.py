@@ -14,12 +14,14 @@ from langchain.tools import Tool
 from langchain_openai import ChatOpenAI
 
 from ..base_agent import BaseAgent
-from config.settings import settings
+from config.settings import get_settings
 from utils.logger import get_logger
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+settings = get_settings()
 
 class RoutineAPIClient:
     """Cliente para interagir com a API de rotinas."""

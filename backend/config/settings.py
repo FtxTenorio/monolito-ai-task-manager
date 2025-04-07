@@ -1,22 +1,34 @@
-import os
+from pydantic_settings import BaseSettings
+from functools import lru_cache
 from dotenv import load_dotenv
 
 # Carregar variáveis de ambiente
 load_dotenv()
 
-class Settings:
-    """Configurações da aplicação."""
-    
-    # OpenAI
-    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-    OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
-    
-    # API URLs
-    TASK_API_URL = os.getenv("TASK_API_URL", "https://api.example.com/tasks")
-    ROUTINE_API_URL = os.getenv("ROUTINE_API_URL", "https://api.example.com/routines")
-    
-    # Logging
-    LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+class Settings(BaseSettings):
+    # Spotify settings
+    spotify_client_id: str
+    spotify_client_secret: str
+    spotify_redirect_uri: str = "http://localhost:3000/spotify-callback"
+    spotify_auth_url: str = "https://accounts.spotify.com/authorize"
+    spotify_token_url: str = "https://accounts.spotify.com/api/token"
+    spotify_api_url: str = "https://api.spotify.com/v1"
 
-# Instância global das configurações
-settings = Settings() 
+    # OpenAI settings
+    openai_api_key: str
+    openai_model: str = "gpt-3.5-turbo"
+
+    # API URLs
+    task_api_url: str = "https://api.example.com/tasks"
+    routine_api_url: str = "https://api.example.com/routines"
+
+    # Logging
+    log_level: str = "INFO"
+
+    class Config:
+        env_file = ".env"
+        case_sensitive = False
+
+@lru_cache()
+def get_settings() -> Settings:
+    return Settings() 

@@ -1,4 +1,3 @@
-import os
 import signal
 import sys
 import logging
@@ -6,15 +5,11 @@ import traceback
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
 from controllers import api_router
 
 # Configurar logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
-
-# Carregar variáveis de ambiente
-load_dotenv()
 
 # Criar a aplicação FastAPI
 app = FastAPI(title="Monolito AI Task Manager API")

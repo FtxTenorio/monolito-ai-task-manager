@@ -1,5 +1,6 @@
 import json
 import logging
+import traceback
 from typing import Dict, Set
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from agents.orchestrator_agent import OrchestratorAgent
