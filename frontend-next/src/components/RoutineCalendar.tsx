@@ -184,7 +184,7 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentWeek, setCurrentWeek] = useState<Date>(new Date());
-  const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
+  const [viewMode, setViewMode] = useState<'week' | 'month' | 'today'>('today');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [frequencyFilter, setFrequencyFilter] = useState<string>('all');
@@ -636,6 +636,14 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
     );
   };
 
+  // Função para verificar se uma data é hoje
+  const isToday = (date: Date) => {
+    const today = new Date();
+    return date.getDate() === today.getDate() &&
+           date.getMonth() === today.getMonth() &&
+           date.getFullYear() === today.getFullYear();
+  };
+
   const renderMonthView = () => {
     const dates = getMonthDates();
     const hasRoutines = dates.some(date => date && getRoutinesForDate(date).length > 0);
@@ -666,16 +674,25 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
             sx={{ 
               minHeight: '100px', 
               border: '1px solid', 
-              borderColor: 'divider', 
+              borderColor: date && isToday(date) ? 'primary.main' : 'divider', 
               p: 1,
               backgroundColor: date ? 'background.paper' : 'background.default',
-              opacity: date ? 1 : 0.5
+              opacity: date ? 1 : 0.5,
+              boxShadow: date && isToday(date) ? '0 0 8px rgba(25, 118, 210, 0.3)' : 'none'
             }}
           >
             {date && (
               <>
-                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                <Typography 
+                  variant="subtitle2" 
+                  sx={{ 
+                    mb: 1,
+                    color: isToday(date) ? 'primary.main' : 'inherit',
+                    fontWeight: isToday(date) ? 'bold' : 'normal'
+                  }}
+                >
                   {date.getDate()}
+                  {isToday(date) && ' (Hoje)'}
                 </Typography>
                 {getRoutinesForDate(date).map((routine) => renderRoutineItem(routine, date))}
               </>
@@ -830,9 +847,16 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
           <FormControl size="small" sx={{ minWidth: 120 }}>
             <Select
               value={viewMode}
-              onChange={(e: SelectChangeEvent) => setViewMode(e.target.value as 'week' | 'month')}
+              onChange={(e: SelectChangeEvent) => {
+                const newViewMode = e.target.value as 'week' | 'month' | 'today';
+                setViewMode(newViewMode);
+                if (newViewMode === 'today') {
+                  setCurrentWeek(new Date());
+                }
+              }}
               size="small"
             >
+              <MenuItem value="today">Hoje</MenuItem>
               <MenuItem value="week">Semana</MenuItem>
               <MenuItem value="month">Mês</MenuItem>
             </Select>
@@ -1111,7 +1135,38 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
           {showAllRoutines ? (
             renderAllRoutines()
           ) : (
-            viewMode === 'week' ? (
+            viewMode === 'today' ? (
+              (() => {
+                const today = new Date();
+                const routinesForToday = getRoutinesForDate(today);
+                
+                if (routinesForToday.length === 0) {
+                  return (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 3, height: '200px' }}>
+                      <Typography variant="body1" color="text.secondary" align="center" gutterBottom>
+                        Nenhuma rotina encontrada para hoje
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" align="center">
+                        Tente ajustar os filtros ou adicionar uma nova rotina
+                      </Typography>
+                    </Box>
+                  );
+                }
+                
+                return (
+                  <DayColumn sx={{ 
+                    border: '2px solid', 
+                    borderColor: 'primary.main',
+                    boxShadow: '0 0 8px rgba(25, 118, 210, 0.3)'
+                  }}>
+                    <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'bold', color: 'primary.main' }}>
+                      {formatDate(today)} (Hoje)
+                    </Typography>
+                    {routinesForToday.map((routine) => renderRoutineItem(routine, today))}
+                  </DayColumn>
+                );
+              })()
+            ) : viewMode === 'week' ? (
               (() => {
                 // Verifica se há rotinas para exibir em algum dia da semana
                 const hasRoutines = getWeekDates().some(date => getRoutinesForDate(date).length > 0);
@@ -1131,10 +1186,27 @@ const RoutineCalendar = forwardRef<RoutineCalendarRef, RoutineCalendarProps>((pr
                 
                 return getWeekDates().map((date, index) => {
                   const routinesForDate = getRoutinesForDate(date);
+                  const isCurrentDay = isToday(date);
+                  
                   return (
-                    <DayColumn key={index}>
-                      <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>
+                    <DayColumn 
+                      key={index}
+                      sx={isCurrentDay ? { 
+                        border: '2px solid', 
+                        borderColor: 'primary.main',
+                        boxShadow: '0 0 8px rgba(25, 118, 210, 0.3)'
+                      } : {}}
+                    >
+                      <Typography 
+                        variant="subtitle2" 
+                        sx={{ 
+                          mb: 1, 
+                          fontWeight: 'bold',
+                          color: isCurrentDay ? 'primary.main' : 'inherit'
+                        }}
+                      >
                         {formatDate(date)}
+                        {isCurrentDay && ' (Hoje)'}
                       </Typography>
                       {routinesForDate.length > 0 ? (
                         routinesForDate.map((routine) => renderRoutineItem(routine, date))
