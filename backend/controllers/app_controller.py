@@ -24,7 +24,7 @@ class ConnectionManager:
         await websocket.accept()
         client_id = id(websocket)
         self.active_connections[client_id] = websocket
-        self.agents[client_id] = OrchestratorAgent()
+        self.agents[client_id] = OrchestratorAgent(client_id=client_id)
         self.last_texts[client_id] = ""
         print(f"Cliente conectado: {client_id}")
     
@@ -37,7 +37,7 @@ class ConnectionManager:
             del self.last_texts[client_id]
         print(f"Cliente desconectado: {client_id}")
     
-    async def process_message(self, client_id: int, message: str, response_format: str = "markdown"):
+    async def orchestrator_process_message(self, client_id: int, message: str, response_format: str = "markdown"):
         if client_id not in self.active_connections:
             return
         
@@ -46,7 +46,7 @@ class ConnectionManager:
         
         try:
             # Obter resposta do agente orquestrador com o formato especificado
-            response_text = self.agents[client_id].process_message(
+            response_text = self.agents[client_id].orchestrator_process_message(
                 current_text, 
                 response_format,
                 self.active_connections[client_id]
@@ -77,12 +77,12 @@ class ConnectionManager:
             )
 
 # Criar o gerenciador de conexões
-manager = ConnectionManager()
+connnection_manager = ConnectionManager()
 
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     client_id = id(websocket)
-    await manager.connect(websocket)
+    await connnection_manager.connect(websocket)
     
     try:
         while True:
@@ -96,18 +96,18 @@ async def websocket_endpoint(websocket: WebSocket):
                     # Extrair o formato da resposta, padrão é markdown
                     response_format = data_json.get("format", "markdown")
                     print(f"Processando mensagem: {data_json['text']} com formato: {response_format}")
-                    await manager.process_message(client_id, data_json["text"], response_format)
+                    await connnection_manager.orchestrator_process_message(client_id, data_json["text"], response_format)
                 elif "content" in data_json:
                     # Compatibilidade com o formato anterior
                     response_format = data_json.get("format", "markdown")
                     print(f"Processando mensagem (formato antigo): {data_json['content']} com formato: {response_format}")
-                    await manager.process_message(client_id, data_json["content"], response_format)
+                    await connnection_manager.orchestrator_process_message(client_id, data_json["content"], response_format)
                 elif "idle" in data_json:
                     print(f"Recebido: {data_json} (Sinal de idle)")
                 else:
                     print(f"Formato de mensagem desconhecido: {data_json}")
             except WebSocketDisconnect:
-                manager.disconnect(client_id)
+                connnection_manager.disconnect(client_id)
                 break
             except Exception as e:
                 print(f"Erro ao processar mensagem: {e}")
@@ -117,8 +117,8 @@ async def websocket_endpoint(websocket: WebSocket):
         print(f"Erro na conexão WebSocket: {e}")
         print(f"Traceback: {traceback.format_exc()}")
     finally:
-        if client_id in manager.active_connections:
-            manager.disconnect(client_id)
+        if client_id in connnection_manager.active_connections:
+            connnection_manager.disconnect(client_id)
 
 def initialize_agents():
     """Inicializa os agentes necessários."""
@@ -134,11 +134,11 @@ def initialize_agents():
         logger.error(f"Traceback: {traceback.format_exc()}")
         raise
 
-def process_message(message: str, orchestrator: OrchestratorAgent) -> str:
+def orchestrator_process_message(message: str, orchestrator: OrchestratorAgent) -> str:
     """Processa uma mensagem usando o agente orquestrador."""
     try:
         logger.info(f"Processando mensagem: {message}")
-        response = orchestrator.process_message(message)
+        response = orchestrator.orchestrator_process_message(message)
         logger.info(f"Resposta: {response}")
         return response
     except Exception as e:

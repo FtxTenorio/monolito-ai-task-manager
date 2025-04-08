@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 # Carregar variáveis de ambiente
 load_dotenv()
 
-class Settings(BaseSettings):
+class _Settings(BaseSettings):
     # Spotify settings
     spotify_client_id: str
     spotify_client_secret: str
@@ -29,6 +29,14 @@ class Settings(BaseSettings):
         env_file = ".env"
         case_sensitive = False
 
-@lru_cache()
-def get_settings() -> Settings:
-    return Settings() 
+def get_settings() -> _Settings:
+    settings = _Settings()
+    print("Current settings:")
+    for field, value in settings.model_dump().items():
+        # Mask sensitive values
+        if 'secret' in field.lower() or 'key' in field.lower():
+            masked_value = value
+        else:
+            masked_value = value
+        print(f"{field}: {masked_value}")
+    return settings

@@ -21,7 +21,7 @@ class TaskAgent(BaseAgent):
         Você tem acesso a uma API de tarefas e deve usar as ferramentas disponíveis para realizar essas operações.
         Sempre forneça respostas claras e organizadas."""
         
-        super().__init__(system_prompt)
+        super().__init__(system_prompt, client_id=client_id)
         
         # Definir as ferramentas específicas para tarefas
         self.tools = [

@@ -26,9 +26,9 @@ settings = get_settings()
 class RoutineAPIClient:
     """Cliente para interagir com a API de rotinas."""
     
-    def __init__(self):
+    def __init__(self, client_id: int):
         self.base_url = "https://api.itenorio.com/lambda/routines"
-    
+        self.client_id = client_id
     def _make_request(self, operation: str, method: str, url: str, **kwargs) -> tuple[bool, str, dict]:
         """
         Faz uma requisição para a API.

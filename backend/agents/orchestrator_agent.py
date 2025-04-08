@@ -10,13 +10,14 @@ import logging
 import traceback
 import time
 from datetime import datetime
+from .tools import get_available_tools
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class OrchestratorAgent(BaseAgent):
-    def __init__(self):
+    def __init__(self, client_id: int):
         # Obter data atual
         today = datetime.now()
         date_str = today.strftime("%d/%m/%Y")
@@ -39,25 +40,29 @@ class OrchestratorAgent(BaseAgent):
         Você tem acesso a ferramentas para rotear mensagens para diferentes agentes especializados.
         Sempre forneça respostas claras e organizadas."""
         
-        super().__init__(system_prompt)
+        super().__init__(system_prompt, client_id=client_id)
         
         # Inicializar agentes especializados
         logger.info("OrchestratorAgent: Inicializando agentes especializados")
-        self.task_agent = TaskAgent()
-        self.routine_agent = RoutineAgent()
-        
+        self.task_agent = TaskAgent(client_id=client_id)
+        self.routine_agent = RoutineAgent(client_id=client_id)
+        orchestrator_agent_tools = get_available_tools()
+
         # Definir as ferramentas de roteamento
         logger.info("OrchestratorAgent: Configurando ferramentas de roteamento")
         self.tools = [
+            *orchestrator_agent_tools,
             Tool(
                 name="route_to_task_agent",
                 func=self.route_to_task_agent,
-                description="Roteia uma mensagem para o agente de tarefas. Use esta ferramenta quando a mensagem estiver relacionada a tarefas, como criar, listar, atualizar ou remover tarefas."
+                description="Roteia uma mensagem para o agente de tarefas. Use esta ferramenta quando a mensagem estiver relacionada a tarefas, como criar, listar, atualizar ou remover tarefas.",
+                return_direct=True
             ),
             Tool(
                 name="route_to_routine_agent",
                 func=self.route_to_routine_agent,
-                description="Roteia uma mensagem para o agente de rotinas. Use esta ferramenta quando a mensagem estiver relacionada a rotinas, como criar, listar, atualizar ou remover rotinas."
+                description="Roteia uma mensagem para o agente de rotinas. Use esta ferramenta quando a mensagem estiver relacionada a rotinas, como criar, listar, atualizar ou remover rotinas.",
+                return_direct=True
             )
         ]
         
