@@ -114,7 +114,7 @@ class RoutineAPIClient:
 class RoutineAgent(BaseAgent):
     """Agente especializado em gerenciar rotinas."""
     
-    def __init__(self):
+    def __init__(self, client_id: int = None):
         """Inicializa o agente de rotinas."""
         logger.info("RoutineAgent: Inicializando agente de rotinas")
         start_time = time.time()
@@ -136,7 +136,7 @@ class RoutineAgent(BaseAgent):
         super().__init__(system_prompt)
         
         # Inicializar o cliente da API
-        self.api_client = RoutineAPIClient()
+        self.api_client = RoutineAPIClient(client_id)
         
         # Definir campos obrigatórios e seus tipos
         self.required_fields = {

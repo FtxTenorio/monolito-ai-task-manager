@@ -9,7 +9,12 @@ import locale
 import re
 from bs4 import BeautifulSoup
 import markdown
-from ..controllers.app_controller import connnection_manager
+from utils.websocket_utils import send_websocket_message as send_ws_message
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # Configurar locale para português
 try:
     locale.setlocale(locale.LC_TIME, 'pt_BR.UTF-8')
@@ -74,35 +79,12 @@ def safe_web_search(query: str) -> str:
     
     except Exception as e:
         return f"Não foi possível realizar a busca devido a um erro: {str(e)}"
-# Vamos criar um decorator para pegar o ID do websocket na request, e enviar para o front end uma mensagem sobre uma tarefa
-# Estar sendo executa no momento.
 
-def inform_client_decorator(func):
-    async def wrapper(query: str = "", id_client_ws=None):
-        func_name = func.__name__.replace("_", " ").title()
-
-        try:
-            if id_client_ws:
-                await send_websocket_message(f"A função {func_name} foi executada com sucesso.", id_client_ws, "function_call_start")
-                result = await func(query, id_client_ws)
-            return result
-        except Exception as e:
-            if id_client_ws:
-                await send_websocket_message(f"Erro ao executar a função {func_name}: {str(e)}", id_client_ws, "function_call_error")
-            raise
-        finally:
-            if id_client_ws:
-                await send_websocket_message(f"A função {func_name} está finalizando a execução.", id_client_ws, "function_call_end")
-    return wrapper
-
-async def send_websocket_message(message: str, id_client_ws: str, type: str):
+def send_websocket_message(message: str, id_client_ws: str, type: str):
     # Envia uma mensagem para o cliente, via websocket
-    message_data = {
-                "type": type,
-                "content": message,
-                "format": "text"
-            }
-    await connnection_manager.active_connections[id_client_ws].send_text(json.dumps(message_data))
+    logger.info(f"Enviando mensagem para o cliente {id_client_ws}: {message}")
+    send_ws_message(message, id_client_ws, type, "text")
+    logger.info(f"Mensagem enviada para o cliente {id_client_ws}: {message}")
 
 def get_datetime_info(query: str = "", client_id: int = None) -> str:
     """
@@ -114,6 +96,8 @@ def get_datetime_info(query: str = "", client_id: int = None) -> str:
     Returns:
         str: Informações de data e hora formatadas
     """
+    func_name = get_datetime_info.__name__.replace("_", " ").title()
+    send_websocket_message(f"A função {func_name} foi executada com sucesso.", client_id, "function_call_start")
     try:
         # Obter data e hora atual
         now = datetime.now()
@@ -130,9 +114,11 @@ def get_datetime_info(query: str = "", client_id: int = None) -> str:
             - Dia da semana: {dia_semana}
             - Horário: {hora_formatada}
         """
+        send_websocket_message(f"A função {func_name} foi executada com sucesso.", client_id, "function_call_end")
         return context.strip()
     
     except Exception as e:
+        send_websocket_message(f"A função {func_name} encontrou um erro: {str(e)}", client_id, "function_call_error")
         return f"Erro ao obter informações de data e hora: {str(e)}"
 
 def format_response(text: str, format_type: str = "markdown") -> str:
@@ -182,10 +168,6 @@ def get_available_tools(client_id: int):
     """
     Retorna a lista de ferramentas disponíveis.
     """
-    # Bind the client_id to the tools
-    get_datetime_info = inform_client_decorator(get_datetime_info)
-    # safe_web_search = inform_client_decorator(safe_web_search)
-    # format_response = inform_client_decorator(format_response)
     
     return [
         Tool(

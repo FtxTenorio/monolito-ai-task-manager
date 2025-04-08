@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class TaskAgent(BaseAgent):
-    def __init__(self):
+    def __init__(self, client_id: int = None):
         system_prompt = """Você é um agente especializado em gerenciamento de tarefas.
         Sua função é ajudar a criar, listar, atualizar e remover tarefas.
         Você tem acesso a uma API de tarefas e deve usar as ferramentas disponíveis para realizar essas operações.

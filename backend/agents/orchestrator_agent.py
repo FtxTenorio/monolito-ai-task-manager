@@ -46,7 +46,7 @@ class OrchestratorAgent(BaseAgent):
         logger.info("OrchestratorAgent: Inicializando agentes especializados")
         self.task_agent = TaskAgent(client_id=client_id)
         self.routine_agent = RoutineAgent(client_id=client_id)
-        orchestrator_agent_tools = get_available_tools()
+        orchestrator_agent_tools = get_available_tools(client_id)
 
         # Definir as ferramentas de roteamento
         logger.info("OrchestratorAgent: Configurando ferramentas de roteamento")

@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/routines", tags=["routines"])
 
 # Inicializar o agente de rotinas
-routine_agent = RoutineAgent()
+routine_agent = RoutineAgent(client_id=0)  # Using 0 as a default client_id for the API endpoints
 
 @router.get("/")
 async def get_routines():
