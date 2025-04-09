@@ -74,11 +74,7 @@ const FunctionExecutionStatus: React.FC<FunctionExecutionStatusProps> = ({ type,
   return (
     <StatusContainer>
       <StatusIcon>
-        {type === 'function_call_start' ? (
-          <CircularProgress size={20} />
-        ) : (
-          getStatusIcon()
-        )}
+        {getStatusIcon()}
       </StatusIcon>
       <Chip 
         label={getStatusText()} 

@@ -89,12 +89,12 @@ const MessageBubble = styled(Paper, {
   padding: theme.spacing(1.5),
   maxWidth: '80%',
   alignSelf: isUser ? 'flex-end' : 'flex-start',
-  backgroundColor: isUser 
+  backgroundColor: isUser
     ? theme.palette.primary.dark
-    : theme.palette.mode === 'dark' 
-      ? theme.palette.grey[800] 
+    : theme.palette.mode === 'dark'
+      ? theme.palette.grey[800]
       : theme.palette.grey[100],
-  color: theme.palette.mode === 'dark' 
+  color: theme.palette.mode === 'dark'
     ? '#ffffff'  // Texto branco no modo escuro
     : '#000000', // Texto preto no modo claro
   '& .maximized &': {
@@ -241,16 +241,16 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
   };
 
   return (
-    <ChatContainer 
+    <ChatContainer
       isMinimized={isMinimized}
       isMaximized={isMaximized}
       className={`${isMinimized ? 'minimized' : ''} ${isMaximized ? 'maximized' : ''}`}
     >
       <ChatHeader>
         <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>Chat</Typography>
-        <Box sx={{ 
-          display: 'flex', 
-          alignItems: 'center', 
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
           gap: 0.5,
           '& > button': {
             transition: 'all 0.2s ease',
@@ -258,7 +258,7 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
         }}>
           <Tooltip title={isMaximized ? "Restaurar" : "Maximizar"}>
             <HeaderIconButton
-              size="small" 
+              size="small"
               onClick={handleMaximizeToggle}
             >
               {isMaximized ? <CloseFullscreen /> : <OpenInFull />}
@@ -266,7 +266,7 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
           </Tooltip>
           <Tooltip title={isMinimized ? "Restaurar" : "Fechar"}>
             <HeaderIconButton
-              size="small" 
+              size="small"
               onClick={isMinimized ? onMaximize : onMinimize}
             >
               {isMinimized ? <Maximize /> : <Close />}
@@ -279,54 +279,64 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
         <>
           <ChatMessages>
             {messages.map((msg, index) => (
-              <MessageBubble key={index} isUser={msg.isUser}>
+              <Box key={index}>
                 {msg.isUser ? (
-                  <Typography variant="body2">{msg.text}</Typography>
+                  <MessageBubble isUser={msg.isUser}>
+                    <Typography variant="body2">{msg.text}</Typography>
+                  </MessageBubble>
                 ) : (
-                  <MessageContent>
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      components={{
-                        code({ className, children, ...props }: any) {
-                          const match = /language-(\w+)/.exec(className || '');
-                          const isInline = !match;
-                          return !isInline && match ? (
-                            <CodeBlock>
-                              <div className="language-label">{match[1]}</div>
-                              <SyntaxHighlighter
-                                language={match[1]}
-                                style={vscDarkPlus as any}
-                                PreTag="div"
-                                {...props}
-                              >
-                                {String(children).replace(/\n$/, '')}
-                              </SyntaxHighlighter>
-                            </CodeBlock>
-                          ) : (
-                            <code className={className} {...props}>
-                              {children}
-                            </code>
-                          );
-                        },
-                      }}
-                    >
-                      {msg.text}
-                    </ReactMarkdown>
-                  </MessageContent>
+                  <>
+                    {functionExecutions.map((execution, index) => (
+                      <Box
+                        key={`execution-${index}`}
+                        sx={{
+                          p: 1,
+                          borderBottom: index < functionExecutions.length - 1 ? '1px solid rgba(0,0,0,0.1)' : 'none'
+                        }}
+                      >
+                        <FunctionExecutionStatus
+                          type={execution.type}
+                          content={execution.content}
+                        />
+                      </Box>
+                    ))}
+                    <MessageBubble isUser={msg.isUser}>
+                      <MessageContent>
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            code({ className, children, ...props }: any) {
+                              const match = /language-(\w+)/.exec(className || '');
+                              const isInline = !match;
+                              return !isInline && match ? (
+                                <CodeBlock>
+                                  <div className="language-label">{match[1]}</div>
+                                  <SyntaxHighlighter
+                                    language={match[1]}
+                                    style={vscDarkPlus as any}
+                                    PreTag="div"
+                                    {...props}
+                                  >
+                                    {String(children).replace(/\n$/, '')}
+                                  </SyntaxHighlighter>
+                                </CodeBlock>
+                              ) : (
+                                <code className={className} {...props}>
+                                  {children}
+                                </code>
+                              );
+                            },
+                          }}
+                        >
+                          {msg.text}
+                        </ReactMarkdown>
+                      </MessageContent>
+                    </MessageBubble>
+                  </>
                 )}
-              </MessageBubble>
-            ))}
-            
-            {/* Display function execution status messages */}
-            {functionExecutions.map((execution, index) => (
-              <Box key={`execution-${index}`} sx={{ alignSelf: 'flex-start', width: '100%' }}>
-                <FunctionExecutionStatus 
-                  type={execution.type} 
-                  content={execution.content} 
-                />
               </Box>
             ))}
-            
+
             {isTyping && (
               <Box sx={{ alignSelf: 'flex-start' }}>
                 <Typography variant="body2" color="text.secondary">
@@ -385,8 +395,9 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
             </form>
           </ChatInput>
         </>
-      )}
-    </ChatContainer>
+      )
+      }
+    </ChatContainer >
   );
 };
 
