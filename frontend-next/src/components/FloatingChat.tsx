@@ -11,6 +11,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import MinimizeIcon from '@mui/icons-material/Minimize';
 import MaximizeIcon from '@mui/icons-material/Maximize';
 import FunctionExecutionStatus from './FunctionExecutionStatus';
+import FunctionExecutions from './FunctionExecutions';
 
 const ChatContainer = styled(Paper, {
   shouldForwardProp: (prop) => prop !== 'isMinimized' && prop !== 'isMaximized'
@@ -183,6 +184,7 @@ interface FloatingChatProps {
     content: string;
     format: string;
   }[];
+  onClearFunctionExecutions?: () => void;
 }
 
 const FloatingChat: React.FC<FloatingChatProps> = ({
@@ -201,6 +203,7 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
   onReconnect,
   recognizedText,
   functionExecutions = [],
+  onClearFunctionExecutions,
 }) => {
   const [isMaximized, setIsMaximized] = useState(false);
   const [message, setMessage] = useState('');
@@ -226,6 +229,7 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
     if (message.trim()) {
       onSendMessage(message);
       setMessage('');
+      onClearFunctionExecutions?.();
     }
   };
 
@@ -286,20 +290,9 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
                   </MessageBubble>
                 ) : (
                   <>
-                    {functionExecutions.map((execution, index) => (
-                      <Box
-                        key={`execution-${index}`}
-                        sx={{
-                          p: 1,
-                          borderBottom: index < functionExecutions.length - 1 ? '1px solid rgba(0,0,0,0.1)' : 'none'
-                        }}
-                      >
-                        <FunctionExecutionStatus
-                          type={execution.type}
-                          content={execution.content}
-                        />
-                      </Box>
-                    ))}
+                    {functionExecutions.length > 0 && (
+                      <FunctionExecutions executions={functionExecutions} />
+                    )}
                     <MessageBubble isUser={msg.isUser}>
                       <MessageContent>
                         <ReactMarkdown
