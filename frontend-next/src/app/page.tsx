@@ -114,7 +114,11 @@ export default function Home() {
     format: string;
   }): void => {
     console.log("Adicionando execução de função:", execution);
-    setFunctionExecutions(prev => [...prev, execution]);
+    if (execution.type === 'function_call_start') {
+      setFunctionExecutions([execution]); // Limpa as execuções anteriores
+    } else {
+      setFunctionExecutions(prev => [...prev, execution]);
+    }
   };
 
   const connectWebSocket = (): void => {
