@@ -114,11 +114,19 @@ export default function Home() {
     format: string;
   }): void => {
     console.log("Adicionando execução de função:", execution);
-    if (execution.type === 'function_call_start') {
-      setFunctionExecutions([execution]); // Limpa as execuções anteriores
-    } else {
-      setFunctionExecutions(prev => [...prev, execution]);
-    }
+    setFunctionExecutions(prev => {
+      // Verifica se já existe um start e um end no array
+      const hasStart = prev.some(exec => exec.type === 'function_call_start');
+      const hasEnd = prev.some(exec => exec.type === 'function_call_end');
+      
+      if (hasStart && hasEnd) {
+        // Se já tem start e end, esvazia o array
+        return [];
+      }
+      
+      // Caso contrário adiciona a nova execução
+      return [...prev, execution];
+    });
   };
 
   const connectWebSocket = (): void => {

@@ -97,38 +97,6 @@ async def send_websocket_message(message: str, id_client_ws: str, type: str):
     # Envia uma mensagem para o cliente, via websocket
     await send_ws_message(message, id_client_ws, type, "text")
 
-def get_datetime_info(query: str = "", client_id: int = None) -> str:
-    """
-    Fornece informações sobre a data e hora atual.
-    
-    Args:
-        query (str): Parâmetro opcional para compatibilidade com a interface Tool.
-        
-    Returns:
-        str: Informações de data e hora formatadas
-    """
-
-    try:
-        # Obter data e hora atual
-        now = datetime.now()
-        
-        # Formatar data e hora
-        data_formatada = now.strftime("%d de %B de %Y")
-        hora_formatada = now.strftime("%H:%M")
-        dia_semana = now.strftime("%A").capitalize()
-        
-        # Montar o contexto
-        context = f"""
-            Data e hora atual:
-            - Data: {data_formatada}
-            - Dia da semana: {dia_semana}
-            - Horário: {hora_formatada}
-        """
-        return context.strip()
-    
-    except Exception as e:
-        return f"Erro ao obter informações de data e hora: {str(e)}"
-
 async def aget_datetime_info(query: str = "", client_id: int = None) -> str:
     """
     Fornece informações sobre a data e hora atual.

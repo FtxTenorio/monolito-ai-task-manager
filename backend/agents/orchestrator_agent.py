@@ -43,7 +43,7 @@ class OrchestratorAgent(BaseAgent):
         super().__init__(system_prompt, client_id=client_id)
         
         # Inicializar agentes especializados
-        logger.info("OrchestratorAgent: Inicializando agentes especializados")
+        logger.info(f"OrchestratorAgent: Inicializando agentes especializados, client_id: {client_id}")
         self.task_agent = TaskAgent(client_id=client_id)
         self.routine_agent = RoutineAgent(client_id=client_id)
         orchestrator_agent_tools = get_available_tools(client_id)
@@ -61,8 +61,8 @@ class OrchestratorAgent(BaseAgent):
             Tool(
                 name="route_to_routine_agent",
                 func=self.route_to_routine_agent,
+                coroutine=self.route_to_routine_agent,
                 description="Roteia uma mensagem para o agente de rotinas. Use esta ferramenta quando a mensagem estiver relacionada a rotinas, como criar, listar, atualizar ou remover rotinas.",
-                return_direct=True
             )
         ]
         
@@ -115,7 +115,7 @@ class OrchestratorAgent(BaseAgent):
             logger.error(f"OrchestratorAgent: Traceback: {traceback.format_exc()}")
             return error_msg
     
-    def route_to_routine_agent(self, message: str) -> str:
+    async def route_to_routine_agent(self, message: str) -> str:
         """Roteia uma mensagem para o agente de rotinas de forma síncrona."""
         try:
             start_time = time.time()
@@ -124,9 +124,9 @@ class OrchestratorAgent(BaseAgent):
             # Filtrar mensagens do sistema do histórico de conversa
             filtered_history = [msg for msg in self.conversation_history if not isinstance(msg, SystemMessage)]
             
-            # Chamar diretamente o método síncrono do RoutineAgent
+            # Chamar diretamente o método assíncrono do RoutineAgent
             logger.info("OrchestratorAgent: Chamando process_message do RoutineAgent")
-            response = self.routine_agent.process_message(message, chat_history=filtered_history)
+            response = await self.routine_agent.process_message(message, chat_history=filtered_history)
             
             elapsed_time = time.time() - start_time
             logger.info(f"OrchestratorAgent: Resposta recebida do agente de rotinas em {elapsed_time:.2f}s: {response}")
