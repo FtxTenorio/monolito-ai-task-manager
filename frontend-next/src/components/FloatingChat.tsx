@@ -10,6 +10,7 @@ import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import CloseIcon from '@mui/icons-material/Close';
 import MinimizeIcon from '@mui/icons-material/Minimize';
 import MaximizeIcon from '@mui/icons-material/Maximize';
+import FunctionExecutionStatus from './FunctionExecutionStatus';
 
 const ChatContainer = styled(Paper, {
   shouldForwardProp: (prop) => prop !== 'isMinimized' && prop !== 'isMaximized'
@@ -177,6 +178,11 @@ interface FloatingChatProps {
   isConnected: boolean;
   onReconnect: () => void;
   recognizedText?: string;
+  functionExecutions?: {
+    type: 'function_call_start' | 'function_call_error' | 'function_call_end';
+    content: string;
+    format: string;
+  }[];
 }
 
 const FloatingChat: React.FC<FloatingChatProps> = ({
@@ -194,6 +200,7 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
   isConnected,
   onReconnect,
   recognizedText,
+  functionExecutions = [],
 }) => {
   const [isMaximized, setIsMaximized] = useState(false);
   const [message, setMessage] = useState('');
@@ -309,6 +316,17 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
                 )}
               </MessageBubble>
             ))}
+            
+            {/* Display function execution status messages */}
+            {functionExecutions.map((execution, index) => (
+              <Box key={`execution-${index}`} sx={{ alignSelf: 'flex-start', width: '100%' }}>
+                <FunctionExecutionStatus 
+                  type={execution.type} 
+                  content={execution.content} 
+                />
+              </Box>
+            ))}
+            
             {isTyping && (
               <Box sx={{ alignSelf: 'flex-start' }}>
                 <Typography variant="body2" color="text.secondary">

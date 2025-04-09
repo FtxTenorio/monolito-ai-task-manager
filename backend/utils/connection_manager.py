@@ -21,7 +21,7 @@ class ConnectionManager:
     
     async def active_connections(self):
         """Retorna todas as conexões ativas."""
-        return get_websocket_connection()
+        return get_active_connections()
     
     def disconnect(self, client_id: int):
         """Remove uma conexão WebSocket."""

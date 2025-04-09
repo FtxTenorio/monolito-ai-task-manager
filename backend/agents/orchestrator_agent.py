@@ -11,7 +11,7 @@ import traceback
 import time
 from datetime import datetime
 from .tools import get_available_tools
-
+import asyncio
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -139,7 +139,7 @@ class OrchestratorAgent(BaseAgent):
             logger.error(f"OrchestratorAgent: Traceback: {traceback.format_exc()}")
             return error_msg
     
-    def process_message(self, message: str, response_format: str = "markdown", websocket=None):
+    async def process_message(self, message: str, response_format: str = "markdown", websocket=None):
         """Processa uma mensagem de forma síncrona."""
         try:
             start_time = time.time()
@@ -149,7 +149,7 @@ class OrchestratorAgent(BaseAgent):
             
             # Obter resposta do agente
             logger.info("OrchestratorAgent: Invocando agent_executor")
-            response = self.agent_executor.invoke({
+            response = await self.agent_executor.ainvoke({
                 "input": message,
                 "chat_history": self.conversation_history[:-1]
             })

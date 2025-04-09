@@ -52,7 +52,7 @@ async def send_websocket_message(message: str, client_id: int, message_type: str
             "format": format_type
         }
         await websocket_connections[client_id].send_text(json.dumps(message_data))
-        logger.debug(f"Mensagem enviada para o cliente {client_id}: {message}")
+        logger.info(f"Mensagem enviada para o cliente {json.dumps(message_data)}")
         return True
     except Exception as e:
         logger.error(f"Erro ao enviar mensagem para o cliente {client_id}: {e}")

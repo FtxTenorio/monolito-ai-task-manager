@@ -11,6 +11,8 @@ from bs4 import BeautifulSoup
 import markdown
 from utils.websocket_utils import send_websocket_message as send_ws_message
 import logging
+from functools import partial
+import asyncio
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -80,11 +82,9 @@ def safe_web_search(query: str) -> str:
     except Exception as e:
         return f"Não foi possível realizar a busca devido a um erro: {str(e)}"
 
-def send_websocket_message(message: str, id_client_ws: str, type: str):
+async def send_websocket_message(message: str, id_client_ws: str, type: str):
     # Envia uma mensagem para o cliente, via websocket
-    logger.info(f"Enviando mensagem para o cliente {id_client_ws}: {message}")
-    send_ws_message(message, id_client_ws, type, "text")
-    logger.info(f"Mensagem enviada para o cliente {id_client_ws}: {message}")
+    await send_ws_message(message, id_client_ws, type, "text")
 
 def get_datetime_info(query: str = "", client_id: int = None) -> str:
     """
@@ -97,7 +97,6 @@ def get_datetime_info(query: str = "", client_id: int = None) -> str:
         str: Informações de data e hora formatadas
     """
     func_name = get_datetime_info.__name__.replace("_", " ").title()
-    send_websocket_message(f"A função {func_name} foi executada com sucesso.", client_id, "function_call_start")
     try:
         # Obter data e hora atual
         now = datetime.now()
@@ -114,11 +113,47 @@ def get_datetime_info(query: str = "", client_id: int = None) -> str:
             - Dia da semana: {dia_semana}
             - Horário: {hora_formatada}
         """
-        send_websocket_message(f"A função {func_name} foi executada com sucesso.", client_id, "function_call_end")
         return context.strip()
     
     except Exception as e:
-        send_websocket_message(f"A função {func_name} encontrou um erro: {str(e)}", client_id, "function_call_error")
+        return f"Erro ao obter informações de data e hora: {str(e)}"
+
+async def aget_datetime_info(query: str = "", client_id: int = None) -> str:
+    """
+    Fornece informações sobre a data e hora atual.
+    
+    Args:
+        query (str): Parâmetro opcional para compatibilidade com a interface Tool.
+        
+    Returns:
+        str: Informações de data e hora formatadas
+    """
+    func_name = get_datetime_info.__name__.replace("_", " ").title()
+    try:
+        await send_websocket_message(f"A função {func_name} foi iniciada.", client_id, "function_call_start")
+        
+        # Obter data e hora atual
+        now = datetime.now()
+        
+        # Formatar data e hora
+        data_formatada = now.strftime("%d de %B de %Y")
+        hora_formatada = now.strftime("%H:%M")
+        dia_semana = now.strftime("%A").capitalize()
+        
+        # Montar o contexto
+        context = f"""
+            Data e hora atual:
+            - Data: {data_formatada}
+            - Dia da semana: {dia_semana}
+            - Horário: {hora_formatada}
+        """
+        
+        await send_websocket_message(f"A função {func_name} foi concluída com sucesso.", client_id, "function_call_end")
+        return context.strip()
+    
+    except Exception as e:
+        error_msg = f"A função {func_name} encontrou um erro: {str(e)}"
+        await send_websocket_message(error_msg, client_id, "function_call_error")
         return f"Erro ao obter informações de data e hora: {str(e)}"
 
 def format_response(text: str, format_type: str = "markdown") -> str:
@@ -168,7 +203,9 @@ def get_available_tools(client_id: int):
     """
     Retorna a lista de ferramentas disponíveis.
     """
-    
+    # Faz um bind do client id para a get_datetime_info
+    aget_datetime_info_partial = partial(aget_datetime_info, client_id=client_id)
+
     return [
         Tool(
             name="safe_web_search",
@@ -177,8 +214,9 @@ def get_available_tools(client_id: int):
         ),
         Tool(
             name="get_datetime_info",
-            func=get_datetime_info,
-            description="Obtém informações sobre a data e hora atual. Parâmetro: query (string)"
+            func=aget_datetime_info_partial,
+            coroutine=aget_datetime_info_partial,
+            description="Função Assíncrona: Obtém informações sobre a data e hora atual. Parâmetro: query (string)"
         ),
         Tool(
             name="format_response",

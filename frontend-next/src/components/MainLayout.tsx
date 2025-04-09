@@ -170,6 +170,11 @@ interface MainLayoutProps {
   onReconnect: () => void;
   isListening: boolean;
   onToggleListening: () => void;
+  functionExecutions?: {
+    type: 'function_call_start' | 'function_call_error' | 'function_call_end';
+    content: string;
+    format: string;
+  }[];
 }
 
 const MainLayout: React.FC<MainLayoutProps> = ({
@@ -186,6 +191,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   onReconnect,
   isListening,
   onToggleListening,
+  functionExecutions = [],
 }) => {
   const [isChatVisible, setIsChatVisible] = useState(true);
   const [isChatMinimized, setIsChatMinimized] = useState(false);
@@ -562,6 +568,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         isConnected={isConnected}
         onReconnect={onReconnect}
         recognizedText={recognizedText}
+        functionExecutions={functionExecutions}
       />
     </MainContainer>
   );

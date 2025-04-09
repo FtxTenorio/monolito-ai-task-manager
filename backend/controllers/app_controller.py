@@ -52,7 +52,7 @@ async def websocket_endpoint(websocket: WebSocket):
         logger.error(f"Erro na conexão WebSocket: {e}")
         logger.error(f"Traceback: {traceback.format_exc()}")
     finally:
-        if client_id in connection_manager.active_connections():
+        if client_id in await connection_manager.active_connections():
             connection_manager.disconnect(client_id)
 
 def initialize_agents():
@@ -69,11 +69,11 @@ def initialize_agents():
         logger.error(f"Traceback: {traceback.format_exc()}")
         raise
 
-def process_message(message: str, orchestrator: OrchestratorAgent) -> str:
+async def process_message(message: str, orchestrator: OrchestratorAgent) -> str:
     """Processa uma mensagem usando o agente orquestrador."""
     try:
         logger.info(f"Processando mensagem: {message}")
-        response = orchestrator.process_message(message)
+        response = await orchestrator.process_message(message)
         logger.info(f"Resposta: {response}")
         return response
     except Exception as e:
