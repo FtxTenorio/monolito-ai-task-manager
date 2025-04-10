@@ -56,7 +56,6 @@ class OrchestratorAgent(BaseAgent):
                 name="route_to_task_agent",
                 func=self.route_to_task_agent,
                 description="Roteia uma mensagem para o agente de tarefas. Use esta ferramenta quando a mensagem estiver relacionada a tarefas, como criar, listar, atualizar ou remover tarefas.",
-                return_direct=True
             ),
             Tool(
                 name="route_to_routine_agent",
@@ -92,7 +91,7 @@ class OrchestratorAgent(BaseAgent):
         )
     
     def route_to_task_agent(self, message: str) -> str:
-        """Roteia uma mensagem para o agente de tarefas de forma síncrona."""
+        """Roteia uma mensagem para o agente de tarefas de forma assíncrona."""
         try:
             start_time = time.time()
             logger.info(f"OrchestratorAgent: Iniciando route_to_task_agent com mensagem: {message}")
@@ -100,7 +99,7 @@ class OrchestratorAgent(BaseAgent):
             # Filtrar mensagens do sistema do histórico de conversa
             filtered_history = [msg for msg in self.conversation_history if not isinstance(msg, SystemMessage)]
             
-            # Chamar diretamente o método síncrono do TaskAgent
+            # Chamar o método assíncrono do TaskAgent
             logger.info("OrchestratorAgent: Chamando process_message do TaskAgent")
             response = self.task_agent.process_message(message, chat_history=filtered_history)
             

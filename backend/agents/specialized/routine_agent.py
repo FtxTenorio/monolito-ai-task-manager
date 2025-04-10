@@ -168,31 +168,36 @@ class RoutineAgent(BaseAgent):
                 name="get_routines",
                 func=self.get_routines,
                 coroutine=self.get_routines,
-                description="Lista todas as rotinas disponíveis. Use esta ferramenta quando o usuário quiser ver todas as rotinas."
+                description="Lista todas as rotinas disponíveis. Use esta ferramenta quando o usuário quiser ver todas as rotinas.",
+                return_direct=True
             ),
             Tool(
                 name="get_routine",
                 func=self.get_routine,
                 coroutine=self.get_routine,
-                description="Obtém detalhes de uma rotina específica pelo ID. Use esta ferramenta quando o usuário quiser ver detalhes de uma rotina específica."
+                description="Obtém detalhes de uma rotina específica pelo ID. Use esta ferramenta quando o usuário quiser ver detalhes de uma rotina específica.",
+                return_direct=True
             ),
             Tool(
                 name="create_routine",
                 func=self.create_routine,
                 coroutine=self.create_routine,
-                description="Cria uma nova rotina. Use esta ferramenta quando o usuário quiser criar uma nova rotina."
+                description="Cria uma nova rotina. Use esta ferramenta quando o usuário quiser criar uma nova rotina.",
+                return_direct=True
             ),
             Tool(
                 name="update_routine",
                 func=self.update_routine,
                 coroutine=self.update_routine,
-                description="Atualiza uma rotina existente. Use esta ferramenta quando o usuário quiser modificar uma rotina existente."
+                description="Atualiza uma rotina existente. Use esta ferramenta quando o usuário quiser modificar uma rotina existente.",
+                return_direct=True
             ),
             Tool(
                 name="delete_routine",
                 func=self.delete_routine,
                 coroutine=self.delete_routine,
-                description="Remove uma rotina pelo ID. Use esta ferramenta quando o usuário quiser excluir uma rotina."
+                description="Remove uma rotina pelo ID. Use esta ferramenta quando o usuário quiser excluir uma rotina.",
+                return_direct=True
             )
         ]
         
