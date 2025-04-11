@@ -4,7 +4,7 @@ import { styled } from '@mui/material/styles';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
-
+import InfoIcon from '@mui/icons-material/Info';
 const StatusContainer = styled(Box)(({ theme }) => ({
   display: 'flex',
   alignItems: 'center',
@@ -27,7 +27,7 @@ const StatusIcon = styled(Box)(({ theme }) => ({
 }));
 
 interface FunctionExecutionStatusProps {
-  type: 'function_call_start' | 'function_call_error' | 'function_call_end';
+  type: 'function_call_start' | 'function_call_error' | 'function_call_end' | 'function_call_info';
   content: string;
 }
 
@@ -35,11 +35,13 @@ const FunctionExecutionStatus: React.FC<FunctionExecutionStatusProps> = ({ type,
   const getStatusColor = () => {
     switch (type) {
       case 'function_call_start':
-        return 'info';
+        return 'primary';
       case 'function_call_error':
         return 'error';
       case 'function_call_end':
         return 'success';
+      case 'function_call_info':
+        return 'info';
       default:
         return 'default';
     }
@@ -53,6 +55,8 @@ const FunctionExecutionStatus: React.FC<FunctionExecutionStatusProps> = ({ type,
         return <ErrorIcon fontSize="small" />;
       case 'function_call_end':
         return <CheckCircleIcon fontSize="small" />;
+      case 'function_call_info':
+        return <InfoIcon fontSize="small" />;
       default:
         return null;
     }
@@ -66,6 +70,8 @@ const FunctionExecutionStatus: React.FC<FunctionExecutionStatusProps> = ({ type,
         return 'Erro';
       case 'function_call_end':
         return 'Concluído';
+      case 'function_call_info':
+        return 'Processando';
       default:
         return '';
     }
