@@ -356,12 +356,14 @@ class TaskAgent(BaseAgent):
             error_msg = f"Erro ao criar tarefa após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"TaskAgent: {error_msg}")
             logger.error(f"TaskAgent: Traceback: {traceback.format_exc()}")
+            await self.send_websocket_message(f"Erro ao criar tarefa após {elapsed_time:.2f}s: {str(e)}", self.client_id, "function_call_error")
             return error_msg
         except Exception as e:
             elapsed_time = time.time() - start_time
             error_msg = f"Erro ao criar tarefa após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"TaskAgent: {error_msg}")
             logger.error(f"TaskAgent: Traceback: {traceback.format_exc()}")
+            await self.send_websocket_message(f"Erro ao criar tarefa após {elapsed_time:.2f}s: {str(e)}", self.client_id, "function_call_error")
             return error_msg
     
     async def update_task(self, input_str: str) -> str:
