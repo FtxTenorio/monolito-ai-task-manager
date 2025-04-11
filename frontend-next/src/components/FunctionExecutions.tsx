@@ -3,7 +3,7 @@ import { Box } from '@mui/material';
 import FunctionExecutionStatus from './FunctionExecutionStatus';
 
 interface FunctionExecution {
-  type: 'function_call_start' | 'function_call_error' | 'function_call_end';
+  type: 'function_call_start' | 'function_call_error' | 'function_call_end' | 'function_call_info';
   content: string;
   format: string;
 }

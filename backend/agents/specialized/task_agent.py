@@ -97,7 +97,7 @@ class TaskAgent(BaseAgent):
             # Parse the response and handle different formats
             data = response.json()
 
-            await self.send_websocket_message(f"Tarefas obtidas em {time.time() - start_time:.2f}s", self.client_id, "function_call_start")
+            await self.send_websocket_message(f"Tarefas obtidas em {time.time() - start_time:.2f}s", self.client_id, "function_call_info")
             # Check if the response has a specific structure
             if isinstance(data, dict) and 'body' in data:
                 # Handle AWS Lambda response format
@@ -136,7 +136,7 @@ class TaskAgent(BaseAgent):
             
             # Formatar a resposta
             formatted_tasks = []
-            await self.send_websocket_message(f"Encontradas ({len(tasks)}) tarefas", self.client_id, "function_call_start")
+            await self.send_websocket_message(f"Encontradas ({len(tasks)}) tarefas", self.client_id, "function_call_info")
             for task in tasks:
                 # Handle different task formats
                 if isinstance(task, dict):
