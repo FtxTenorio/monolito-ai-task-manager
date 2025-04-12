@@ -8,46 +8,51 @@ import json
 import logging
 import traceback
 import time
-from typing import Dict, List, Any, Optional
+from utils.websocket_utils import send_websocket_message as send_ws_message
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class TaskAgent(BaseAgent):
-    def __init__(self):
+    def __init__(self, client_id: int = None):
         system_prompt = """Você é um agente especializado em gerenciamento de tarefas.
         Sua função é ajudar a criar, listar, atualizar e remover tarefas.
         Você tem acesso a uma API de tarefas e deve usar as ferramentas disponíveis para realizar essas operações.
         Sempre forneça respostas claras e organizadas."""
         
-        super().__init__(system_prompt)
+        super().__init__(system_prompt, client_id=client_id)
         
         # Definir as ferramentas específicas para tarefas
         self.tools = [
             Tool(
                 name="get_tasks",
                 func=self.get_tasks,
+                coroutine=self.get_tasks,
                 description="Lista todas as tarefas disponíveis. Use esta ferramenta quando o usuário quiser ver todas as tarefas."
             ),
             Tool(
                 name="get_task",
                 func=self.get_task,
+                coroutine=self.get_task,
                 description="Obtém detalhes de uma tarefa específica pelo ID. Use esta ferramenta quando o usuário quiser ver detalhes de uma tarefa específica."
             ),
             Tool(
                 name="create_task",
                 func=self.create_task,
+                coroutine=self.create_task,
                 description="Cria uma nova tarefa. Use esta ferramenta quando o usuário quiser criar uma nova tarefa."
             ),
             Tool(
                 name="update_task",
                 func=self.update_task,
+                coroutine=self.update_task,
                 description="Atualiza uma tarefa existente. Use esta ferramenta quando o usuário quiser modificar uma tarefa existente."
             ),
             Tool(
                 name="delete_task",
                 func=self.delete_task,
+                coroutine=self.delete_task,
                 description="Remove uma tarefa pelo ID. Use esta ferramenta quando o usuário quiser excluir uma tarefa."
             )
         ]
@@ -73,11 +78,17 @@ class TaskAgent(BaseAgent):
             tools=self.tools,
             verbose=True
         )
+
+    async def send_websocket_message(self, message: str, client_id: str, type: str):
+    # Envia uma mensagem para o cliente, via websocket
+        await send_ws_message(message, client_id, type, "text")
     
-    def get_tasks(self, query: str = "") -> str:
+    async def get_tasks(self, query: str = "") -> str:
         """Obtém a lista de todas as tarefas."""
+        # 'function_call_start' | 'function_call_error' | 'function_call_end'
         try:
             start_time = time.time()
+            await self.send_websocket_message("Obtendo tarefas...", self.client_id, "function_call_start")
             logger.info(f"TaskAgent: Fazendo requisição GET para /lambda/tasks")
             
             response = requests.get("https://api.itenorio.com/lambda/tasks")
@@ -85,7 +96,8 @@ class TaskAgent(BaseAgent):
             
             # Parse the response and handle different formats
             data = response.json()
-            
+
+            await self.send_websocket_message(f"Tarefas obtidas em {time.time() - start_time:.2f}s", self.client_id, "function_call_info")
             # Check if the response has a specific structure
             if isinstance(data, dict) and 'body' in data:
                 # Handle AWS Lambda response format
@@ -98,6 +110,7 @@ class TaskAgent(BaseAgent):
                         else:
                             tasks = body_data
                     except json.JSONDecodeError:
+                        await self.send_websocket_message(f"Erro ao decodificar resposta da API", self.client_id, "function_call_error")
                         tasks = []
                 elif isinstance(data['body'], dict) and 'Items' in data['body']:
                     # Direct access to Items in body
@@ -109,17 +122,21 @@ class TaskAgent(BaseAgent):
                 tasks = data
             else:
                 # Unknown format, log and return empty
+                await self.send_websocket_message(f"Formato de resposta desconhecido: {data}", self.client_id, "function_call_error")
                 logger.warning(f"TaskAgent: Formato de resposta desconhecido: {data}")
                 tasks = []
+            
             
             elapsed_time = time.time() - start_time
             
             if not tasks:
+                await self.send_websocket_message(f"Nenhuma tarefa encontrada em {elapsed_time:.2f}s", self.client_id, "function_call_end")
                 logger.info(f"TaskAgent: Nenhuma tarefa encontrada em {elapsed_time:.2f}s")
                 return "Nenhuma tarefa encontrada."
             
             # Formatar a resposta
             formatted_tasks = []
+            await self.send_websocket_message(f"Encontradas ({len(tasks)}) tarefas", self.client_id, "function_call_info")
             for task in tasks:
                 # Handle different task formats
                 if isinstance(task, dict):
@@ -131,6 +148,7 @@ class TaskAgent(BaseAgent):
                     status = task.get('status', task.get('Status', 'N/A'))
                     created_at = task.get('created_at', task.get('Data de Criação', 'N/A'))
                 else:
+                    await self.send_websocket_message(f"Formato de tarefa inesperado: {task.keys()}", self.client_id, "function_call_error")
                     # Fallback for unexpected format
                     logger.warning(f"TaskAgent: Formato de tarefa inesperado: {task}")
                     continue
@@ -147,19 +165,23 @@ class TaskAgent(BaseAgent):
                 formatted_tasks.append(formatted_task)
             
             if not formatted_tasks:
+                await self.send_websocket_message(f"Nenhuma tarefa encontrada ou formato de tarefa não reconhecido.", self.client_id, "function_call_error")
                 return "Nenhuma tarefa encontrada ou formato de tarefa não reconhecido."
                 
             result = "\n".join(formatted_tasks)
+            await self.send_websocket_message(f"Tarefas obtidas em {elapsed_time:.2f}s", self.client_id, "function_call_end")
             logger.info(f"TaskAgent: Tarefas obtidas em {elapsed_time:.2f}s: {result}")
             return result
             
         except requests.exceptions.RequestException as e:
+            await self.send_websocket_message(f"TaskAgent: Erro ao obter tarefas após {elapsed_time:.2f}s: {str(e)}", self.client_id, "function_call_error")
             elapsed_time = time.time() - start_time
             error_msg = f"Erro ao obter tarefas após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"TaskAgent: {error_msg}")
             logger.error(f"TaskAgent: Traceback: {traceback.format_exc()}")
             return error_msg
         except Exception as e:
+            await self.send_websocket_message(f"TaskAgent: Erro ao obter tarefas após {elapsed_time:.2f}s: {str(e)}", self.client_id, "function_call_error")
             elapsed_time = time.time() - start_time
             error_msg = f"Erro ao obter tarefas após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"TaskAgent: {error_msg}")
@@ -238,15 +260,17 @@ class TaskAgent(BaseAgent):
             logger.error(f"TaskAgent: Traceback: {traceback.format_exc()}")
             return error_msg
     
-    def create_task(self, input_str: str) -> str:
+    async def create_task(self, input_str: str) -> str:
         """Cria uma nova tarefa."""
         try:
             start_time = time.time()
+            await self.send_websocket_message("Criando nova tarefa...", self.client_id, "function_call_start")
             logger.info(f"TaskAgent: Criando nova tarefa com input: {input_str}")
             
             # Parse input string
             parts = input_str.split('|')
             if len(parts) != 4:
+                await self.send_websocket_message("Formato inválido.", self.client_id, "function_call_error")
                 return "Formato inválido. Use: 'description|priority|category|status'"
             
             description, priority, category, status = parts
@@ -272,6 +296,8 @@ class TaskAgent(BaseAgent):
             # Parse the response and handle different formats
             data = response.json()
             
+            await self.send_websocket_message("Tarefa criada com sucesso!", self.client_id, "function_call_start")
+            
             # Check if the response has a specific structure
             if isinstance(data, dict) and 'body' in data:
                 # Handle AWS Lambda response format
@@ -280,6 +306,7 @@ class TaskAgent(BaseAgent):
                     try:
                         result = json.loads(data['body'])
                     except json.JSONDecodeError:
+                        await self.send_websocket_message("Erro ao decodificar resposta da API", self.client_id, "function_call_error")
                         result = {}
                 else:
                     result = data['body']
@@ -321,6 +348,7 @@ class TaskAgent(BaseAgent):
                 success_msg += f"Resposta: {result}"
             
             logger.info(f"TaskAgent: Tarefa criada em {elapsed_time:.2f}s: {success_msg}")
+            await self.send_websocket_message(f"Tarefa criada em {elapsed_time:.2f}s: {result['Descrição']}", self.client_id, "function_call_end")
             return success_msg
             
         except requests.exceptions.RequestException as e:
@@ -328,23 +356,27 @@ class TaskAgent(BaseAgent):
             error_msg = f"Erro ao criar tarefa após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"TaskAgent: {error_msg}")
             logger.error(f"TaskAgent: Traceback: {traceback.format_exc()}")
+            await self.send_websocket_message(f"Erro ao criar tarefa após {elapsed_time:.2f}s: {str(e)}", self.client_id, "function_call_error")
             return error_msg
         except Exception as e:
             elapsed_time = time.time() - start_time
             error_msg = f"Erro ao criar tarefa após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"TaskAgent: {error_msg}")
             logger.error(f"TaskAgent: Traceback: {traceback.format_exc()}")
+            await self.send_websocket_message(f"Erro ao criar tarefa após {elapsed_time:.2f}s: {str(e)}", self.client_id, "function_call_error")
             return error_msg
     
-    def update_task(self, input_str: str) -> str:
+    async def update_task(self, input_str: str) -> str:
         """Atualiza uma tarefa existente."""
         try:
             start_time = time.time()
             logger.info(f"TaskAgent: Atualizando tarefa com input: {input_str}")
+            await self.send_websocket_message("Atualizando tarefa...", self.client_id, "function_call_start")
             
             # Parse input string
             parts = input_str.split('|')
             if len(parts) < 2:
+                await self.send_websocket_message("Formato inválido.", self.client_id, "function_call_error")
                 return "Formato inválido. Use: 'task_id|campo1=valor1|campo2=valor2|...'"
             
             task_id = parts[0]
@@ -358,6 +390,7 @@ class TaskAgent(BaseAgent):
                 updates[field.strip()] = value.strip()
             
             if not updates:
+                await self.send_websocket_message("Nenhum campo para atualizar foi fornecido.", self.client_id, "function_call_error")
                 return "Nenhum campo para atualizar foi fornecido."
             
             # Make request
@@ -369,6 +402,8 @@ class TaskAgent(BaseAgent):
             
             # Parse the response and handle different formats
             data = response.json()
+            
+            await self.send_websocket_message("Tarefa atualizada com sucesso!", self.client_id, "function_call_start")
             
             # Check if the response has a specific structure
             if isinstance(data, dict) and 'body' in data:
@@ -419,6 +454,7 @@ class TaskAgent(BaseAgent):
                 success_msg += f"Resposta: {result}"
             
             logger.info(f"TaskAgent: Tarefa atualizada em {elapsed_time:.2f}s: {success_msg}")
+            await self.send_websocket_message(f"Tarefa atualizada em {elapsed_time:.2f}s: {result['Descrição']}", self.client_id, "function_call_end")
             return success_msg
             
         except requests.exceptions.RequestException as e:
@@ -434,8 +470,9 @@ class TaskAgent(BaseAgent):
             logger.error(f"TaskAgent: Traceback: {traceback.format_exc()}")
             return error_msg
     
-    def delete_task(self, task_id: str) -> str:
+    async def delete_task(self, task_id: str) -> str:
         """Remove uma tarefa."""
+        await self.send_websocket_message("Removendo tarefa...", self.client_id, "function_call_start")
         try:
             start_time = time.time()
             logger.info(f"TaskAgent: Removendo tarefa com ID: {task_id}")
@@ -448,6 +485,7 @@ class TaskAgent(BaseAgent):
             success_msg = f"Tarefa {task_id} removida com sucesso!"
             
             logger.info(f"TaskAgent: Tarefa removida em {elapsed_time:.2f}s: {success_msg}")
+            await self.send_websocket_message(f"Tarefa removida em {elapsed_time:.2f}s: {success_msg}", self.client_id, "function_call_end")
             return success_msg
             
         except requests.exceptions.RequestException as e:
@@ -455,15 +493,17 @@ class TaskAgent(BaseAgent):
             error_msg = f"Erro ao remover tarefa após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"TaskAgent: {error_msg}")
             logger.error(f"TaskAgent: Traceback: {traceback.format_exc()}")
+            await self.send_websocket_message(f"Erro ao remover tarefa após {elapsed_time:.2f}s: {str(e)}", self.client_id, "function_call_error")
             return error_msg
         except Exception as e:
             elapsed_time = time.time() - start_time
             error_msg = f"Erro ao remover tarefa após {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"TaskAgent: {error_msg}")
             logger.error(f"TaskAgent: Traceback: {traceback.format_exc()}")
+            await self.send_websocket_message(f"Erro ao remover tarefa após {elapsed_time:.2f}s: {str(e)}", self.client_id, "function_call_error")
             return error_msg
     
-    def _load_tasks_into_history(self) -> str:
+    async def _load_tasks_into_history(self) -> str:
         """
         Carrega todas as tarefas no histórico de chat.
         
@@ -474,7 +514,7 @@ class TaskAgent(BaseAgent):
             logger.info("TaskAgent: Carregando todas as tarefas no histórico")
             
             # Buscar todas as tarefas
-            tasks = self.get_tasks("")
+            tasks = await self.get_tasks("")
             if tasks == "Nenhuma tarefa encontrada.":
                 logger.info("TaskAgent: Nenhuma tarefa encontrada para carregar no histórico")
                 return None
@@ -491,7 +531,7 @@ class TaskAgent(BaseAgent):
             logger.error(f"TaskAgent: Traceback: {traceback.format_exc()}")
             return None
 
-    def process_message(self, message: str, response_format: str = "markdown", websocket=None, chat_history=None) -> str:
+    async def process_message(self, message: str, response_format: str = "markdown", websocket=None, chat_history=None) -> str:
         """Processa uma mensagem de forma síncrona."""
         try:
             start_time = time.time()
@@ -526,13 +566,13 @@ class TaskAgent(BaseAgent):
             # Se não carregamos as tarefas ainda, carregar agora
             if not tasks_loaded:
                 logger.info("TaskAgent: Carregando tarefas no histórico")
-                tasks_message = self._load_tasks_into_history()
+                tasks_message = await self._load_tasks_into_history()
                 if tasks_message:
                     logger.info(f"TaskAgent: Tarefas carregadas no histórico: {tasks_message}")
                     langchain_history.append(AIMessage(content=tasks_message))
             
             # Processar a mensagem usando o executor do agente
-            response = self.agent_executor.invoke({
+            response = await self.agent_executor.ainvoke({
                 "input": message,
                 "chat_history": langchain_history
             })

@@ -33,6 +33,11 @@ export interface Message {
   text: string;
   isUser: boolean;
   timestamp?: string;
+  functionExecution?: {
+    type: 'function_call_start' | 'function_call_error' | 'function_call_end';
+    content: string;
+    format: string;
+  };
 }
 
 export interface Routine {

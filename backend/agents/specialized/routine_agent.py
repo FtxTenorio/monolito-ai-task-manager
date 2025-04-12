@@ -16,6 +16,8 @@ from langchain_openai import ChatOpenAI
 from ..base_agent import BaseAgent
 from config.settings import get_settings
 from utils.logger import get_logger
+from utils.websocket_utils import send_websocket_message as send_ws_message
+from functools import partial
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -26,9 +28,9 @@ settings = get_settings()
 class RoutineAPIClient:
     """Cliente para interagir com a API de rotinas."""
     
-    def __init__(self):
+    def __init__(self, client_id: int):
         self.base_url = "https://api.itenorio.com/lambda/routines"
-    
+        self.client_id = client_id
     def _make_request(self, operation: str, method: str, url: str, **kwargs) -> tuple[bool, str, dict]:
         """
         Faz uma requisição para a API.
@@ -114,7 +116,7 @@ class RoutineAPIClient:
 class RoutineAgent(BaseAgent):
     """Agente especializado em gerenciar rotinas."""
     
-    def __init__(self):
+    def __init__(self, client_id: int = None):
         """Inicializa o agente de rotinas."""
         logger.info("RoutineAgent: Inicializando agente de rotinas")
         start_time = time.time()
@@ -133,10 +135,10 @@ class RoutineAgent(BaseAgent):
         Para ocultar os campos opcionais é só não enviar o campo, não é necessário enviar o campo com valor None.
         """
         
-        super().__init__(system_prompt)
+        super().__init__(system_prompt, client_id=client_id)
         
         # Inicializar o cliente da API
-        self.api_client = RoutineAPIClient()
+        self.api_client = RoutineAPIClient(client_id)
         
         # Definir campos obrigatórios e seus tipos
         self.required_fields = {
@@ -158,33 +160,44 @@ class RoutineAgent(BaseAgent):
             'tags': [],
             'estimated_duration': 0
         }
+
         
         # Definir as ferramentas específicas para rotinas
         self.tools = [
             Tool(
                 name="get_routines",
                 func=self.get_routines,
-                description="Lista todas as rotinas disponíveis. Use esta ferramenta quando o usuário quiser ver todas as rotinas."
+                coroutine=self.get_routines,
+                description="Lista todas as rotinas disponíveis. Use esta ferramenta quando o usuário quiser ver todas as rotinas.",
+                return_direct=True
             ),
             Tool(
                 name="get_routine",
                 func=self.get_routine,
-                description="Obtém detalhes de uma rotina específica pelo ID. Use esta ferramenta quando o usuário quiser ver detalhes de uma rotina específica."
+                coroutine=self.get_routine,
+                description="Obtém detalhes de uma rotina específica pelo ID. Use esta ferramenta quando o usuário quiser ver detalhes de uma rotina específica.",
+                return_direct=True
             ),
             Tool(
                 name="create_routine",
                 func=self.create_routine,
-                description="Cria uma nova rotina. Use esta ferramenta quando o usuário quiser criar uma nova rotina."
+                coroutine=self.create_routine,
+                description="Cria uma nova rotina. Use esta ferramenta quando o usuário quiser criar uma nova rotina.",
+                return_direct=True
             ),
             Tool(
                 name="update_routine",
                 func=self.update_routine,
-                description="Atualiza uma rotina existente. Use esta ferramenta quando o usuário quiser modificar uma rotina existente."
+                coroutine=self.update_routine,
+                description="Atualiza uma rotina existente. Use esta ferramenta quando o usuário quiser modificar uma rotina existente.",
+                return_direct=True
             ),
             Tool(
                 name="delete_routine",
                 func=self.delete_routine,
-                description="Remove uma rotina pelo ID. Use esta ferramenta quando o usuário quiser excluir uma rotina."
+                coroutine=self.delete_routine,
+                description="Remove uma rotina pelo ID. Use esta ferramenta quando o usuário quiser excluir uma rotina.",
+                return_direct=True
             )
         ]
         
@@ -214,7 +227,11 @@ class RoutineAgent(BaseAgent):
         
         elapsed_time = time.time() - start_time
         logger.info(f"RoutineAgent: Inicialização concluída em {elapsed_time:.2f}s")
-        
+    
+    async def send_websocket_message(self, message: str, client_id: str, type: str):
+        # Envia uma mensagem para o cliente, via websocket
+        await send_ws_message(message, client_id, type, "text")
+
     def _validate_routine_data(self, data: dict, is_update: bool = False) -> str:
         """
         Validates routine data.
@@ -300,11 +317,11 @@ class RoutineAgent(BaseAgent):
             logger.error(f"RoutineAgent: Erro ao validar dados: {str(e)}")
             return f"Erro ao validar dados: {str(e)}"
 
-    def process_message(self, message: str, response_format: str = "markdown", websocket=None, chat_history=None) -> str:
+    async def process_message(self, message: str, response_format: str = "markdown", websocket=None, chat_history=None) -> str:
         """Processa uma mensagem de forma síncrona."""
         try:
             start_time = time.time()
-            logger.info(f"RoutineAgent: Processing message: {message}")
+            logger.info(f"RoutineAgent: Processing message: {message}, client_id: {self.client_id}")
             
             # Converter o histórico de chat para o formato do LangChain
             langchain_history = []
@@ -340,7 +357,7 @@ class RoutineAgent(BaseAgent):
                     langchain_history.append(AIMessage(content=routines_message))
             
             # Processar a mensagem usando o executor do agente
-            response = self.agent_executor.invoke({
+            response = await self.agent_executor.ainvoke({
                 "input": message,
                 "chat_history": langchain_history
             })
@@ -422,13 +439,15 @@ class RoutineAgent(BaseAgent):
             logger.error(f"RoutineAgent: Traceback: {traceback.format_exc()}")
             return None
 
-    def get_routines(self, _=None) -> str:
+    async def get_routines(self, _=None) -> str:
         """Lista todas as rotinas."""
         try:
             start_time = time.time()
             logger.info("RoutineAgent: Listing all routines")
+            await self.send_websocket_message("Iniciando listagem de rotinas...", self.client_id, "function_call_start")
             
             success, error_msg, result = self.api_client.get_routines()
+            await self.send_websocket_message("Consultando API para obter rotinas...", self.client_id, "function_call_info")
             
             # Log detalhado da resposta da API
             logger.info(f"RoutineAgent: API list response - Success: {success}, Error: {error_msg}, Result: {json.dumps(result, indent=2)}")
@@ -439,6 +458,7 @@ class RoutineAgent(BaseAgent):
                 if "message" in result and "Error" in result["message"]:
                     error_msg = result["message"]
                     logger.error(f"RoutineAgent: API returned error: {error_msg}")
+                    await self.send_websocket_message(f"Erro ao obter rotinas: {error_msg}", self.client_id, "function_call_error")
                     return error_msg
                 
                 # Verificar se há erro no corpo da resposta
@@ -448,12 +468,16 @@ class RoutineAgent(BaseAgent):
                         if "message" in body_data and "Error" in body_data["message"]:
                             error_msg = body_data["message"]
                             logger.error(f"RoutineAgent: API returned error in body: {error_msg}")
+                            await self.send_websocket_message(f"Erro ao processar resposta: {error_msg}", self.client_id, "function_call_error")
                             return error_msg
                     except json.JSONDecodeError:
                         pass
             
             if not success:
+                await self.send_websocket_message(f"Falha ao obter rotinas: {error_msg}", self.client_id, "function_call_error")
                 return error_msg
+            
+            await self.send_websocket_message("Processando dados das rotinas...", self.client_id, "function_call_info")
             
             # Obter os dados das rotinas
             routines_data = None
@@ -464,7 +488,10 @@ class RoutineAgent(BaseAgent):
                     routines_data = result["body"]["data"]
             
             if not routines_data:
+                await self.send_websocket_message("Nenhuma rotina encontrada", self.client_id, "function_call_end")
                 return "No routines found."
+            
+            await self.send_websocket_message("Formatando lista de rotinas...", self.client_id, "function_call_info")
             
             # Formatar a resposta
             response = "Here are all your routines:\n\n"
@@ -479,6 +506,7 @@ class RoutineAgent(BaseAgent):
             
             elapsed_time = time.time() - start_time
             logger.info(f"RoutineAgent: Routines listed in {elapsed_time:.2f}s")
+            await self.send_websocket_message("Lista de rotinas obtida com sucesso!", self.client_id, "function_call_end")
             return response
             
         except Exception as e:
@@ -486,8 +514,8 @@ class RoutineAgent(BaseAgent):
             error_msg = f"Error listing routines after {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"RoutineAgent: {error_msg}")
             logger.error(f"RoutineAgent: Traceback: {traceback.format_exc()}")
+            await self.send_websocket_message(f"Erro ao listar rotinas: {str(e)}", self.client_id, "function_call_error")
             return error_msg
-    
     def get_routine(self, routine_id: str = "", _=None) -> str:
         """Obtém uma rotina específica pelo ID."""
         try:
@@ -556,26 +584,39 @@ class RoutineAgent(BaseAgent):
             logger.error(f"RoutineAgent: Traceback: {traceback.format_exc()}")
             return error_msg
     
-    def create_routine(self, input_str: str = "", _=None) -> str:
+    async def create_routine(self, input_str: str = "", _=None) -> str:
         """Cria uma nova rotina."""
+        func_name = "Create Routine"
         try:
             start_time = time.time()
             logger.info(f"RoutineAgent: Creating routine with input: {input_str}")
             
+            if self.client_id:
+                await self.send_websocket_message(f"A função {func_name} foi iniciada.", self.client_id, "function_call_start")
+            
             # Verificar se input_str está vazio
             if not input_str:
                 logger.warning("RoutineAgent: Attempt to create routine without data")
+                if self.client_id:
+                    await self.send_websocket_message("Dados da rotina não fornecidos", self.client_id, "function_call_error")
                 return "Please provide the routine data you want to create."
             
             # Parse input string
             parts = input_str.split('|')
             if len(parts) < 1:
+                if self.client_id:
+                    await self.send_websocket_message("Formato inválido dos dados", self.client_id, "function_call_error")
                 return "Invalid format. At least the name field is required."
             
             # Extrair o nome (campo obrigatório)
             name = parts[0].strip()
             if not name:
+                if self.client_id:
+                    await self.send_websocket_message("Nome da rotina não fornecido", self.client_id, "function_call_error")
                 return "The name field is required and cannot be empty."
+            
+            if self.client_id:
+                await self.send_websocket_message("Processando dados da rotina...", self.client_id, "function_call_info")
             
             # Inicializar dados com valores padrão
             data = {
@@ -606,6 +647,8 @@ class RoutineAgent(BaseAgent):
                 try:
                     data["estimated_duration"] = int(parts[7].strip())
                 except ValueError:
+                    if self.client_id:
+                        await self.send_websocket_message("Duração inválida fornecida", self.client_id, "function_call_error")
                     return "Duration must be an integer"
             if len(parts) > 8 and parts[8].strip():
                 data["start_date"] = parts[8].strip()
@@ -615,7 +658,12 @@ class RoutineAgent(BaseAgent):
             # Validate data
             validation_result = self._validate_routine_data(data)
             if validation_result != "OK":
+                if self.client_id:
+                    await self.send_websocket_message(f"Erro de validação: {validation_result}", self.client_id, "function_call_error")
                 return validation_result
+            
+            if self.client_id:
+                await self.send_websocket_message("Enviando dados para API...", self.client_id, "function_call_info")
             
             # Log dos dados que serão enviados
             logger.info(f"RoutineAgent: Sending data to API: {json.dumps(data, ensure_ascii=False)}")
@@ -635,6 +683,8 @@ class RoutineAgent(BaseAgent):
                 if "message" in result and "Error" in result["message"]:
                     error_msg = result["message"]
                     logger.error(f"RoutineAgent: API returned error: {error_msg}")
+                    if self.client_id:
+                        await self.send_websocket_message(f"Erro da API: {error_msg}", self.client_id, "function_call_error")
                     return error_msg
                 
                 # Verificar se há erro no corpo da resposta
@@ -644,11 +694,15 @@ class RoutineAgent(BaseAgent):
                         if "message" in body_data and "Error" in body_data["message"]:
                             error_msg = body_data["message"]
                             logger.error(f"RoutineAgent: API returned error in body: {error_msg}")
+                            if self.client_id:
+                                await self.send_websocket_message(f"Erro da API: {error_msg}", self.client_id, "function_call_error")
                             return error_msg
                     except json.JSONDecodeError:
                         pass
             
             if not success:
+                if self.client_id:
+                    await self.send_websocket_message(f"Erro ao criar rotina: {error_msg}", self.client_id, "function_call_error")
                 return error_msg
             
             # Verificar se o resultado contém um ID
@@ -666,6 +720,9 @@ class RoutineAgent(BaseAgent):
                 success_msg = "Routine created successfully, but no ID was returned."
             
             logger.info(f"RoutineAgent: Routine created in {elapsed_time:.2f}s: {success_msg}")
+            
+            if self.client_id:
+                await self.send_websocket_message(success_msg, self.client_id, "function_call_end")
             return success_msg
             
         except Exception as e:
@@ -673,35 +730,55 @@ class RoutineAgent(BaseAgent):
             error_msg = f"Error creating routine after {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"RoutineAgent: {error_msg}")
             logger.error(f"RoutineAgent: Traceback: {traceback.format_exc()}")
+            if self.client_id:
+                await self.send_websocket_message(error_msg, self.client_id, "function_call_error")
             return error_msg
-    
-    def update_routine(self, input_str: str = "", _=None) -> str:
+        
+    async def update_routine(self, input_str: str = "", _=None) -> str:
         """Atualiza uma rotina existente."""
+        func_name = "Update Routine"
         try:
             start_time = time.time()
             logger.info(f"RoutineAgent: Updating routine with input: {input_str}")
             
+            if self.client_id:
+                await self.send_websocket_message(f"A função {func_name} foi iniciada.", self.client_id, "function_call_start")
+            
             # Verificar se input_str está vazio
             if not input_str:
                 logger.warning("RoutineAgent: Attempt to update routine without data")
+                if self.client_id:
+                    await self.send_websocket_message("Dados da rotina não fornecidos", self.client_id, "function_call_error")
                 return "Please provide the routine data you want to update."
             
             # Parse input string
             parts = input_str.split('|')
             if len(parts) < 2:
+                if self.client_id:
+                    await self.send_websocket_message("Formato inválido dos dados", self.client_id, "function_call_error")
                 return "Invalid format. Use: 'routine_id|field1=value1|field2=value2|...'"
             
             routine_id = parts[0]
             
+            if self.client_id:
+                await self.send_websocket_message("Buscando dados da rotina existente...", self.client_id, "function_call_info")
+            
             # Primeiro, buscar a rotina existente
             success, error_msg, existing_data = self.api_client.get_routine(routine_id)
             if not success:
+                if self.client_id:
+                    await self.send_websocket_message(f"Erro ao buscar rotina: {error_msg}", self.client_id, "function_call_error")
                 return f"Error fetching existing routine: {error_msg}"
             
             # Obter os dados existentes da rotina
             existing_routine = existing_data.get('data', {})
             if not existing_routine:
+                if self.client_id:
+                    await self.send_websocket_message("Rotina não encontrada", self.client_id, "function_call_error")
                 return f"Routine with ID {routine_id} not found."
+            
+            if self.client_id:
+                await self.send_websocket_message("Processando atualizações...", self.client_id, "function_call_info")
             
             # Log dos dados existentes
             logger.info(f"RoutineAgent: Existing routine data: {json.dumps(existing_routine, indent=2)}")
@@ -754,6 +831,8 @@ class RoutineAgent(BaseAgent):
                     try:
                         updates[field] = int(value) if value else 0
                     except (ValueError, TypeError):
+                        if self.client_id:
+                            await self.send_websocket_message(f"Valor inválido para duração: {value}", self.client_id, "function_call_error")
                         logger.warning(f"RoutineAgent: Invalid value for estimated_duration: {value}")
                         return f"Invalid value for estimated_duration: {value}. Must be an integer."
                 elif field == 'status' and not value:
@@ -768,6 +847,8 @@ class RoutineAgent(BaseAgent):
                     updates[field] = value
             
             if not updates:
+                if self.client_id:
+                    await self.send_websocket_message("Nenhum campo para atualizar", self.client_id, "function_call_error")
                 return "No fields to update were provided."
             
             # Log das atualizações
@@ -790,6 +871,8 @@ class RoutineAgent(BaseAgent):
                 try:
                     merged_data['estimated_duration'] = int(merged_data['estimated_duration'])
                 except (ValueError, TypeError):
+                    if self.client_id:
+                        await self.send_websocket_message(f"Valor inválido para duração: {merged_data['estimated_duration']}", self.client_id, "function_call_error")
                     logger.warning(f"RoutineAgent: Invalid value for estimated_duration: {merged_data['estimated_duration']}")
                     return f"Invalid value for estimated_duration: {merged_data['estimated_duration']}. Must be an integer."
             
@@ -799,8 +882,13 @@ class RoutineAgent(BaseAgent):
             # Validar os dados mesclados
             validation_result = self._validate_routine_data(merged_data, is_update=True)
             if validation_result != "OK":
+                if self.client_id:
+                    await self.send_websocket_message(f"Erro de validação: {validation_result}", self.client_id, "function_call_error")
                 logger.warning(f"RoutineAgent: Validation failed: {validation_result}")
                 return validation_result
+            
+            if self.client_id:
+                await self.send_websocket_message("Enviando dados para API...", self.client_id, "function_call_info")
             
             # Fazer a requisição de atualização com os dados mesclados
             success, error_msg, result = self.api_client.update_routine(routine_id, merged_data)
@@ -814,6 +902,8 @@ class RoutineAgent(BaseAgent):
                 if "message" in result and "Error" in result["message"]:
                     error_msg = result["message"]
                     logger.error(f"RoutineAgent: API returned error: {error_msg}")
+                    if self.client_id:
+                        await self.send_websocket_message(f"Erro da API: {error_msg}", self.client_id, "function_call_error")
                     return error_msg
                 
                 # Verificar se há erro no corpo da resposta
@@ -823,11 +913,15 @@ class RoutineAgent(BaseAgent):
                         if "message" in body_data and "Error" in body_data["message"]:
                             error_msg = body_data["message"]
                             logger.error(f"RoutineAgent: API returned error in body: {error_msg}")
+                            if self.client_id:
+                                await self.send_websocket_message(f"Erro da API: {error_msg}", self.client_id, "function_call_error")
                             return error_msg
                     except json.JSONDecodeError:
                         pass
             
             if not success:
+                if self.client_id:
+                    await self.send_websocket_message(f"Erro ao atualizar rotina: {error_msg}", self.client_id, "function_call_error")
                 return error_msg
             
             # Verificar se o resultado contém um ID
@@ -845,6 +939,9 @@ class RoutineAgent(BaseAgent):
                 success_msg = "Routine updated successfully, but no ID was returned."
             
             logger.info(f"RoutineAgent: Routine updated in {elapsed_time:.2f}s: {success_msg}")
+            
+            if self.client_id:
+                await self.send_websocket_message(success_msg, self.client_id, "function_call_end")
             return success_msg
             
         except Exception as e:
@@ -852,16 +949,20 @@ class RoutineAgent(BaseAgent):
             error_msg = f"Error updating routine after {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"RoutineAgent: {error_msg}")
             logger.error(f"RoutineAgent: Traceback: {traceback.format_exc()}")
+            if self.client_id:
+                await self.send_websocket_message("Erro ao atualizar rotina", self.client_id, "function_call_error")
             return error_msg
     
-    def delete_routine(self, routine_id: str = "", _=None) -> str:
+    async def delete_routine(self, routine_id: str = "", _=None) -> str:
         """Deleta uma rotina existente."""
         try:
+            await self.send_websocket_message("Deletando rotina...", self.client_id, "function_call_start")
             start_time = time.time()
             
             # Verificar se routine_id está vazio
             if not routine_id:
                 logger.warning("RoutineAgent: Attempt to delete routine without ID")
+                await self.send_websocket_message("ID da rotina não fornecido", self.client_id, "function_call_error")
                 return "Please provide the ID of the routine you want to delete."
                 
             logger.info(f"RoutineAgent: Deleting routine {routine_id}")
@@ -877,6 +978,7 @@ class RoutineAgent(BaseAgent):
                 if "message" in result and "Error" in result["message"]:
                     error_msg = result["message"]
                     logger.error(f"RoutineAgent: API returned error: {error_msg}")
+                    await self.send_websocket_message(f"Erro da API: {error_msg}", self.client_id, "function_call_error")
                     return error_msg
                 
                 # Verificar se há erro no corpo da resposta
@@ -886,17 +988,20 @@ class RoutineAgent(BaseAgent):
                         if "message" in body_data and "Error" in body_data["message"]:
                             error_msg = body_data["message"]
                             logger.error(f"RoutineAgent: API returned error in body: {error_msg}")
+                            await self.send_websocket_message(f"Erro da API: {error_msg}", self.client_id, "function_call_error")
                             return error_msg
                     except json.JSONDecodeError:
                         pass
             
             if not success:
+                await self.send_websocket_message(f"Erro ao deletar rotina: {error_msg}", self.client_id, "function_call_error")
                 return error_msg
             
             elapsed_time = time.time() - start_time
             success_msg = f"Routine {routine_id} deleted successfully!"
             
             logger.info(f"RoutineAgent: Routine deleted in {elapsed_time:.2f}s")
+            await self.send_websocket_message(success_msg, self.client_id, "function_call_end")
             return success_msg
             
         except Exception as e:
@@ -904,4 +1009,5 @@ class RoutineAgent(BaseAgent):
             error_msg = f"Error deleting routine after {elapsed_time:.2f}s: {str(e)}"
             logger.error(f"RoutineAgent: {error_msg}")
             logger.error(f"RoutineAgent: Traceback: {traceback.format_exc()}")
+            await self.send_websocket_message("Erro ao deletar rotina", self.client_id, "function_call_error")
             return error_msg 

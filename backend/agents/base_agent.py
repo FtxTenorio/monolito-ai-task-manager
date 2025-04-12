@@ -6,7 +6,7 @@ from config.settings import get_settings
 settings = get_settings()
 
 class BaseAgent:
-    def __init__(self, system_prompt="Você é um assistente útil e amigável. Responda de forma clara e concisa."):
+    def __init__(self, system_prompt="Você é um assistente útil e amigável. Responda de forma clara e concisa.", client_id: int = None):
         # Inicializar o modelo de linguagem
         self.llm = ChatOpenAI(
             temperature=0.7,
@@ -18,6 +18,8 @@ class BaseAgent:
         self.conversation_history = [
             SystemMessage(content=system_prompt)
         ]
+
+        self.client_id = client_id
     
     def process_message(self, message):
         """

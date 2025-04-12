@@ -10,6 +10,8 @@ import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import CloseIcon from '@mui/icons-material/Close';
 import MinimizeIcon from '@mui/icons-material/Minimize';
 import MaximizeIcon from '@mui/icons-material/Maximize';
+import FunctionExecutionStatus from './FunctionExecutionStatus';
+import FunctionExecutions from './FunctionExecutions';
 
 const ChatContainer = styled(Paper, {
   shouldForwardProp: (prop) => prop !== 'isMinimized' && prop !== 'isMaximized'
@@ -88,12 +90,12 @@ const MessageBubble = styled(Paper, {
   padding: theme.spacing(1.5),
   maxWidth: '80%',
   alignSelf: isUser ? 'flex-end' : 'flex-start',
-  backgroundColor: isUser 
+  backgroundColor: isUser
     ? theme.palette.primary.dark
-    : theme.palette.mode === 'dark' 
-      ? theme.palette.grey[800] 
+    : theme.palette.mode === 'dark'
+      ? theme.palette.grey[800]
       : theme.palette.grey[100],
-  color: theme.palette.mode === 'dark' 
+  color: theme.palette.mode === 'dark'
     ? '#ffffff'  // Texto branco no modo escuro
     : '#000000', // Texto preto no modo claro
   '& .maximized &': {
@@ -177,6 +179,12 @@ interface FloatingChatProps {
   isConnected: boolean;
   onReconnect: () => void;
   recognizedText?: string;
+  functionExecutions?: {
+    type: 'function_call_start' | 'function_call_error' | 'function_call_end' | 'function_call_info';
+    content: string;
+    format: string;
+  }[];
+  onClearFunctionExecutions?: () => void;
 }
 
 const FloatingChat: React.FC<FloatingChatProps> = ({
@@ -194,6 +202,8 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
   isConnected,
   onReconnect,
   recognizedText,
+  functionExecutions = [],
+  onClearFunctionExecutions,
 }) => {
   const [isMaximized, setIsMaximized] = useState(false);
   const [message, setMessage] = useState('');
@@ -219,6 +229,7 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
     if (message.trim()) {
       onSendMessage(message);
       setMessage('');
+      onClearFunctionExecutions?.();
     }
   };
 
@@ -234,16 +245,16 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
   };
 
   return (
-    <ChatContainer 
+    <ChatContainer
       isMinimized={isMinimized}
       isMaximized={isMaximized}
       className={`${isMinimized ? 'minimized' : ''} ${isMaximized ? 'maximized' : ''}`}
     >
       <ChatHeader>
         <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>Chat</Typography>
-        <Box sx={{ 
-          display: 'flex', 
-          alignItems: 'center', 
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
           gap: 0.5,
           '& > button': {
             transition: 'all 0.2s ease',
@@ -251,7 +262,7 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
         }}>
           <Tooltip title={isMaximized ? "Restaurar" : "Maximizar"}>
             <HeaderIconButton
-              size="small" 
+              size="small"
               onClick={handleMaximizeToggle}
             >
               {isMaximized ? <CloseFullscreen /> : <OpenInFull />}
@@ -259,7 +270,7 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
           </Tooltip>
           <Tooltip title={isMinimized ? "Restaurar" : "Fechar"}>
             <HeaderIconButton
-              size="small" 
+              size="small"
               onClick={isMinimized ? onMaximize : onMinimize}
             >
               {isMinimized ? <Maximize /> : <Close />}
@@ -272,43 +283,53 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
         <>
           <ChatMessages>
             {messages.map((msg, index) => (
-              <MessageBubble key={index} isUser={msg.isUser}>
+              <Box key={index}>
                 {msg.isUser ? (
-                  <Typography variant="body2">{msg.text}</Typography>
+                  <MessageBubble isUser={msg.isUser}>
+                    <Typography variant="body2">{msg.text}</Typography>
+                  </MessageBubble>
                 ) : (
-                  <MessageContent>
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      components={{
-                        code({ className, children, ...props }: any) {
-                          const match = /language-(\w+)/.exec(className || '');
-                          const isInline = !match;
-                          return !isInline && match ? (
-                            <CodeBlock>
-                              <div className="language-label">{match[1]}</div>
-                              <SyntaxHighlighter
-                                language={match[1]}
-                                style={vscDarkPlus as any}
-                                PreTag="div"
-                                {...props}
-                              >
-                                {String(children).replace(/\n$/, '')}
-                              </SyntaxHighlighter>
-                            </CodeBlock>
-                          ) : (
-                            <code className={className} {...props}>
-                              {children}
-                            </code>
-                          );
-                        },
-                      }}
-                    >
-                      {msg.text}
-                    </ReactMarkdown>
-                  </MessageContent>
+                  <>
+                    {functionExecutions.length > 0 && (
+                      <FunctionExecutions executions={functionExecutions} />
+                    )}
+                    <MessageBubble isUser={msg.isUser}>
+                      <MessageContent>
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            code({ className, children, ...props }: any) {
+                              const match = /language-(\w+)/.exec(className || '');
+                              const isInline = !match;
+                              return !isInline && match ? (
+                                <CodeBlock>
+                                  <div className="language-label">{match[1]}</div>
+                                  <SyntaxHighlighter
+                                    language={match[1]}
+                                    style={vscDarkPlus as any}
+                                    PreTag="div"
+                                    {...props}
+                                  >
+                                    {String(children).replace(/\n$/, '')}
+                                  </SyntaxHighlighter>
+                                </CodeBlock>
+                              ) : (
+                                <code className={className} {...props}>
+                                  {children}
+                                </code>
+                              );
+                            },
+                          }}
+                        >
+                          {msg.text}
+                        </ReactMarkdown>
+                      </MessageContent>
+                    </MessageBubble>
+                  </>
                 )}
-              </MessageBubble>
+              </Box>
             ))}
+
             {isTyping && (
               <Box sx={{ alignSelf: 'flex-start' }}>
                 <Typography variant="body2" color="text.secondary">
@@ -367,8 +388,9 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
             </form>
           </ChatInput>
         </>
-      )}
-    </ChatContainer>
+      )
+      }
+    </ChatContainer >
   );
 };
 

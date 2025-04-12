@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 
 # Inicializar o agente de tarefas
-task_agent = TaskAgent()
+task_agent = TaskAgent(client_id=0)  # Using 0 as a default client_id for the API endpoints
 
 @router.get("/")
 async def get_tasks():

@@ -10,13 +10,14 @@ import logging
 import traceback
 import time
 from datetime import datetime
-
+from .tools import get_available_tools
+import asyncio
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class OrchestratorAgent(BaseAgent):
-    def __init__(self):
+    def __init__(self, client_id: int):
         # Obter data atual
         today = datetime.now()
         date_str = today.strftime("%d/%m/%Y")
@@ -39,25 +40,29 @@ class OrchestratorAgent(BaseAgent):
         Você tem acesso a ferramentas para rotear mensagens para diferentes agentes especializados.
         Sempre forneça respostas claras e organizadas."""
         
-        super().__init__(system_prompt)
+        super().__init__(system_prompt, client_id=client_id)
         
         # Inicializar agentes especializados
-        logger.info("OrchestratorAgent: Inicializando agentes especializados")
-        self.task_agent = TaskAgent()
-        self.routine_agent = RoutineAgent()
-        
+        logger.info(f"OrchestratorAgent: Inicializando agentes especializados, client_id: {client_id}")
+        self.task_agent = TaskAgent(client_id=client_id)
+        self.routine_agent = RoutineAgent(client_id=client_id)
+        orchestrator_agent_tools = get_available_tools(client_id)
+
         # Definir as ferramentas de roteamento
         logger.info("OrchestratorAgent: Configurando ferramentas de roteamento")
         self.tools = [
+            *orchestrator_agent_tools,
             Tool(
                 name="route_to_task_agent",
                 func=self.route_to_task_agent,
-                description="Roteia uma mensagem para o agente de tarefas. Use esta ferramenta quando a mensagem estiver relacionada a tarefas, como criar, listar, atualizar ou remover tarefas."
+                coroutine=self.route_to_task_agent,
+                description="Roteia uma mensagem para o agente de tarefas. Use esta ferramenta quando a mensagem estiver relacionada a tarefas, como criar, listar, atualizar ou remover tarefas.",
             ),
             Tool(
                 name="route_to_routine_agent",
                 func=self.route_to_routine_agent,
-                description="Roteia uma mensagem para o agente de rotinas. Use esta ferramenta quando a mensagem estiver relacionada a rotinas, como criar, listar, atualizar ou remover rotinas."
+                coroutine=self.route_to_routine_agent,
+                description="Roteia uma mensagem para o agente de rotinas. Use esta ferramenta quando a mensagem estiver relacionada a rotinas, como criar, listar, atualizar ou remover rotinas.",
             )
         ]
         
@@ -86,8 +91,8 @@ class OrchestratorAgent(BaseAgent):
             verbose=True
         )
     
-    def route_to_task_agent(self, message: str) -> str:
-        """Roteia uma mensagem para o agente de tarefas de forma síncrona."""
+    async def route_to_task_agent(self, message: str) -> str:
+        """Roteia uma mensagem para o agente de tarefas de forma assíncrona."""
         try:
             start_time = time.time()
             logger.info(f"OrchestratorAgent: Iniciando route_to_task_agent com mensagem: {message}")
@@ -95,9 +100,9 @@ class OrchestratorAgent(BaseAgent):
             # Filtrar mensagens do sistema do histórico de conversa
             filtered_history = [msg for msg in self.conversation_history if not isinstance(msg, SystemMessage)]
             
-            # Chamar diretamente o método síncrono do TaskAgent
+            # Chamar o método assíncrono do TaskAgent
             logger.info("OrchestratorAgent: Chamando process_message do TaskAgent")
-            response = self.task_agent.process_message(message, chat_history=filtered_history)
+            response = await self.task_agent.process_message(message, chat_history=filtered_history)
             
             elapsed_time = time.time() - start_time
             logger.info(f"OrchestratorAgent: Resposta recebida do agente de tarefas em {elapsed_time:.2f}s: {response}")
@@ -110,7 +115,7 @@ class OrchestratorAgent(BaseAgent):
             logger.error(f"OrchestratorAgent: Traceback: {traceback.format_exc()}")
             return error_msg
     
-    def route_to_routine_agent(self, message: str) -> str:
+    async def route_to_routine_agent(self, message: str) -> str:
         """Roteia uma mensagem para o agente de rotinas de forma síncrona."""
         try:
             start_time = time.time()
@@ -119,9 +124,9 @@ class OrchestratorAgent(BaseAgent):
             # Filtrar mensagens do sistema do histórico de conversa
             filtered_history = [msg for msg in self.conversation_history if not isinstance(msg, SystemMessage)]
             
-            # Chamar diretamente o método síncrono do RoutineAgent
+            # Chamar diretamente o método assíncrono do RoutineAgent
             logger.info("OrchestratorAgent: Chamando process_message do RoutineAgent")
-            response = self.routine_agent.process_message(message, chat_history=filtered_history)
+            response = await self.routine_agent.process_message(message, chat_history=filtered_history)
             
             elapsed_time = time.time() - start_time
             logger.info(f"OrchestratorAgent: Resposta recebida do agente de rotinas em {elapsed_time:.2f}s: {response}")
@@ -134,7 +139,7 @@ class OrchestratorAgent(BaseAgent):
             logger.error(f"OrchestratorAgent: Traceback: {traceback.format_exc()}")
             return error_msg
     
-    def process_message(self, message: str, response_format: str = "markdown", websocket=None):
+    async def process_message(self, message: str, response_format: str = "markdown", websocket=None):
         """Processa uma mensagem de forma síncrona."""
         try:
             start_time = time.time()
@@ -144,7 +149,7 @@ class OrchestratorAgent(BaseAgent):
             
             # Obter resposta do agente
             logger.info("OrchestratorAgent: Invocando agent_executor")
-            response = self.agent_executor.invoke({
+            response = await self.agent_executor.ainvoke({
                 "input": message,
                 "chat_history": self.conversation_history[:-1]
             })
