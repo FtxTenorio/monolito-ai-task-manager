@@ -447,7 +447,7 @@ class RoutineAgent(BaseAgent):
             await self.send_websocket_message("Iniciando listagem de rotinas...", self.client_id, "function_call_start")
             
             success, error_msg, result = self.api_client.get_routines()
-            await self.send_websocket_message("Consultando API para obter rotinas...", self.client_id, "function_call_start")
+            await self.send_websocket_message("Consultando API para obter rotinas...", self.client_id, "function_call_info")
             
             # Log detalhado da resposta da API
             logger.info(f"RoutineAgent: API list response - Success: {success}, Error: {error_msg}, Result: {json.dumps(result, indent=2)}")
@@ -477,7 +477,7 @@ class RoutineAgent(BaseAgent):
                 await self.send_websocket_message(f"Falha ao obter rotinas: {error_msg}", self.client_id, "function_call_error")
                 return error_msg
             
-            await self.send_websocket_message("Processando dados das rotinas...", self.client_id, "function_call_start")
+            await self.send_websocket_message("Processando dados das rotinas...", self.client_id, "function_call_info")
             
             # Obter os dados das rotinas
             routines_data = None
@@ -491,7 +491,7 @@ class RoutineAgent(BaseAgent):
                 await self.send_websocket_message("Nenhuma rotina encontrada", self.client_id, "function_call_end")
                 return "No routines found."
             
-            await self.send_websocket_message("Formatando lista de rotinas...", self.client_id, "function_call_start")
+            await self.send_websocket_message("Formatando lista de rotinas...", self.client_id, "function_call_info")
             
             # Formatar a resposta
             response = "Here are all your routines:\n\n"
@@ -616,7 +616,7 @@ class RoutineAgent(BaseAgent):
                 return "The name field is required and cannot be empty."
             
             if self.client_id:
-                await self.send_websocket_message("Processando dados da rotina...", self.client_id, "function_call_start")
+                await self.send_websocket_message("Processando dados da rotina...", self.client_id, "function_call_info")
             
             # Inicializar dados com valores padrão
             data = {
@@ -663,7 +663,7 @@ class RoutineAgent(BaseAgent):
                 return validation_result
             
             if self.client_id:
-                await self.send_websocket_message("Enviando dados para API...", self.client_id, "function_call_start")
+                await self.send_websocket_message("Enviando dados para API...", self.client_id, "function_call_info")
             
             # Log dos dados que serão enviados
             logger.info(f"RoutineAgent: Sending data to API: {json.dumps(data, ensure_ascii=False)}")
@@ -761,7 +761,7 @@ class RoutineAgent(BaseAgent):
             routine_id = parts[0]
             
             if self.client_id:
-                await self.send_websocket_message("Buscando dados da rotina existente...", self.client_id, "function_call_start")
+                await self.send_websocket_message("Buscando dados da rotina existente...", self.client_id, "function_call_info")
             
             # Primeiro, buscar a rotina existente
             success, error_msg, existing_data = self.api_client.get_routine(routine_id)
@@ -778,7 +778,7 @@ class RoutineAgent(BaseAgent):
                 return f"Routine with ID {routine_id} not found."
             
             if self.client_id:
-                await self.send_websocket_message("Processando atualizações...", self.client_id, "function_call_start")
+                await self.send_websocket_message("Processando atualizações...", self.client_id, "function_call_info")
             
             # Log dos dados existentes
             logger.info(f"RoutineAgent: Existing routine data: {json.dumps(existing_routine, indent=2)}")
@@ -888,7 +888,7 @@ class RoutineAgent(BaseAgent):
                 return validation_result
             
             if self.client_id:
-                await self.send_websocket_message("Enviando dados para API...", self.client_id, "function_call_start")
+                await self.send_websocket_message("Enviando dados para API...", self.client_id, "function_call_info")
             
             # Fazer a requisição de atualização com os dados mesclados
             success, error_msg, result = self.api_client.update_routine(routine_id, merged_data)

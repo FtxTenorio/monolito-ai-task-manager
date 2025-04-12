@@ -51,7 +51,7 @@ async def safe_web_search(query: str, client_id: int = None) -> str:
             "utf8": 1
         }
         
-        await send_websocket_message("Realizando busca na Wikipedia...", client_id, "function_call_start")
+        await send_websocket_message("Realizando busca na Wikipedia...", client_id, "function_call_info")
         search_response = requests.get(search_url, params=search_params)
         search_data = search_response.json()
         
@@ -60,7 +60,7 @@ async def safe_web_search(query: str, client_id: int = None) -> str:
             first_result = search_data["query"]["search"][0]
             page_title = first_result["title"]
             
-            await send_websocket_message(f"Obtendo conteúdo da página: {page_title}", client_id, "function_call_start")
+            await send_websocket_message(f"Obtendo conteúdo da página: {page_title}", client_id, "function_call_info")
             
             # Agora, obtemos o conteúdo da página
             content_params = {
@@ -147,7 +147,7 @@ async def format_response(text: str, format_type: str = "markdown", client_id: i
     """
     await send_websocket_message("Formatando resposta...", client_id, "function_call_start")
     if format_type == "text":
-        await send_websocket_message("Removendo formatação markdown...", client_id, "function_call_start")
+        await send_websocket_message("Removendo formatação markdown...", client_id, "function_call_info")
         # Remove formatação markdown
         text = re.sub(r'#+\s+', '', text)  # Remove headers
         text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)  # Remove bold
@@ -159,7 +159,7 @@ async def format_response(text: str, format_type: str = "markdown", client_id: i
         return text.strip()
     
     elif format_type == "html":
-        await send_websocket_message("Convertendo markdown para HTML...", client_id, "function_call_start")
+        await send_websocket_message("Convertendo markdown para HTML...", client_id, "function_call_info")
         # Converte markdown para HTML
         html = markdown.markdown(text, extensions=['fenced_code', 'tables'])
         # Adiciona classes CSS para estilização
