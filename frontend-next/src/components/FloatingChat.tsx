@@ -12,6 +12,7 @@ import MinimizeIcon from '@mui/icons-material/Minimize';
 import MaximizeIcon from '@mui/icons-material/Maximize';
 import FunctionExecutionStatus from './FunctionExecutionStatus';
 import FunctionExecutions from './FunctionExecutions';
+import { FunctionExecutionType } from './MainLayout';
 
 const ChatContainer = styled(Paper, {
   shouldForwardProp: (prop) => prop !== 'isMinimized' && prop !== 'isMaximized'
@@ -180,7 +181,7 @@ interface FloatingChatProps {
   onReconnect: () => void;
   recognizedText?: string;
   functionExecutions?: {
-    type: 'function_call_start' | 'function_call_error' | 'function_call_end' | 'function_call_info';
+    type: FunctionExecutionType;
     content: string;
     format: string;
   }[];
@@ -283,16 +284,18 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
         <>
           <ChatMessages>
             {messages.map((msg, index) => (
+              
               <Box key={index}>
+                <>
+                {index === messages.length -1 && !msg.isUser && (
+                <FunctionExecutions executions={functionExecutions} />
+              )}
                 {msg.isUser ? (
                   <MessageBubble isUser={msg.isUser}>
                     <Typography variant="body2">{msg.text}</Typography>
                   </MessageBubble>
                 ) : (
                   <>
-                    {functionExecutions.length > 0 && (
-                      <FunctionExecutions executions={functionExecutions} />
-                    )}
                     <MessageBubble isUser={msg.isUser}>
                       <MessageContent>
                         <ReactMarkdown
@@ -327,6 +330,7 @@ const FloatingChat: React.FC<FloatingChatProps> = ({
                     </MessageBubble>
                   </>
                 )}
+                </>
               </Box>
             ))}
 

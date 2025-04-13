@@ -1,9 +1,9 @@
 import React from 'react';
 import { Box } from '@mui/material';
 import FunctionExecutionStatus from './FunctionExecutionStatus';
-
+import { FunctionExecutionType } from './MainLayout';
 interface FunctionExecution {
-  type: 'function_call_start' | 'function_call_error' | 'function_call_end' | 'function_call_info';
+  type: FunctionExecutionType;
   content: string;
   format: string;
 }

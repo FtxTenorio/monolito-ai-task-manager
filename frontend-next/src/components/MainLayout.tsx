@@ -24,6 +24,14 @@ import { ThemeToggle } from './ThemeToggle';
 import spotifyService from '@/services/spotifyService';
 import { Message } from '@/types';
 
+type FunctionExecutionType = 
+  | 'function_call_start' 
+  | 'function_call_error' 
+  | 'function_call_end' 
+  | 'function_call_info' 
+  | 'agent_response_end';
+
+
 // Declaração de tipos para a API de reconhecimento de voz
 declare global {
   interface Window {
@@ -171,7 +179,7 @@ interface MainLayoutProps {
   isListening: boolean;
   onToggleListening: () => void;
   functionExecutions?: {
-    type: 'function_call_start' | 'function_call_error' | 'function_call_end';
+    type: FunctionExecutionType;
     content: string;
     format: string;
   }[];
@@ -575,3 +583,5 @@ const MainLayout: React.FC<MainLayoutProps> = ({
 };
 
 export default MainLayout; 
+
+export type { FunctionExecutionType };
