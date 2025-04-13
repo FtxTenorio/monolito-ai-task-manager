@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import MainLayout from '@/components/MainLayout';
 import { Message } from '@/types';
-
+import { FunctionExecutionType } from '../components/MainLayout';
 
 export default function Home() {
   // State declarations with explicit types
@@ -20,7 +20,7 @@ export default function Home() {
   const [language, setLanguage] = useState<string>('pt-BR');
   const [activeTools, setActiveTools] = useState<string[]>([]);
   const [functionExecutions, setFunctionExecutions] = useState<{
-    type: 'function_call_start' | 'function_call_error' | 'function_call_end' | 'function_call_info';
+    type: FunctionExecutionType;
     content: string;
     format: string;
   }[]>([]);
@@ -109,20 +109,19 @@ export default function Home() {
   };
 
   const addFunctionExecution = (execution: {
-    type: 'function_call_start' | 'function_call_error' | 'function_call_end' | 'function_call_info';
+    type: FunctionExecutionType;
     content: string;
     format: string;
   }): void => {
     console.log("Adicionando execução de função:", execution);
     setFunctionExecutions(prev => {
-      // // Verifica se já existe um start e um end no array
-      // const hasStart = prev.some((exec, index) => exec.type === 'function_call_start' && index == 0);
-      // const hasEnd = prev.some((exec, index) => exec.type === 'function_call_end' && index == prev.length - 1);
+      // Verifica se já existe um start e um end no array
+      const lastExecutionFinished = prev.some((exec, index) => exec.type === 'agent_response_end');
       
-      // if (hasStart && hasEnd) {
-      //   // Se já tem start e end, esvazia o array
-      //   return [];
-      // }
+      if (lastExecutionFinished) {
+        // Se já tem start e end, esvazia o array
+        return [];
+      }
       
       // Caso contrário adiciona a nova execução
       return [...prev, execution];
@@ -182,7 +181,8 @@ export default function Home() {
             data.type === 'function_call_start' || 
             data.type === 'function_call_error' || 
             data.type === 'function_call_end' ||
-            data.type === 'function_call_info'
+            data.type === 'function_call_info' ||
+            data.type === 'agent_response_end'
           ) {
             console.log("Execução de função detectada:", data);
             addFunctionExecution({

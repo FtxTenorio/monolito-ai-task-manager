@@ -5,6 +5,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import InfoIcon from '@mui/icons-material/Info';
+import { FunctionExecutionType } from './MainLayout';
 const StatusContainer = styled(Box)(({ theme }) => ({
   display: 'flex',
   alignItems: 'center',
@@ -27,7 +28,7 @@ const StatusIcon = styled(Box)(({ theme }) => ({
 }));
 
 interface FunctionExecutionStatusProps {
-  type: 'function_call_start' | 'function_call_error' | 'function_call_end' | 'function_call_info';
+  type: FunctionExecutionType;
   content: string;
 }
 
@@ -39,9 +40,11 @@ const FunctionExecutionStatus: React.FC<FunctionExecutionStatusProps> = ({ type,
       case 'function_call_error':
         return 'error';
       case 'function_call_end':
-        return 'success';
+        return 'info';
       case 'function_call_info':
         return 'info';
+      case 'agent_response_end':
+        return 'success';
       default:
         return 'default';
     }
@@ -58,7 +61,7 @@ const FunctionExecutionStatus: React.FC<FunctionExecutionStatusProps> = ({ type,
       case 'function_call_info':
         return <InfoIcon fontSize="small" />;
       default:
-        return null;
+        return <PlayArrowIcon fontSize="small" />;
     }
   };
 
@@ -72,13 +75,15 @@ const FunctionExecutionStatus: React.FC<FunctionExecutionStatusProps> = ({ type,
         return 'Concluído';
       case 'function_call_info':
         return 'Processando';
+      case 'agent_response_end':
+        return 'Finalizado';
       default:
         return '';
     }
   };
 
   return (
-    <StatusContainer>
+    <StatusContainer sx={{ backgroundColor: getStatusText() === 'Finalizado' ? 'rgba(0, 128, 0, 0.1)' : 'transparent' }}>
       <StatusIcon>
         {getStatusIcon()}
       </StatusIcon>

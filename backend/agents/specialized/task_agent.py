@@ -296,7 +296,7 @@ class TaskAgent(BaseAgent):
             # Parse the response and handle different formats
             data = response.json()
             
-            await self.send_websocket_message("Tarefa criada com sucesso!", self.client_id, "function_call_start")
+            await self.send_websocket_message("Tarefa criada com sucesso!", self.client_id, "function_call_info")
             
             # Check if the response has a specific structure
             if isinstance(data, dict) and 'body' in data:
@@ -403,7 +403,7 @@ class TaskAgent(BaseAgent):
             # Parse the response and handle different formats
             data = response.json()
             
-            await self.send_websocket_message("Tarefa atualizada com sucesso!", self.client_id, "function_call_start")
+            await self.send_websocket_message("Tarefa atualizada com sucesso!", self.client_id, "function_call_info")
             
             # Check if the response has a specific structure
             if isinstance(data, dict) and 'body' in data:

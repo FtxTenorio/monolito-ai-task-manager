@@ -11,7 +11,8 @@ import traceback
 import time
 from datetime import datetime
 from .tools import get_available_tools
-import asyncio
+from utils.websocket_utils import send_websocket_message as send_ws_message
+
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -90,6 +91,10 @@ class OrchestratorAgent(BaseAgent):
             tools=self.tools,
             verbose=True
         )
+
+    async def send_websocket_message(self, message: str, client_id: str, type: str):
+        # Envia uma mensagem para o cliente, via websocket
+        await send_ws_message(message, client_id, type, "text")
     
     async def route_to_task_agent(self, message: str) -> str:
         """Roteia uma mensagem para o agente de tarefas de forma assíncrona."""
@@ -160,6 +165,7 @@ class OrchestratorAgent(BaseAgent):
             
             # Adicionar a resposta ao histórico
             self.conversation_history.append(AIMessage(content=response_text))
+            await self.send_websocket_message("Finalizando processamento da mensagem", self.client_id, "agent_response_end")
             
             return response_text
             
